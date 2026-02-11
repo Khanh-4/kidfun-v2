@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  phoneNumber  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  profiles      Profile[]
+  devices       Device[]
+  notifications Notification[]
+}
+
+model Profile {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  profileName String
+  dateOfBirth DateTime?
+  avatarUrl   String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeLimits   TimeLimit[]
+  blockedSites BlockedWebsite[]
+  usageLogs    UsageLog[]
+  warnings     Warning[]
+}
+
+model Device {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  deviceName String
+  deviceCode String    @unique
+  osVersion  String?
+  isOnline   Boolean   @default(false)
+  lastSeen   DateTime?
+  createdAt  DateTime  @default(now())
+  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+  sessions     Session[]
+}
+
+model TimeLimit {
+  id                Int       @id @default(autoincrement())
+  profileId         Int
+  dayOfWeek         Int
+  dailyLimitMinutes Int       @default(120)
+  isGradual         Boolean   @default(false)
+  gradualTarget     Int?
+  gradualWeeks      Int?
+  gradualStartDate  DateTime?
+  
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  @@unique([profileId, dayOfWeek])
+}
+
+model BlockedWebsite {
+  id         Int      @id @default(autoincrement())
+  profileId  Int
+  blockType  String
+  blockValue String
+  createdAt  DateTime @default(now())
+  
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Application {
+  id               Int      @id @default(autoincrement())
+  deviceId         Int
+  appName          String
+  exePath          String?
+  category         String   @default("Other")
+  isBlocked        Boolean  @default(false)
+  timeLimitMinutes Int?
+  createdAt        DateTime @default(now())
+  
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model UsageLog {
+  id              Int       @id @default(autoincrement())
+  profileId       Int
+  deviceId        Int?
+  appName         String
+  websiteUrl      String?
+  startTime       DateTime
+  endTime         DateTime?
+  durationSeconds Int?
+  activityType    String
+  
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Warning {
+  id           Int       @id @default(autoincrement())
+  profileId    Int
+  deviceId     Int?
+  warningType  String
+  message      String
+  userResponse String?
+  warnedAt     DateTime  @default(now())
+  respondedAt  DateTime?
+  
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String?
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id           Int       @id @default(autoincrement())
+  profileId    Int?
+  deviceId     Int
+  startTime    DateTime
+  endTime      DateTime?
+  totalMinutes Int?
+  status       String    @default("ACTIVE")
+  
+  device Device @relation(fields: [deviceId], references: [id])
+}

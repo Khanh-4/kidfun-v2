@@ -1,0 +1,40 @@
+{
+  "name": "kidfun-v2",
+  "version": "2.0.0",
+  "description": "Smart Parental Control System with Soft Warning Technology",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend/parent-dashboard",
+    "frontend/child-monitor"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend/parent-dashboard && npm install && cd ../child-monitor && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:parent\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:parent": "cd frontend/parent-dashboard && npm run dev",
+    "dev:child": "cd frontend/child-monitor && npm run dev",
+    "build": "npm run build:backend && npm run build:parent && npm run build:child",
+    "build:backend": "cd backend && npm run build",
+    "build:parent": "cd frontend/parent-dashboard && npm run build",
+    "build:child": "cd frontend/child-monitor && npm run build",
+    "db:setup": "cd backend && npx prisma migrate dev --name init && npx prisma generate",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:seed": "cd backend && npx prisma db seed",
+    "db:studio": "cd backend && npx prisma studio",
+    "db:reset": "cd backend && npx prisma migrate reset",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend/parent-dashboard && npm test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "keywords": ["parental-control", "family", "screen-time", "electron", "react", "nodejs"],
+  "author": "Nhom 60 - HUTECH",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0"
+  }
+}
+
