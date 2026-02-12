@@ -21,4 +21,7 @@ router.put('/:id', profileController.updateProfile);
 // DELETE /api/profiles/:id - Xóa profile
 router.delete('/:id', profileController.deleteProfile);
 
+// PUT /api/profiles/:id/time-limits - Cập nhật giới hạn thời gian
+router.put('/:id/time-limits', profileController.updateTimeLimits);
+
 module.exports = router;

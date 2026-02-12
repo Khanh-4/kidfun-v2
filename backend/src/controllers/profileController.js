@@ -135,10 +135,59 @@ const deleteProfile = async (req, res) => {
   }
 };
 
+// PUT /api/profiles/:id/time-limits
+const updateTimeLimits = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.id);
+    const { timeLimits } = req.body;
+
+    // Verify profile belongs to user
+    const profile = await prisma.profile.findFirst({
+      where: { id: profileId, userId: req.user.userId }
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Upsert each day's time limit
+    const updates = timeLimits.map((tl) =>
+      prisma.timeLimit.upsert({
+        where: {
+          profileId_dayOfWeek: {
+            profileId,
+            dayOfWeek: tl.dayOfWeek
+          }
+        },
+        update: { dailyLimitMinutes: tl.dailyLimitMinutes },
+        create: {
+          profileId,
+          dayOfWeek: tl.dayOfWeek,
+          dailyLimitMinutes: tl.dailyLimitMinutes
+        }
+      })
+    );
+
+    await prisma.$transaction(updates);
+
+    // Return updated time limits
+    const updated = await prisma.timeLimit.findMany({
+      where: { profileId },
+      orderBy: { dayOfWeek: 'asc' }
+    });
+
+    res.json({ message: 'Time limits updated successfully', timeLimits: updated });
+  } catch (error) {
+    console.error('Update time limits error:', error);
+    res.status(500).json({ error: 'Failed to update time limits' });
+  }
+};
+
 module.exports = {
   getAllProfiles,
   createProfile,
   getProfileById,
   updateProfile,
-  deleteProfile
+  deleteProfile,
+  updateTimeLimits
 };

@@ -25,6 +25,8 @@ import {
   Logout as LogoutIcon,
   Person as PersonIcon,
   Notifications as NotificationsIcon,
+  Timer as TimerIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import authService from '../../services/authService';
@@ -33,6 +35,8 @@ const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Hồ sơ con', icon: <PeopleIcon />, path: '/profiles' },
   { text: 'Thiết bị', icon: <DevicesIcon />, path: '/devices' },
+  { text: 'Giới hạn thời gian', icon: <TimerIcon />, path: '/time-settings' },
+  { text: 'Chặn nội dung', icon: <BlockIcon />, path: '/blocked-sites' },
   { text: 'Thông báo', icon: <NotificationsIcon />, path: '/notifications' },
   { text: 'Báo cáo', icon: <AssessmentIcon />, path: '/reports' },
 ];

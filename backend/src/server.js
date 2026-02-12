@@ -29,12 +29,14 @@ const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
 const deviceRoutes = require('./routes/devices');
 const monitoringRoutes = require('./routes/monitoring');
+const blockedSiteRoutes = require('./routes/blockedSites');
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/blocked-sites', blockedSiteRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
