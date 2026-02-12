@@ -14,6 +14,10 @@ import {
   DialogActions,
   TextField,
   Alert,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -22,8 +26,12 @@ import {
   Tablet as TabletIcon,
   Wifi as WifiIcon,
   WifiOff as WifiOffIcon,
+  MoreVert as MoreVertIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
+import socketService from '../services/socketService';
+import authService from '../services/authService';
 
 function Devices() {
   const [devices, setDevices] = useState([]);
@@ -32,6 +40,15 @@ function Devices() {
   const [formData, setFormData] = useState({ deviceName: '', osVersion: '' });
   const [error, setError] = useState('');
   const [newDevice, setNewDevice] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+
+  const user = authService.getCurrentUser();
+
+  // Kết nối socket khi component mount
+  useEffect(() => {
+    socketService.connect(user?.id);
+  }, [user?.id]);
 
   useEffect(() => {
     loadDevices();
@@ -75,6 +92,32 @@ function Devices() {
     }
   };
 
+  const handleMenuOpen = (event, device) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedDevice(device);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedDevice(null);
+  };
+
+  const handleDeleteDevice = async () => {
+    if (!selectedDevice) return;
+
+    try {
+      await api.delete(`/devices/${selectedDevice.id}`);
+      
+      // Thông báo đến Child qua Socket.IO
+      socketService.removeDevice(user?.id, selectedDevice.id, selectedDevice.deviceCode);
+      
+      handleMenuClose();
+      loadDevices();
+    } catch (error) {
+      console.error('Error deleting device:', error);
+    }
+  };
+
   const getDeviceIcon = (name) => {
     const lowerName = name.toLowerCase();
     if (lowerName.includes('phone') || lowerName.includes('iphone') || lowerName.includes('android')) {
@@ -115,6 +158,9 @@ function Devices() {
                         {device.osVersion || 'Không xác định'}
                       </Typography>
                     </Box>
+                    <IconButton onClick={(e) => handleMenuOpen(e, device)}>
+                      <MoreVertIcon />
+                    </IconButton>
                   </Box>
 
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
@@ -155,6 +201,16 @@ function Devices() {
           </CardContent>
         </Card>
       )}
+
+      {/* Context Menu */}
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleDeleteDevice} sx={{ color: 'error.main' }}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          Xóa thiết bị
+        </MenuItem>
+      </Menu>
 
       {/* Add Device Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>

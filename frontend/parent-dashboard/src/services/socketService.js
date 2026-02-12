@@ -55,6 +55,18 @@ class SocketService {
       });
     }
   }
+
+  // Parent xóa thiết bị - thông báo đến Child
+  removeDevice(userId, deviceId, deviceCode) {
+    if (this.socket) {
+      this.socket.emit('removeDevice', {
+        userId,
+        deviceId,
+        deviceCode,
+      });
+    }
+  }
+
 }
 
 export default new SocketService();

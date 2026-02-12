@@ -29,6 +29,16 @@ const socketService = {
         });
       });
 
+      // Parent xóa thiết bị
+      socket.on('removeDevice', (data) => {
+        console.log('🗑️ Device removed:', data);
+        // Thông báo đến tất cả client trong gia đình
+        io.to(`family_${data.userId}`).emit('deviceRemoved', {
+          deviceId: data.deviceId,
+          deviceCode: data.deviceCode,
+        });
+      });
+
       // Parent phản hồi yêu cầu
       socket.on('respondTimeExtension', (data) => {
         console.log('✅ Time extension response:', data);
