@@ -3,6 +3,10 @@ const router = express.Router();
 const deviceController = require('../controllers/deviceController');
 const { authenticate } = require('../middleware/auth');
 
+// POST /api/devices/link - Liên kết thiết bị (KHÔNG cần đăng nhập)
+router.post('/link', deviceController.linkDevice);
+
+// Các routes bên dưới CẦN đăng nhập
 router.use(authenticate);
 
 // GET /api/devices - Lấy tất cả thiết bị
@@ -19,8 +23,5 @@ router.put('/:id', deviceController.updateDevice);
 
 // DELETE /api/devices/:id - Xóa thiết bị
 router.delete('/:id', deviceController.deleteDevice);
-
-// POST /api/devices/link - Liên kết thiết bị bằng mã code
-router.post('/link', deviceController.linkDevice);
 
 module.exports = router;
