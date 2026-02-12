@@ -24,6 +24,7 @@ import {
   Assessment as AssessmentIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import authService from '../../services/authService';
@@ -32,6 +33,7 @@ const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Hồ sơ con', icon: <PeopleIcon />, path: '/profiles' },
   { text: 'Thiết bị', icon: <DevicesIcon />, path: '/devices' },
+  { text: 'Thông báo', icon: <NotificationsIcon />, path: '/notifications' },
   { text: 'Báo cáo', icon: <AssessmentIcon />, path: '/reports' },
 ];
 

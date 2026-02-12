@@ -13,6 +13,8 @@ import {
   TextField,
   Avatar,
   Chip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Timer as TimerIcon,
@@ -20,26 +22,53 @@ import {
   MoreTime as MoreTimeIcon,
   EmojiEvents as TrophyIcon,
 } from '@mui/icons-material';
+import socketService from '../services/socketService';
 
 function ChildDashboard({ device }) {
-  const [timeUsed, setTimeUsed] = useState(45); // phút đã dùng
-  const [timeLimit, setTimeLimit] = useState(120); // giới hạn 2 giờ
+  const [timeUsed, setTimeUsed] = useState(45);
+  const [timeLimit, setTimeLimit] = useState(120);
   const [showWarning, setShowWarning] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [requestReason, setRequestReason] = useState('');
   const [requestSent, setRequestSent] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const timeRemaining = timeLimit - timeUsed;
   const progressPercent = (timeUsed / timeLimit) * 100;
 
-  // Cảnh báo khi còn 15 phút
+  useEffect(() => {
+    // Kết nối Socket với userId từ device
+    socketService.connect(device?.userId);
+
+    // Lắng nghe phản hồi từ Parent
+    socketService.onTimeExtensionResponse((data) => {
+      if (data.approved) {
+        setTimeLimit((prev) => prev + data.additionalMinutes);
+        setSnackbar({
+          open: true,
+          message: `🎉 Bố mẹ đã duyệt thêm ${data.additionalMinutes} phút!`,
+          severity: 'success',
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: '😢 Bố mẹ đã từ chối yêu cầu',
+          severity: 'warning',
+        });
+      }
+    });
+
+    return () => {
+      socketService.disconnect();
+    };
+  }, [device?.userId]);
+
   useEffect(() => {
     if (timeRemaining <= 15 && timeRemaining > 0) {
       setShowWarning(true);
     }
   }, [timeRemaining]);
 
-  // Format thời gian
   const formatTime = (minutes) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -49,10 +78,15 @@ function ChildDashboard({ device }) {
     return `${mins} phút`;
   };
 
-  // Gửi yêu cầu thêm thời gian
   const handleRequestTime = () => {
-    // TODO: Gửi request qua Socket.IO
-    console.log('Requesting more time:', requestReason);
+    // Gửi yêu cầu qua Socket.IO
+    socketService.requestTimeExtension(
+      device?.userId,
+      device?.deviceName,
+      requestReason,
+      30
+    );
+    
     setRequestSent(true);
     setTimeout(() => {
       setShowRequestDialog(false);
@@ -61,7 +95,6 @@ function ChildDashboard({ device }) {
     }, 2000);
   };
 
-  // Xác định màu sắc dựa trên thời gian còn lại
   const getStatusColor = () => {
     if (progressPercent >= 90) return 'error';
     if (progressPercent >= 70) return 'warning';
@@ -90,7 +123,6 @@ function ChildDashboard({ device }) {
       {/* Main Time Card */}
       <Card sx={{ maxWidth: 400, mx: 'auto', borderRadius: 4, mb: 3 }}>
         <CardContent sx={{ p: 4, textAlign: 'center' }}>
-          {/* Avatar */}
           <Avatar
             sx={{
               width: 80,
@@ -104,7 +136,6 @@ function ChildDashboard({ device }) {
             <TimerIcon sx={{ fontSize: 40 }} />
           </Avatar>
 
-          {/* Time Remaining */}
           <Typography variant="h3" fontWeight={700} color={`${getStatusColor()}.main`}>
             {formatTime(timeRemaining)}
           </Typography>
@@ -112,7 +143,6 @@ function ChildDashboard({ device }) {
             Thời gian còn lại hôm nay
           </Typography>
 
-          {/* Progress Bar */}
           <Box sx={{ mt: 3, mb: 2 }}>
             <LinearProgress
               variant="determinate"
@@ -130,7 +160,6 @@ function ChildDashboard({ device }) {
             </Box>
           </Box>
 
-          {/* Request More Time Button */}
           <Button
             variant="outlined"
             startIcon={<MoreTimeIcon />}
@@ -182,8 +211,8 @@ function ChildDashboard({ device }) {
       </Dialog>
 
       {/* Request More Time Dialog */}
-      <Dialog 
-        open={showRequestDialog} 
+      <Dialog
+        open={showRequestDialog}
         onClose={() => setShowRequestDialog(false)}
         maxWidth="sm"
         fullWidth
@@ -221,8 +250,8 @@ function ChildDashboard({ device }) {
         {!requestSent && (
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setShowRequestDialog(false)}>Hủy</Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={handleRequestTime}
               disabled={!requestReason.trim()}
             >
@@ -231,6 +260,18 @@ function ChildDashboard({ device }) {
           </DialogActions>
         )}
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

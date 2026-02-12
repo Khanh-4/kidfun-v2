@@ -45,27 +45,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  socket.on('joinFamily', ({ familyId }) => {
-    socket.join(`family_${familyId}`);
-    console.log(`Socket ${socket.id} joined family_${familyId}`);
-  });
-
-  socket.on('requestTimeExtension', ({ profileId, reason, minutes }) => {
-    io.emit('timeExtensionRequest', { profileId, reason, minutes });
-  });
-
-  socket.on('sendMessage', ({ from, to, message }) => {
-    io.emit('familyMessage', { from, to, message, timestamp: new Date() });
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
+// Socket.IO - sử dụng socketService
+const socketService = require('./services/socketService');
+socketService.init(io);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
