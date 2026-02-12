@@ -202,7 +202,7 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }) {
         transformOrigin={{ horizontal: 'left', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
       >
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => { handleMenuClose(); navigate('/account'); }}>
           <ListItemIcon>
             <PersonIcon fontSize="small" />
           </ListItemIcon>

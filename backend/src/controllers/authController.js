@@ -116,9 +116,75 @@ const logout = async (req, res) => {
   res.json({ message: 'Logout successful' });
 };
 
+// PUT /api/auth/profile - Cập nhật thông tin cá nhân
+const updateProfile = async (req, res) => {
+  try {
+    const { fullName, phoneNumber } = req.body;
+    const userId = req.user.userId;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        fullName,
+        phoneNumber,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+      },
+    });
+
+    res.json({
+      message: 'Profile updated successfully',
+      user,
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+// PUT /api/auth/change-password - Đổi mật khẩu
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    // Lấy user hiện tại
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Kiểm tra mật khẩu hiện tại
+    const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValidPassword) {
+      return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    // Hash mật khẩu mới
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Cập nhật mật khẩu
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+};
+
 module.exports = {
   register,
   login,
   refreshToken,
-  logout
+  logout,
+  updateProfile,
+  changePassword,
 };

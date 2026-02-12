@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Profiles from './pages/Profiles';
 import Devices from './pages/Devices';
 import Reports from './pages/Reports';
+import Account from './pages/Account';
 
 // Layout
 import MainLayout from './components/Layout/MainLayout';
@@ -101,6 +102,7 @@ function App() {
             <Route path="profiles" element={<Profiles />} />
             <Route path="devices" element={<Devices />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="account" element={<Account />} />
           </Route>
 
           {/* Redirect unknown routes */}
