@@ -20,4 +20,7 @@ router.post('/warnings', monitoringController.createWarning);
 // GET /api/monitoring/reports/:profileId - Lấy báo cáo chi tiết
 router.get('/reports/:profileId', monitoringController.getReports);
 
+// GET /api/monitoring/activity-history/:profileId - Lịch sử hoạt động
+router.get('/activity-history/:profileId', monitoringController.getActivityHistory);
+
 module.exports = router;

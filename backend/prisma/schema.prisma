@@ -29,8 +29,9 @@ model Profile {
   avatarUrl   String?
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
-  
+
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devices      Device[]
   timeLimits   TimeLimit[]
   blockedSites BlockedWebsite[]
   usageLogs    UsageLog[]
@@ -40,14 +41,16 @@ model Profile {
 model Device {
   id         Int       @id @default(autoincrement())
   userId     Int
+  profileId  Int?
   deviceName String
   deviceCode String    @unique
   osVersion  String?
   isOnline   Boolean   @default(false)
   lastSeen   DateTime?
   createdAt  DateTime  @default(now())
-  
+
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile      Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
   applications Application[]
   sessions     Session[]
 }
@@ -136,7 +139,8 @@ model Session {
   startTime    DateTime
   endTime      DateTime?
   totalMinutes Int?
+  bonusMinutes Int       @default(0)
   status       String    @default("ACTIVE")
-  
+
   device Device @relation(fields: [deviceId], references: [id])
 }

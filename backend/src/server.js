@@ -30,6 +30,7 @@ const profileRoutes = require('./routes/profiles');
 const deviceRoutes = require('./routes/devices');
 const monitoringRoutes = require('./routes/monitoring');
 const blockedSiteRoutes = require('./routes/blockedSites');
+const childRoutes = require('./routes/child');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -37,6 +38,7 @@ app.use('/api/profiles', profileRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/blocked-sites', blockedSiteRoutes);
+app.use('/api/child', childRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

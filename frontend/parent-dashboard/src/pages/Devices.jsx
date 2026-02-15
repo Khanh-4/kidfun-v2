@@ -18,6 +18,7 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Snackbar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -28,6 +29,7 @@ import {
   WifiOff as WifiOffIcon,
   MoreVert as MoreVertIcon,
   Delete as DeleteIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import socketService from '../services/socketService';
@@ -35,13 +37,18 @@ import authService from '../services/authService';
 
 function Devices() {
   const [devices, setDevices] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openProfileDialog, setOpenProfileDialog] = useState(false);
   const [formData, setFormData] = useState({ deviceName: '', osVersion: '' });
+  const [selectedProfileId, setSelectedProfileId] = useState('');
   const [error, setError] = useState('');
   const [newDevice, setNewDevice] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
+  const [deviceForProfile, setDeviceForProfile] = useState(null); // Thêm state riêng cho dialog
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const user = authService.getCurrentUser();
 
@@ -52,6 +59,7 @@ function Devices() {
 
   useEffect(() => {
     loadDevices();
+    loadProfiles();
   }, []);
 
   const loadDevices = async () => {
@@ -62,6 +70,15 @@ function Devices() {
       console.error('Error loading devices:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProfiles = async () => {
+    try {
+      const response = await api.get('/profiles');
+      setProfiles(response.data);
+    } catch (error) {
+      console.error('Error loading profiles:', error);
     }
   };
 
@@ -107,14 +124,78 @@ function Devices() {
 
     try {
       await api.delete(`/devices/${selectedDevice.id}`);
-      
+
       // Thông báo đến Child qua Socket.IO
       socketService.removeDevice(user?.id, selectedDevice.id, selectedDevice.deviceCode);
-      
+
       handleMenuClose();
       loadDevices();
     } catch (error) {
       console.error('Error deleting device:', error);
+    }
+  };
+
+  const handleOpenProfileDialog = () => {
+    // Lưu device vào state riêng trước khi đóng menu
+    setDeviceForProfile(selectedDevice);
+    setSelectedProfileId(selectedDevice?.profileId?.toString() || '');
+    setError('');
+    setOpenProfileDialog(true);
+    setAnchorEl(null);
+    setSelectedDevice(null);
+  };
+
+  const handleCloseProfileDialog = () => {
+    setOpenProfileDialog(false);
+    setDeviceForProfile(null);
+    setSelectedProfileId('');
+    setError('');
+  };
+
+  const handleAssignProfile = async () => {
+    console.log('=== handleAssignProfile called ===');
+    console.log('deviceForProfile:', deviceForProfile);
+    console.log('selectedProfileId:', selectedProfileId);
+
+    if (!deviceForProfile) {
+      console.error('No device selected!');
+      setError('Không có thiết bị nào được chọn');
+      return;
+    }
+
+    try {
+      setError('');
+      const payload = {
+        deviceName: deviceForProfile.deviceName,
+        osVersion: deviceForProfile.osVersion,
+        isOnline: deviceForProfile.isOnline,
+        profileId: selectedProfileId === '' ? null : parseInt(selectedProfileId)
+      };
+
+      console.log('Sending payload:', payload);
+      console.log('Device ID:', deviceForProfile.id);
+
+      const response = await api.put(`/devices/${deviceForProfile.id}`, payload);
+
+      console.log('Response:', response.data);
+
+      handleCloseProfileDialog();
+      setSnackbar({
+        open: true,
+        message: 'Gán hồ sơ thành công!',
+        severity: 'success'
+      });
+      loadDevices();
+    } catch (error) {
+      console.error('Error assigning profile:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.error || 'Không thể gán hồ sơ. Vui lòng thử lại.';
+      setError(errorMsg);
+      setSnackbar({
+        open: true,
+        message: errorMsg,
+        severity: 'error'
+      });
     }
   };
 
@@ -170,6 +251,20 @@ function Devices() {
                       size="small"
                       color={device.isOnline ? 'success' : 'default'}
                     />
+                    {device.profile ? (
+                      <Chip
+                        icon={<PersonIcon />}
+                        label={device.profile.profileName}
+                        size="small"
+                        color="primary"
+                      />
+                    ) : (
+                      <Chip
+                        label="Chưa gán hồ sơ"
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
                   </Box>
 
                   <Box sx={{ bgcolor: 'grey.100', p: 1.5, borderRadius: 1 }}>
@@ -204,6 +299,12 @@ function Devices() {
 
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleOpenProfileDialog}>
+          <ListItemIcon>
+            <PersonIcon fontSize="small" />
+          </ListItemIcon>
+          Gán hồ sơ
+        </MenuItem>
         <MenuItem onClick={handleDeleteDevice} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />
@@ -211,6 +312,44 @@ function Devices() {
           Xóa thiết bị
         </MenuItem>
       </Menu>
+
+      {/* Assign Profile Dialog */}
+      <Dialog open={openProfileDialog} onClose={handleCloseProfileDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Gán hồ sơ cho thiết bị</DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
+              {error}
+            </Alert>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
+            Chọn hồ sơ con để giám sát thiết bị: <strong>{deviceForProfile?.deviceName}</strong>
+          </Typography>
+          <TextField
+            select
+            fullWidth
+            label="Chọn hồ sơ"
+            value={selectedProfileId}
+            onChange={(e) => setSelectedProfileId(e.target.value)}
+            sx={{ mt: 1 }}
+          >
+            <MenuItem value="">
+              <em>Không gán (bỏ chọn)</em>
+            </MenuItem>
+            {profiles.map((profile) => (
+              <MenuItem key={profile.id} value={profile.id.toString()}>
+                {profile.profileName}
+              </MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseProfileDialog}>Hủy</Button>
+          <Button variant="contained" onClick={handleAssignProfile}>
+            Lưu
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Add Device Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
@@ -275,6 +414,22 @@ function Devices() {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar Notification */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -15,6 +15,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Badge,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -27,6 +28,7 @@ import {
   Notifications as NotificationsIcon,
   Timer as TimerIcon,
   Block as BlockIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import authService from '../../services/authService';
@@ -38,10 +40,11 @@ const menuItems = [
   { text: 'Giới hạn thời gian', icon: <TimerIcon />, path: '/time-settings' },
   { text: 'Chặn nội dung', icon: <BlockIcon />, path: '/blocked-sites' },
   { text: 'Thông báo', icon: <NotificationsIcon />, path: '/notifications' },
+  { text: 'Lịch sử hoạt động', icon: <HistoryIcon />, path: '/activity-history' },
   { text: 'Báo cáo', icon: <AssessmentIcon />, path: '/reports' },
 ];
 
-function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }) {
+function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = authService.getCurrentUser();
@@ -104,7 +107,11 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }) {
                 },
               }}
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                {item.path === '/notifications' && unreadCount > 0 ? (
+                  <Badge badgeContent={unreadCount} color="error">{item.icon}</Badge>
+                ) : item.icon}
+              </ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>
           </ListItem>

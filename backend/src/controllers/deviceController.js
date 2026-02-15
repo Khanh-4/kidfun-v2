@@ -13,6 +13,7 @@ const getAllDevices = async (req, res) => {
     const devices = await prisma.device.findMany({
       where: { userId: req.user.userId },
       include: {
+        profile: true,
         applications: true,
         _count: { select: { sessions: true } }
       }
@@ -79,7 +80,7 @@ const getDeviceById = async (req, res) => {
 // PUT /api/devices/:id
 const updateDevice = async (req, res) => {
   try {
-    const { deviceName, osVersion, isOnline } = req.body;
+    const { deviceName, osVersion, isOnline, profileId } = req.body;
 
     const device = await prisma.device.updateMany({
       where: {
@@ -90,6 +91,7 @@ const updateDevice = async (req, res) => {
         deviceName,
         osVersion,
         isOnline,
+        profileId: profileId !== undefined ? (profileId === null ? null : parseInt(profileId)) : undefined,
         lastSeen: isOnline ? new Date() : undefined
       }
     });

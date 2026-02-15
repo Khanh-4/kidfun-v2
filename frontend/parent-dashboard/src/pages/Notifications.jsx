@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -25,32 +26,13 @@ import socketService from '../services/socketService';
 import authService from '../services/authService';
 
 function Notifications() {
-  const [requests, setRequests] = useState([]);
+  const { requests, setRequests } = useOutletContext();
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [responseDialog, setResponseDialog] = useState(false);
   const [additionalMinutes, setAdditionalMinutes] = useState(30);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const user = authService.getCurrentUser();
-
-  useEffect(() => {
-    // Kết nối Socket
-    socketService.connect(user?.id);
-
-    // Lắng nghe yêu cầu từ Child
-    socketService.onTimeExtensionRequest((data) => {
-      setRequests((prev) => [data, ...prev]);
-      setSnackbar({
-        open: true,
-        message: `${data.deviceName} xin thêm thời gian!`,
-        severity: 'info',
-      });
-    });
-
-    return () => {
-      socketService.disconnect();
-    };
-  }, [user?.id]);
 
   const handleApprove = () => {
     socketService.respondTimeExtension(

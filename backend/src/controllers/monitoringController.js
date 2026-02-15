@@ -161,10 +161,89 @@ const getReports = async (req, res) => {
   }
 };
 
+// GET /api/monitoring/activity-history/:profileId
+const getActivityHistory = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.profileId);
+    const { startDate, endDate, page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Verify profile belongs to current user
+    const profile = await prisma.profile.findFirst({
+      where: { id: profileId, userId: req.user.userId }
+    });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter.lte = end;
+    }
+
+    const where = {
+      profileId,
+      ...(Object.keys(dateFilter).length > 0 && { startTime: dateFilter })
+    };
+
+    // Fetch paginated sessions + total count
+    const [sessions, totalCount] = await Promise.all([
+      prisma.session.findMany({
+        where,
+        include: { device: true },
+        orderBy: { startTime: 'desc' },
+        skip,
+        take: limitNum
+      }),
+      prisma.session.count({ where })
+    ]);
+
+    // Compute summary from ALL sessions in date range (not just current page)
+    const allSessions = await prisma.session.findMany({
+      where,
+      select: { startTime: true, totalMinutes: true }
+    });
+
+    const totalMinutes = allSessions.reduce((sum, s) => sum + (s.totalMinutes || 0), 0);
+
+    // Group by date to find peak day and count distinct days
+    const dayMap = {};
+    for (const s of allSessions) {
+      const dateKey = s.startTime.toISOString().split('T')[0];
+      dayMap[dateKey] = (dayMap[dateKey] || 0) + (s.totalMinutes || 0);
+    }
+
+    const distinctDays = Object.keys(dayMap).length;
+    const avgPerDay = distinctDays > 0 ? Math.round(totalMinutes / distinctDays) : 0;
+
+    let peakDay = null;
+    if (distinctDays > 0) {
+      const peak = Object.entries(dayMap).sort((a, b) => b[1] - a[1])[0];
+      peakDay = { date: peak[0], minutes: peak[1] };
+    }
+
+    res.json({
+      sessions,
+      totalCount,
+      summary: { totalMinutes, avgPerDay, peakDay }
+    });
+  } catch (error) {
+    console.error('Get activity history error:', error);
+    res.status(500).json({ error: 'Failed to get activity history' });
+  }
+};
+
 module.exports = {
   getUsageStats,
   logUsage,
   getWarnings,
   createWarning,
-  getReports
+  getReports,
+  getActivityHistory
 };
