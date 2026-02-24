@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KidFun - Hết giờ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', Arial, sans-serif;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      cursor: default;
+    }
+
+    .container {
+      text-align: center;
+      color: white;
+      padding: 40px;
+    }
+
+    .lock-icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 30px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .lock-icon svg {
+      width: 60px;
+      height: 60px;
+      fill: white;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.3); }
+      50% { transform: scale(1.05); box-shadow: 0 0 30px 10px rgba(255, 255, 255, 0.2); }
+    }
+
+    .title {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .subtitle {
+      font-size: 20px;
+      opacity: 0.9;
+      margin-bottom: 40px;
+    }
+
+    .clock {
+      font-size: 64px;
+      font-weight: 300;
+      margin-bottom: 50px;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-request {
+      display: inline-block;
+      padding: 16px 48px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #6366f1;
+      background: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-request:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-request:active {
+      transform: translateY(0);
+    }
+
+    .btn-request:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      margin-top: 24px;
+      font-size: 18px;
+      opacity: 0.9;
+      min-height: 28px;
+    }
+
+    .waiting {
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .star {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0;
+      animation: twinkle 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+
+  <div class="container">
+    <div class="lock-icon">
+      <svg viewBox="0 0 24 24">
+        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+      </svg>
+    </div>
+
+    <h1 class="title">Het gio roi ban oi! ⏰</h1>
+    <p class="subtitle">Da den luc nghi ngoi va lam nhung viec khac nhe!</p>
+
+    <div class="clock" id="clock">00:00:00</div>
+
+    <button class="btn-request" id="btnRequest" onclick="handleRequestMoreTime()">
+      🙏 Xin bo me them gio
+    </button>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    // Update clock
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Create decorative stars
+    const starsContainer = document.getElementById('stars');
+    for (let i = 0; i < 50; i++) {
+      const star = document.createElement('div');
+      star.className = 'star';
+      star.style.left = Math.random() * 100 + '%';
+      star.style.top = Math.random() * 100 + '%';
+      star.style.animationDelay = Math.random() * 3 + 's';
+      star.style.animationDuration = (2 + Math.random() * 3) + 's';
+      starsContainer.appendChild(star);
+    }
+
+    // Request more time
+    let requested = false;
+    function handleRequestMoreTime() {
+      if (requested) return;
+      requested = true;
+
+      const btn = document.getElementById('btnRequest');
+      const status = document.getElementById('status');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Dang gui yeu cau...';
+      status.textContent = 'Dang cho bo me phan hoi...';
+      status.className = 'status waiting';
+
+      if (window.lockAPI) {
+        window.lockAPI.requestMoreTime();
+      }
+
+      // Allow retry after 60 seconds
+      setTimeout(() => {
+        requested = false;
+        btn.disabled = false;
+        btn.textContent = '🙏 Xin bo me them gio';
+        status.textContent = 'Chua nhan duoc phan hoi. Ban co the thu lai.';
+        status.className = 'status';
+      }, 60000);
+    }
+
+    // Listen for unlock
+    if (window.lockAPI) {
+      window.lockAPI.onUnlock(() => {
+        document.getElementById('status').textContent = '🎉 Bo me da duyet! Dang mo khoa...';
+        document.getElementById('status').className = 'status';
+      });
+    }
+
+    // Prevent context menu
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+  </script>
+</body>
+</html>

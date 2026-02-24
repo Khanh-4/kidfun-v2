@@ -94,6 +94,7 @@ function ChildDashboard({ device }) {
         if (!status || timeRemaining <= 0) {
             if (timeRemaining <= 0 && status) {
                 setIsLocked(true);
+                window.electronAPI?.lockScreen();
             }
             return;
         }
@@ -103,6 +104,7 @@ function ChildDashboard({ device }) {
                 const newValue = Math.max(0, prev - 1);
                 if (newValue === 0) {
                     setIsLocked(true);
+                    window.electronAPI?.lockScreen();
                 }
                 return newValue;
             });
@@ -215,6 +217,7 @@ function ChildDashboard({ device }) {
                 // Update remaining time: add only the bonus minutes
                 setTimeRemaining((prev) => prev + data.additionalMinutes * 60);
                 setIsLocked(false);
+                window.electronAPI?.unlockScreen();
 
                 // Update status so progress bar reflects bonus
                 setStatus((prev) => prev ? {
@@ -243,6 +246,36 @@ function ChildDashboard({ device }) {
             socketService.disconnect();
         };
     }, [status?.device.userId]);
+
+    // useEffect 7: Fetch blocked sites and update hosts file (Electron only)
+    useEffect(() => {
+        if (!status?.profile?.id || !window.electronAPI?.updateBlockedSites) return;
+
+        const loadBlockedSites = async () => {
+            try {
+                const response = await api.get(`/blocked-sites/${status.profile.id}`);
+                const websites = response.data
+                    .filter((s) => s.blockType === 'website')
+                    .map((s) => s.blockValue);
+                if (websites.length > 0) {
+                    await window.electronAPI.updateBlockedSites(websites);
+                }
+            } catch (err) {
+                console.error('Load blocked sites error:', err);
+            }
+        };
+
+        loadBlockedSites();
+    }, [status?.profile?.id]);
+
+    // useEffect 8: Listen for lock screen's "request more time" button (Electron IPC)
+    useEffect(() => {
+        if (!window.electronAPI?.onLockRequestMoreTime) return;
+
+        window.electronAPI.onLockRequestMoreTime(() => {
+            setShowRequestDialog(true);
+        });
+    }, []);
 
     // Handlers
     const formatTime = (seconds) => {
