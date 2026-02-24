@@ -23,80 +23,72 @@ import {
   VisibilityOff,
   Save as SaveIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import authService from '../services/authService';
 import api from '../services/api';
 
 function Account() {
+  const { t } = useTranslation();
   const currentUser = authService.getCurrentUser();
-  
-  // State cho thông tin cá nhân
+
   const [profileData, setProfileData] = useState({
     fullName: currentUser?.fullName || '',
     email: currentUser?.email || '',
     phoneNumber: currentUser?.phoneNumber || '',
   });
-  
-  // State cho đổi mật khẩu
+
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  
+
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
     confirm: false,
   });
-  
+
   const [loading, setLoading] = useState({ profile: false, password: false });
   const [error, setError] = useState({ profile: '', password: '' });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Cập nhật thông tin cá nhân
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading({ ...loading, profile: true });
     setError({ ...error, profile: '' });
 
     try {
-      const response = await api.put('/auth/profile', {
+      await api.put('/auth/profile', {
         fullName: profileData.fullName,
         phoneNumber: profileData.phoneNumber,
       });
-      
-      // Cập nhật localStorage
+
       const updatedUser = { ...currentUser, ...profileData };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      setSnackbar({
-        open: true,
-        message: 'Cập nhật thông tin thành công!',
-        severity: 'success',
-      });
+
+      setSnackbar({ open: true, message: t('account.profileUpdated'), severity: 'success' });
     } catch (err) {
       setError({
         ...error,
-        profile: err.response?.data?.error || 'Cập nhật thất bại. Vui lòng thử lại.',
+        profile: err.response?.data?.error || t('account.profileUpdateFailed'),
       });
     } finally {
       setLoading({ ...loading, profile: false });
     }
   };
 
-  // Đổi mật khẩu
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setError({ ...error, password: '' });
 
-    // Validate
     if (passwordData.newPassword.length < 6) {
-      setError({ ...error, password: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+      setError({ ...error, password: t('account.passwordTooShort') });
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError({ ...error, password: 'Mật khẩu xác nhận không khớp' });
+      setError({ ...error, password: t('account.passwordMismatch') });
       return;
     }
 
@@ -107,22 +99,13 @@ function Account() {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-      
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-      
-      setSnackbar({
-        open: true,
-        message: 'Đổi mật khẩu thành công!',
-        severity: 'success',
-      });
+
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setSnackbar({ open: true, message: t('account.passwordChanged'), severity: 'success' });
     } catch (err) {
       setError({
         ...error,
-        password: err.response?.data?.error || 'Đổi mật khẩu thất bại. Vui lòng thử lại.',
+        password: err.response?.data?.error || t('account.passwordChangeFailed'),
       });
     } finally {
       setLoading({ ...loading, password: false });
@@ -136,11 +119,11 @@ function Account() {
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 3 }}>
-        Tài khoản
+        {t('account.title')}
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Thông tin cá nhân */}
+        {/* Personal info */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -157,9 +140,9 @@ function Account() {
                   {profileData.fullName?.charAt(0) || 'U'}
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">Thông tin cá nhân</Typography>
+                  <Typography variant="h6">{t('account.personalInfo')}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Cập nhật thông tin tài khoản của bạn
+                    {t('account.personalInfoDesc')}
                   </Typography>
                 </Box>
               </Box>
@@ -175,7 +158,7 @@ function Account() {
               <form onSubmit={handleUpdateProfile}>
                 <TextField
                   fullWidth
-                  label="Họ và tên"
+                  label={t('account.fullName')}
                   value={profileData.fullName}
                   onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
                   sx={{ mb: 2 }}
@@ -190,11 +173,11 @@ function Account() {
 
                 <TextField
                   fullWidth
-                  label="Email"
+                  label={t('account.email')}
                   value={profileData.email}
                   disabled
                   sx={{ mb: 2 }}
-                  helperText="Email không thể thay đổi"
+                  helperText={t('account.emailReadonly')}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -206,7 +189,7 @@ function Account() {
 
                 <TextField
                   fullWidth
-                  label="Số điện thoại"
+                  label={t('account.phone')}
                   value={profileData.phoneNumber}
                   onChange={(e) => setProfileData({ ...profileData, phoneNumber: e.target.value })}
                   sx={{ mb: 3 }}
@@ -226,14 +209,14 @@ function Account() {
                   disabled={loading.profile}
                   fullWidth
                 >
-                  {loading.profile ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  {loading.profile ? t('account.saving') : t('account.saveChanges')}
                 </Button>
               </form>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Đổi mật khẩu */}
+        {/* Change password */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -249,9 +232,9 @@ function Account() {
                   <LockIcon fontSize="large" />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">Đổi mật khẩu</Typography>
+                  <Typography variant="h6">{t('account.changePassword')}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Đảm bảo tài khoản của bạn an toàn
+                    {t('account.changePasswordDesc')}
                   </Typography>
                 </Box>
               </Box>
@@ -267,7 +250,7 @@ function Account() {
               <form onSubmit={handleChangePassword}>
                 <TextField
                   fullWidth
-                  label="Mật khẩu hiện tại"
+                  label={t('account.currentPassword')}
                   type={showPasswords.current ? 'text' : 'password'}
                   value={passwordData.currentPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
@@ -290,12 +273,12 @@ function Account() {
 
                 <TextField
                   fullWidth
-                  label="Mật khẩu mới"
+                  label={t('account.newPassword')}
                   type={showPasswords.new ? 'text' : 'password'}
                   value={passwordData.newPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                   sx={{ mb: 2 }}
-                  helperText="Mật khẩu phải có ít nhất 6 ký tự"
+                  helperText={t('account.passwordHelp')}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -314,7 +297,7 @@ function Account() {
 
                 <TextField
                   fullWidth
-                  label="Xác nhận mật khẩu mới"
+                  label={t('account.confirmNewPassword')}
                   type={showPasswords.confirm ? 'text' : 'password'}
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
@@ -343,7 +326,7 @@ function Account() {
                   disabled={loading.password}
                   fullWidth
                 >
-                  {loading.password ? 'Đang đổi...' : 'Đổi mật khẩu'}
+                  {loading.password ? t('account.changingPassword') : t('account.changePasswordBtn')}
                 </Button>
               </form>
             </CardContent>
@@ -351,7 +334,7 @@ function Account() {
         </Grid>
       </Grid>
 
-      {/* Snackbar thông báo */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

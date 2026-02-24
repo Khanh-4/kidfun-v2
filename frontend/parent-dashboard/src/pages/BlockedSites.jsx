@@ -27,22 +27,20 @@ import {
   Language as WebsiteIcon,
   Apps as AppIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import profileService from '../services/profileService';
 import api from '../services/api';
 
 function BlockedSites() {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [blockedSites, setBlockedSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-
-  // Form state
   const [blockType, setBlockType] = useState('website');
   const [blockValue, setBlockValue] = useState('');
-
-  // Delete confirm dialog
   const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
 
   useEffect(() => {
@@ -62,8 +60,8 @@ function BlockedSites() {
       if (data.length > 0) {
         setSelectedProfileId(data[0].id);
       }
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Không thể tải danh sách hồ sơ', severity: 'error' });
+    } catch {
+      setSnackbar({ open: true, message: t('blockedSites.loadProfilesFailed'), severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -73,8 +71,8 @@ function BlockedSites() {
     try {
       const { data } = await api.get(`/blocked-sites/${profileId}`);
       setBlockedSites(data);
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Không thể tải danh sách chặn', severity: 'error' });
+    } catch {
+      setSnackbar({ open: true, message: t('blockedSites.loadListFailed'), severity: 'error' });
     }
   };
 
@@ -91,11 +89,11 @@ function BlockedSites() {
       });
       setBlockedSites((prev) => [data, ...prev]);
       setBlockValue('');
-      setSnackbar({ open: true, message: 'Đã thêm thành công!', severity: 'success' });
+      setSnackbar({ open: true, message: t('blockedSites.addSuccess'), severity: 'success' });
     } catch (error) {
       const msg = error.response?.status === 409
-        ? 'Mục này đã tồn tại trong danh sách chặn'
-        : 'Thêm thất bại. Vui lòng thử lại.';
+        ? t('blockedSites.alreadyExists')
+        : t('blockedSites.addFailed');
       setSnackbar({ open: true, message: msg, severity: 'error' });
     } finally {
       setAdding(false);
@@ -109,9 +107,9 @@ function BlockedSites() {
     try {
       await api.delete(`/blocked-sites/${item.id}`);
       setBlockedSites((prev) => prev.filter((s) => s.id !== item.id));
-      setSnackbar({ open: true, message: 'Đã xóa thành công!', severity: 'success' });
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Xóa thất bại. Vui lòng thử lại.', severity: 'error' });
+      setSnackbar({ open: true, message: t('blockedSites.deleteSuccess'), severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, message: t('blockedSites.deleteFailed'), severity: 'error' });
     } finally {
       setDeleteDialog({ open: false, item: null });
     }
@@ -135,16 +133,16 @@ function BlockedSites() {
     return (
       <Box>
         <Typography variant="h4" gutterBottom>
-          Chặn nội dung
+          {t('blockedSites.title')}
         </Typography>
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <BlockIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" color="text.secondary">
-              Chưa có hồ sơ con nào
+              {t('blockedSites.noProfiles')}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Hãy tạo hồ sơ con trước để quản lý nội dung bị chặn.
+              {t('blockedSites.noProfilesDesc')}
             </Typography>
           </CardContent>
         </Card>
@@ -158,17 +156,17 @@ function BlockedSites() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Chặn nội dung
+        {t('blockedSites.title')}
       </Typography>
 
       {/* Profile selector */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <FormControl fullWidth>
-            <InputLabel>Chọn hồ sơ con</InputLabel>
+            <InputLabel>{t('blockedSites.selectProfile')}</InputLabel>
             <Select
               value={selectedProfileId}
-              label="Chọn hồ sơ con"
+              label={t('blockedSites.selectProfile')}
               onChange={(e) => setSelectedProfileId(e.target.value)}
             >
               {profiles.map((profile) => (
@@ -185,22 +183,22 @@ function BlockedSites() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Thêm mục chặn
+            {t('blockedSites.addBlock')}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <FormControl sx={{ minWidth: 160 }}>
-              <InputLabel>Loại</InputLabel>
+              <InputLabel>{t('blockedSites.type')}</InputLabel>
               <Select
                 value={blockType}
-                label="Loại"
+                label={t('blockedSites.type')}
                 onChange={(e) => setBlockType(e.target.value)}
               >
-                <MenuItem value="website">Website</MenuItem>
-                <MenuItem value="app">Ứng dụng</MenuItem>
+                <MenuItem value="website">{t('blockedSites.website')}</MenuItem>
+                <MenuItem value="app">{t('blockedSites.app')}</MenuItem>
               </Select>
             </FormControl>
             <TextField
-              label={blockType === 'website' ? 'URL website (vd: facebook.com)' : 'Tên ứng dụng (vd: TikTok)'}
+              label={blockType === 'website' ? t('blockedSites.websitePlaceholder') : t('blockedSites.appPlaceholder')}
               value={blockValue}
               onChange={(e) => setBlockValue(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -213,7 +211,7 @@ function BlockedSites() {
               disabled={adding || !blockValue.trim()}
               sx={{ height: 56 }}
             >
-              Thêm
+              {t('blockedSites.add')}
             </Button>
           </Box>
         </CardContent>
@@ -225,14 +223,14 @@ function BlockedSites() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <WebsiteIcon color="error" />
             <Typography variant="h6">
-              Website bị chặn
+              {t('blockedSites.blockedWebsites')}
             </Typography>
             <Chip label={websites.length} size="small" color="error" variant="outlined" />
           </Box>
           <Divider sx={{ mb: 2 }} />
           {websites.length === 0 ? (
             <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-              Chưa có website nào bị chặn
+              {t('blockedSites.noBlockedWebsites')}
             </Typography>
           ) : (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -257,14 +255,14 @@ function BlockedSites() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <AppIcon color="warning" />
             <Typography variant="h6">
-              Ứng dụng bị chặn
+              {t('blockedSites.blockedApps')}
             </Typography>
             <Chip label={apps.length} size="small" color="warning" variant="outlined" />
           </Box>
           <Divider sx={{ mb: 2 }} />
           {apps.length === 0 ? (
             <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-              Chưa có ứng dụng nào bị chặn
+              {t('blockedSites.noBlockedApps')}
             </Typography>
           ) : (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -288,20 +286,20 @@ function BlockedSites() {
         open={deleteDialog.open}
         onClose={() => setDeleteDialog({ open: false, item: null })}
       >
-        <DialogTitle>Xác nhận xóa</DialogTitle>
+        <DialogTitle>{t('blockedSites.confirmDelete')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Bạn có chắc muốn bỏ chặn{' '}
+            {t('blockedSites.confirmUnblock')}{' '}
             <strong>{deleteDialog.item?.blockValue}</strong>
-            {' '}({deleteDialog.item?.blockType === 'website' ? 'website' : 'ứng dụng'})?
+            {' '}({deleteDialog.item?.blockType === 'website' ? t('blockedSites.websiteType') : t('blockedSites.appType')})?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialog({ open: false, item: null })}>
-            Hủy
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Xóa
+            {t('common.delete')}
           </Button>
         </DialogActions>
       </Dialog>

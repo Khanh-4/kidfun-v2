@@ -31,11 +31,13 @@ import {
   Delete as DeleteIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import socketService from '../services/socketService';
 import authService from '../services/authService';
 
 function Devices() {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,12 +49,11 @@ function Devices() {
   const [newDevice, setNewDevice] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
-  const [deviceForProfile, setDeviceForProfile] = useState(null); // Thêm state riêng cho dialog
+  const [deviceForProfile, setDeviceForProfile] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const user = authService.getCurrentUser();
 
-  // Kết nối socket khi component mount
   useEffect(() => {
     socketService.connect(user?.id);
   }, [user?.id]);
@@ -96,7 +97,7 @@ function Devices() {
 
   const handleSubmit = async () => {
     if (!formData.deviceName.trim()) {
-      setError('Vui lòng nhập tên thiết bị');
+      setError(t('devices.nameRequired'));
       return;
     }
 
@@ -105,7 +106,7 @@ function Devices() {
       setNewDevice(response.data.device);
       loadDevices();
     } catch (error) {
-      setError(error.response?.data?.error || 'Có lỗi xảy ra');
+      setError(error.response?.data?.error || t('common.error'));
     }
   };
 
@@ -124,10 +125,7 @@ function Devices() {
 
     try {
       await api.delete(`/devices/${selectedDevice.id}`);
-
-      // Thông báo đến Child qua Socket.IO
       socketService.removeDevice(user?.id, selectedDevice.id, selectedDevice.deviceCode);
-
       handleMenuClose();
       loadDevices();
     } catch (error) {
@@ -136,7 +134,6 @@ function Devices() {
   };
 
   const handleOpenProfileDialog = () => {
-    // Lưu device vào state riêng trước khi đóng menu
     setDeviceForProfile(selectedDevice);
     setSelectedProfileId(selectedDevice?.profileId?.toString() || '');
     setError('');
@@ -153,13 +150,8 @@ function Devices() {
   };
 
   const handleAssignProfile = async () => {
-    console.log('=== handleAssignProfile called ===');
-    console.log('deviceForProfile:', deviceForProfile);
-    console.log('selectedProfileId:', selectedProfileId);
-
     if (!deviceForProfile) {
-      console.error('No device selected!');
-      setError('Không có thiết bị nào được chọn');
+      setError(t('devices.noDeviceSelected'));
       return;
     }
 
@@ -172,30 +164,15 @@ function Devices() {
         profileId: selectedProfileId === '' ? null : parseInt(selectedProfileId)
       };
 
-      console.log('Sending payload:', payload);
-      console.log('Device ID:', deviceForProfile.id);
-
-      const response = await api.put(`/devices/${deviceForProfile.id}`, payload);
-
-      console.log('Response:', response.data);
+      await api.put(`/devices/${deviceForProfile.id}`, payload);
 
       handleCloseProfileDialog();
-      setSnackbar({
-        open: true,
-        message: 'Gán hồ sơ thành công!',
-        severity: 'success'
-      });
+      setSnackbar({ open: true, message: t('devices.assignSuccess'), severity: 'success' });
       loadDevices();
     } catch (error) {
-      console.error('Error assigning profile:', error);
-      console.error('Error response:', error.response?.data);
-      const errorMsg = error.response?.data?.error || 'Không thể gán hồ sơ. Vui lòng thử lại.';
+      const errorMsg = error.response?.data?.error || t('devices.assignFailed');
       setError(errorMsg);
-      setSnackbar({
-        open: true,
-        message: errorMsg,
-        severity: 'error'
-      });
+      setSnackbar({ open: true, message: errorMsg, severity: 'error' });
     }
   };
 
@@ -214,15 +191,15 @@ function Devices() {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Thiết bị</Typography>
+        <Typography variant="h4">{t('devices.title')}</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenDialog}>
-          Thêm thiết bị
+          {t('devices.addDevice')}
         </Button>
       </Box>
 
       {/* Devices Grid */}
       {loading ? (
-        <Typography>Đang tải...</Typography>
+        <Typography>{t('common.loading')}</Typography>
       ) : devices.length > 0 ? (
         <Grid container spacing={3}>
           {devices.map((device) => (
@@ -236,7 +213,7 @@ function Devices() {
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="h6">{device.deviceName}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {device.osVersion || 'Không xác định'}
+                        {device.osVersion || t('devices.unknown')}
                       </Typography>
                     </Box>
                     <IconButton onClick={(e) => handleMenuOpen(e, device)}>
@@ -247,7 +224,7 @@ function Devices() {
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                     <Chip
                       icon={device.isOnline ? <WifiIcon /> : <WifiOffIcon />}
-                      label={device.isOnline ? 'Trực tuyến' : 'Ngoại tuyến'}
+                      label={device.isOnline ? t('devices.online') : t('devices.offline')}
                       size="small"
                       color={device.isOnline ? 'success' : 'default'}
                     />
@@ -259,17 +236,13 @@ function Devices() {
                         color="primary"
                       />
                     ) : (
-                      <Chip
-                        label="Chưa gán hồ sơ"
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Chip label={t('devices.noProfile')} size="small" variant="outlined" />
                     )}
                   </Box>
 
                   <Box sx={{ bgcolor: 'grey.100', p: 1.5, borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
-                      Mã kết nối
+                      {t('devices.connectionCode')}
                     </Typography>
                     <Typography variant="h6" fontFamily="monospace" color="primary.main">
                       {device.deviceCode}
@@ -285,13 +258,13 @@ function Devices() {
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <ComputerIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              Chưa có thiết bị nào
+              {t('devices.noDevices')}
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Thêm thiết bị của con để bắt đầu giám sát
+              {t('devices.noDevicesDesc')}
             </Typography>
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenDialog}>
-              Thêm thiết bị đầu tiên
+              {t('devices.addFirst')}
             </Button>
           </CardContent>
         </Card>
@@ -303,19 +276,19 @@ function Devices() {
           <ListItemIcon>
             <PersonIcon fontSize="small" />
           </ListItemIcon>
-          Gán hồ sơ
+          {t('devices.assignProfile')}
         </MenuItem>
         <MenuItem onClick={handleDeleteDevice} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />
           </ListItemIcon>
-          Xóa thiết bị
+          {t('devices.deleteDevice')}
         </MenuItem>
       </Menu>
 
       {/* Assign Profile Dialog */}
       <Dialog open={openProfileDialog} onClose={handleCloseProfileDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Gán hồ sơ cho thiết bị</DialogTitle>
+        <DialogTitle>{t('devices.assignProfileTitle')}</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
@@ -323,18 +296,18 @@ function Devices() {
             </Alert>
           )}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
-            Chọn hồ sơ con để giám sát thiết bị: <strong>{deviceForProfile?.deviceName}</strong>
+            {t('devices.assignProfileDesc')} <strong>{deviceForProfile?.deviceName}</strong>
           </Typography>
           <TextField
             select
             fullWidth
-            label="Chọn hồ sơ"
+            label={t('devices.selectProfile')}
             value={selectedProfileId}
             onChange={(e) => setSelectedProfileId(e.target.value)}
             sx={{ mt: 1 }}
           >
             <MenuItem value="">
-              <em>Không gán (bỏ chọn)</em>
+              <em>{t('devices.noAssign')}</em>
             </MenuItem>
             {profiles.map((profile) => (
               <MenuItem key={profile.id} value={profile.id.toString()}>
@@ -344,16 +317,16 @@ function Devices() {
           </TextField>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseProfileDialog}>Hủy</Button>
+          <Button onClick={handleCloseProfileDialog}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={handleAssignProfile}>
-            Lưu
+            {t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Device Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Thêm thiết bị mới</DialogTitle>
+        <DialogTitle>{t('devices.addNew')}</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
@@ -364,10 +337,10 @@ function Devices() {
           {newDevice ? (
             <Box sx={{ textAlign: 'center', py: 2 }}>
               <Alert severity="success" sx={{ mb: 3 }}>
-                Thiết bị đã được tạo thành công!
+                {t('devices.deviceCreated')}
               </Alert>
               <Typography variant="body1" gutterBottom>
-                Sử dụng mã sau để kết nối thiết bị:
+                {t('devices.useCode')}
               </Typography>
               <Box sx={{ bgcolor: 'primary.light', p: 3, borderRadius: 2, my: 2 }}>
                 <Typography variant="h3" fontFamily="monospace" color="white">
@@ -375,15 +348,15 @@ function Devices() {
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Nhập mã này vào ứng dụng KidFun trên thiết bị của con
+                {t('devices.enterCode')}
               </Typography>
             </Box>
           ) : (
             <>
               <TextField
                 fullWidth
-                label="Tên thiết bị"
-                placeholder="VD: Máy tính bé An, iPad của con..."
+                label={t('devices.deviceName')}
+                placeholder={t('devices.deviceNamePlaceholder')}
                 value={formData.deviceName}
                 onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
                 sx={{ mt: 2, mb: 2 }}
@@ -391,8 +364,8 @@ function Devices() {
               />
               <TextField
                 fullWidth
-                label="Hệ điều hành (tùy chọn)"
-                placeholder="VD: Windows 11, iOS 17, Android 14..."
+                label={t('devices.osVersion')}
+                placeholder={t('devices.osPlaceholder')}
                 value={formData.osVersion}
                 onChange={(e) => setFormData({ ...formData, osVersion: e.target.value })}
               />
@@ -402,20 +375,20 @@ function Devices() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           {newDevice ? (
             <Button variant="contained" onClick={handleCloseDialog}>
-              Hoàn tất
+              {t('devices.done')}
             </Button>
           ) : (
             <>
-              <Button onClick={handleCloseDialog}>Hủy</Button>
+              <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
               <Button variant="contained" onClick={handleSubmit}>
-                Thêm thiết bị
+                {t('devices.addDevice')}
               </Button>
             </>
           )}
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar Notification */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}

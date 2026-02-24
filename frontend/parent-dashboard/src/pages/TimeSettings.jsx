@@ -24,28 +24,31 @@ import {
   Save as SaveIcon,
   ContentCopy as CopyIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import profileService from '../services/profileService';
 import api from '../services/api';
 
-const DAYS = [
-  { value: 1, label: 'Thứ 2', short: 'T2' },
-  { value: 2, label: 'Thứ 3', short: 'T3' },
-  { value: 3, label: 'Thứ 4', short: 'T4' },
-  { value: 4, label: 'Thứ 5', short: 'T5' },
-  { value: 5, label: 'Thứ 6', short: 'T6' },
-  { value: 6, label: 'Thứ 7', short: 'T7' },
-  { value: 0, label: 'Chủ nhật', short: 'CN' },
-];
-
-const formatMinutes = (minutes) => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m} phút`;
-  if (m === 0) return `${h} giờ`;
-  return `${h}g ${m}p`;
-};
-
 function TimeSettings() {
+  const { t } = useTranslation();
+
+  const DAYS = [
+    { value: 1, label: t('timeSettings.days.mon'), short: 'T2' },
+    { value: 2, label: t('timeSettings.days.tue'), short: 'T3' },
+    { value: 3, label: t('timeSettings.days.wed'), short: 'T4' },
+    { value: 4, label: t('timeSettings.days.thu'), short: 'T5' },
+    { value: 5, label: t('timeSettings.days.fri'), short: 'T6' },
+    { value: 6, label: t('timeSettings.days.sat'), short: 'T7' },
+    { value: 0, label: t('timeSettings.days.sun'), short: 'CN' },
+  ];
+
+  const formatMinutes = (minutes) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m} ${t('timeSettings.minuteUnit')}`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  };
+
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [timeLimits, setTimeLimits] = useState({});
@@ -71,8 +74,8 @@ function TimeSettings() {
       if (data.length > 0) {
         setSelectedProfileId(data[0].id);
       }
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Không thể tải danh sách hồ sơ', severity: 'error' });
+    } catch {
+      setSnackbar({ open: true, message: t('timeSettings.loadProfilesFailed'), severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -87,8 +90,8 @@ function TimeSettings() {
         limits[day.value] = existing ? existing.dailyLimitMinutes : 120;
       });
       setTimeLimits(limits);
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Không thể tải giới hạn thời gian', severity: 'error' });
+    } catch {
+      setSnackbar({ open: true, message: t('timeSettings.loadLimitsFailed'), severity: 'error' });
     }
   };
 
@@ -118,9 +121,9 @@ function TimeSettings() {
       }));
 
       await api.put(`/profiles/${selectedProfileId}/time-limits`, { timeLimits: payload });
-      setSnackbar({ open: true, message: 'Đã lưu giới hạn thời gian thành công!', severity: 'success' });
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Lưu thất bại. Vui lòng thử lại.', severity: 'error' });
+      setSnackbar({ open: true, message: t('timeSettings.saveSuccess'), severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, message: t('timeSettings.saveFailed'), severity: 'error' });
     } finally {
       setSaving(false);
     }
@@ -144,16 +147,16 @@ function TimeSettings() {
     return (
       <Box>
         <Typography variant="h4" gutterBottom>
-          Giới hạn thời gian
+          {t('timeSettings.title')}
         </Typography>
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <TimerIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" color="text.secondary">
-              Chưa có hồ sơ con nào
+              {t('timeSettings.noProfiles')}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Hãy tạo hồ sơ con trước để cài đặt giới hạn thời gian.
+              {t('timeSettings.noProfilesDesc')}
             </Typography>
           </CardContent>
         </Card>
@@ -166,17 +169,17 @@ function TimeSettings() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Giới hạn thời gian
+        {t('timeSettings.title')}
       </Typography>
 
       {/* Profile selector */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <FormControl fullWidth>
-            <InputLabel>Chọn hồ sơ con</InputLabel>
+            <InputLabel>{t('timeSettings.selectProfile')}</InputLabel>
             <Select
               value={selectedProfileId}
-              label="Chọn hồ sơ con"
+              label={t('timeSettings.selectProfile')}
               onChange={(e) => setSelectedProfileId(e.target.value)}
             >
               {profiles.map((profile) => (
@@ -195,7 +198,7 @@ function TimeSettings() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <CopyIcon color="action" />
             <Typography variant="body1" fontWeight={500}>
-              Áp dụng cho tất cả:
+              {t('timeSettings.applyAll')}
             </Typography>
             <Slider
               value={applyAllValue}
@@ -207,7 +210,7 @@ function TimeSettings() {
             />
             <Chip label={formatMinutes(applyAllValue)} color="primary" variant="outlined" />
             <Button variant="outlined" size="small" onClick={handleApplyAll}>
-              Áp dụng
+              {t('timeSettings.apply')}
             </Button>
           </Box>
         </CardContent>
@@ -217,7 +220,7 @@ function TimeSettings() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Cài đặt theo ngày — {selectedProfile?.profileName}
+            {t('timeSettings.settingsByDay', { name: selectedProfile?.profileName })}
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
@@ -242,10 +245,10 @@ function TimeSettings() {
                     color={getSliderColor(timeLimits[day.value] ?? 120)}
                     marks={[
                       { value: 0, label: '0' },
-                      { value: 120, label: '2g' },
-                      { value: 240, label: '4g' },
-                      { value: 360, label: '6g' },
-                      { value: 480, label: '8g' },
+                      { value: 120, label: '2h' },
+                      { value: 240, label: '4h' },
+                      { value: 360, label: '6h' },
+                      { value: 480, label: '8h' },
                     ]}
                   />
                 </Grid>
@@ -257,7 +260,7 @@ function TimeSettings() {
                     onChange={(e) => handleInputChange(day.value, e.target.value)}
                     slotProps={{
                       input: {
-                        endAdornment: <InputAdornment position="end">phút</InputAdornment>,
+                        endAdornment: <InputAdornment position="end">{t('timeSettings.minuteUnit')}</InputAdornment>,
                         inputProps: { min: 0, max: 480, step: 15 },
                       },
                     }}
@@ -280,7 +283,7 @@ function TimeSettings() {
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+          {saving ? t('timeSettings.saving') : t('timeSettings.saveSettings')}
         </Button>
       </Box>
 

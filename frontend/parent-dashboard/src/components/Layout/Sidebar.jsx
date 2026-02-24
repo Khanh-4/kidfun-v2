@@ -16,6 +16,7 @@ import {
   Menu,
   MenuItem,
   Badge,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -31,24 +32,26 @@ import {
   History as HistoryIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import authService from '../../services/authService';
 
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Hồ sơ con', icon: <PeopleIcon />, path: '/profiles' },
-  { text: 'Thiết bị', icon: <DevicesIcon />, path: '/devices' },
-  { text: 'Giới hạn thời gian', icon: <TimerIcon />, path: '/time-settings' },
-  { text: 'Chặn nội dung', icon: <BlockIcon />, path: '/blocked-sites' },
-  { text: 'Thông báo', icon: <NotificationsIcon />, path: '/notifications' },
-  { text: 'Lịch sử hoạt động', icon: <HistoryIcon />, path: '/activity-history' },
-  { text: 'Báo cáo', icon: <AssessmentIcon />, path: '/reports' },
-];
-
 function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 }) {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const user = authService.getCurrentUser();
   const [anchorEl, setAnchorEl] = useState(null);
+
+  const menuItems = [
+    { text: t('sidebar.dashboard'), icon: <DashboardIcon />, path: '/' },
+    { text: t('sidebar.profiles'), icon: <PeopleIcon />, path: '/profiles' },
+    { text: t('sidebar.devices'), icon: <DevicesIcon />, path: '/devices' },
+    { text: t('sidebar.timeSettings'), icon: <TimerIcon />, path: '/time-settings' },
+    { text: t('sidebar.blockedSites'), icon: <BlockIcon />, path: '/blocked-sites' },
+    { text: t('sidebar.notifications'), icon: <NotificationsIcon />, path: '/notifications' },
+    { text: t('sidebar.activityHistory'), icon: <HistoryIcon />, path: '/activity-history' },
+    { text: t('sidebar.reports'), icon: <AssessmentIcon />, path: '/reports' },
+  ];
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -61,6 +64,12 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
+  };
+
+  const toggleLanguage = () => {
+    const newLng = i18n.language === 'vi' ? 'en' : 'vi';
+    i18n.changeLanguage(newLng);
+    localStorage.setItem('language', newLng);
   };
 
   const drawer = (
@@ -80,7 +89,7 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 
           🎯 KidFun
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Parent Dashboard
+          {t('sidebar.parentDashboard')}
         </Typography>
       </Box>
 
@@ -89,7 +98,7 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 
       {/* Menu items */}
       <List sx={{ flex: 1, px: 2, py: 1 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+          <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               onClick={() => navigate(item.path)}
               selected={location.pathname === item.path}
@@ -164,6 +173,14 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find((item) => item.path === location.pathname)?.text || 'KidFun'}
           </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={toggleLanguage}
+            sx={{ minWidth: 40, px: 1, fontWeight: 700, fontSize: '0.75rem' }}
+          >
+            {i18n.language === 'vi' ? 'EN' : 'VI'}
+          </Button>
         </Toolbar>
       </AppBar>
 
@@ -219,13 +236,13 @@ function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle, unreadCount = 0 
           <ListItemIcon>
             <PersonIcon fontSize="small" />
           </ListItemIcon>
-          Tài khoản
+          {t('sidebar.account')}
         </MenuItem>
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
-          Đăng xuất
+          {t('sidebar.logout')}
         </MenuItem>
       </Menu>
     </>

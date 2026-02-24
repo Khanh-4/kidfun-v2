@@ -12,9 +12,11 @@ model User {
   email        String    @unique
   passwordHash String
   fullName     String
-  phoneNumber  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  phoneNumber       String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   
   profiles      Profile[]
   devices       Device[]

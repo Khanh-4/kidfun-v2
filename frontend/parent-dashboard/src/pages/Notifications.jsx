@@ -22,10 +22,12 @@ import {
   Check as CheckIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import socketService from '../services/socketService';
 import authService from '../services/authService';
 
 function Notifications() {
+  const { t } = useTranslation();
   const { requests, setRequests } = useOutletContext();
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [responseDialog, setResponseDialog] = useState(false);
@@ -39,10 +41,9 @@ function Notifications() {
       user?.id,
       true,
       additionalMinutes,
-      `Đã duyệt thêm ${additionalMinutes} phút`
+      t('notifications.approvedMessage', { minutes: additionalMinutes })
     );
 
-    // Cập nhật UI
     setRequests((prev) =>
       prev.map((r) =>
         r.id === selectedRequest.id ? { ...r, status: 'approved', additionalMinutes } : r
@@ -53,22 +54,21 @@ function Notifications() {
     setSelectedRequest(null);
     setSnackbar({
       open: true,
-      message: `Đã duyệt thêm ${additionalMinutes} phút!`,
+      message: t('notifications.approvedMessage', { minutes: additionalMinutes }),
       severity: 'success',
     });
   };
 
   const handleReject = (request) => {
-    socketService.respondTimeExtension(user?.id, false, 0, 'Yêu cầu bị từ chối');
+    socketService.respondTimeExtension(user?.id, false, 0, t('notifications.rejectedMessage'));
 
-    // Cập nhật UI
     setRequests((prev) =>
       prev.map((r) => (r.id === request.id ? { ...r, status: 'rejected' } : r))
     );
 
     setSnackbar({
       open: true,
-      message: 'Đã từ chối yêu cầu',
+      message: t('notifications.rejectedMessage'),
       severity: 'warning',
     });
   };
@@ -89,7 +89,7 @@ function Notifications() {
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 3 }}>
-        Thông báo
+        {t('notifications.title')}
       </Typography>
 
       {requests.length === 0 ? (
@@ -97,10 +97,10 @@ function Notifications() {
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <NotificationsIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              Chưa có thông báo nào
+              {t('notifications.noNotifications')}
             </Typography>
             <Typography color="text.secondary">
-              Các yêu cầu từ con sẽ hiển thị ở đây
+              {t('notifications.noNotificationsDesc')}
             </Typography>
           </CardContent>
         </Card>
@@ -115,12 +115,12 @@ function Notifications() {
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Typography variant="h6">Xin thêm thời gian</Typography>
+                      <Typography variant="h6">{t('notifications.requestTime')}</Typography>
                       {request.status === 'approved' && (
-                        <Chip label="Đã duyệt" color="success" size="small" />
+                        <Chip label={t('notifications.approved')} color="success" size="small" />
                       )}
                       {request.status === 'rejected' && (
-                        <Chip label="Đã từ chối" color="error" size="small" />
+                        <Chip label={t('notifications.rejected')} color="error" size="small" />
                       )}
                     </Box>
                     <Typography color="text.secondary" gutterBottom>
@@ -128,7 +128,7 @@ function Notifications() {
                     </Typography>
                     <Box sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 2, mt: 1 }}>
                       <Typography variant="body2">
-                        <strong>Lý do:</strong> {request.reason}
+                        <strong>{t('notifications.reason')}</strong> {request.reason}
                       </Typography>
                     </Box>
 
@@ -140,7 +140,7 @@ function Notifications() {
                           startIcon={<CheckIcon />}
                           onClick={() => openApproveDialog(request)}
                         >
-                          Duyệt
+                          {t('notifications.approve')}
                         </Button>
                         <Button
                           variant="outlined"
@@ -148,14 +148,14 @@ function Notifications() {
                           startIcon={<CloseIcon />}
                           onClick={() => handleReject(request)}
                         >
-                          Từ chối
+                          {t('notifications.reject')}
                         </Button>
                       </Box>
                     )}
 
                     {request.status === 'approved' && (
                       <Typography color="success.main" sx={{ mt: 1 }}>
-                        ✓ Đã thêm {request.additionalMinutes} phút
+                        {t('notifications.addedMinutes', { minutes: request.additionalMinutes })}
                       </Typography>
                     )}
                   </Box>
@@ -166,26 +166,26 @@ function Notifications() {
         </Box>
       )}
 
-      {/* Dialog duyệt yêu cầu */}
+      {/* Dialog */}
       <Dialog open={responseDialog} onClose={() => setResponseDialog(false)}>
-        <DialogTitle>Duyệt yêu cầu thêm thời gian</DialogTitle>
+        <DialogTitle>{t('notifications.approveTitle')}</DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2 }}>
-            Bạn muốn cho <strong>{selectedRequest?.deviceName}</strong> thêm bao nhiêu phút?
+            {t('notifications.approveQuestion', { device: selectedRequest?.deviceName }).replace('<1>', '').replace('</1>', '')}
           </Typography>
           <TextField
             fullWidth
             type="number"
-            label="Số phút thêm"
+            label={t('notifications.additionalMinutes')}
             value={additionalMinutes}
             onChange={(e) => setAdditionalMinutes(Number(e.target.value))}
             inputProps={{ min: 5, max: 120 }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setResponseDialog(false)}>Hủy</Button>
+          <Button onClick={() => setResponseDialog(false)}>{t('common.cancel')}</Button>
           <Button variant="contained" color="success" onClick={handleApprove}>
-            Duyệt
+            {t('notifications.approve')}
           </Button>
         </DialogActions>
       </Dialog>

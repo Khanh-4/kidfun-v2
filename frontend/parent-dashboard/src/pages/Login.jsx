@@ -14,9 +14,11 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import authService from '../services/authService';
 
 function Login() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -37,7 +39,7 @@ function Login() {
       await authService.login(formData.email, formData.password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Đăng nhập thất bại. Vui lòng thử lại.');
+      setError(err.response?.data?.error || t('auth.login.failed'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +73,7 @@ function Login() {
               🎯 KidFun
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Đăng nhập để quản lý thiết bị của con
+              {t('auth.login.subtitle')}
             </Typography>
           </Box>
 
@@ -86,7 +88,7 @@ function Login() {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Email"
+              label={t('auth.login.email')}
               name="email"
               type="email"
               value={formData.email}
@@ -104,7 +106,7 @@ function Login() {
 
             <TextField
               fullWidth
-              label="Mật khẩu"
+              label={t('auth.login.password')}
               name="password"
               type={showPassword ? 'text' : 'password'}
               value={formData.password}
@@ -135,15 +137,22 @@ function Login() {
               disabled={loading}
               sx={{ mb: 2, py: 1.5 }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Đăng nhập'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : t('auth.login.submit')}
             </Button>
           </form>
 
+          {/* Forgot password link */}
+          <Typography align="center" sx={{ mb: 2 }}>
+            <Link component={RouterLink} to="/forgot-password" underline="hover" color="text.secondary">
+              {t('auth.login.forgotPassword')}
+            </Link>
+          </Typography>
+
           {/* Register link */}
           <Typography align="center" color="text.secondary">
-            Chưa có tài khoản?{' '}
+            {t('auth.login.noAccount')}{' '}
             <Link component={RouterLink} to="/register" underline="hover">
-              Đăng ký ngay
+              {t('auth.login.signUp')}
             </Link>
           </Typography>
         </CardContent>

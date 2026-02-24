@@ -107,53 +107,106 @@ const createWarning = async (req, res) => {
 const getReports = async (req, res) => {
   try {
     const profileId = parseInt(req.params.profileId);
+    const { period = '7days' } = req.query;
 
-    // Lấy dữ liệu 30 ngày gần nhất
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Verify profile belongs to current user
+    const profile = await prisma.profile.findFirst({
+      where: { id: profileId, userId: req.user.userId },
+      include: { timeLimits: true }
+    });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
 
-    const [usageLogs, warnings, profile] = await Promise.all([
-      prisma.usageLog.findMany({
-        where: {
-          profileId,
-          startTime: { gte: thirtyDaysAgo }
+    // Determine date range from period
+    const periodDays = period === '90days' ? 90 : period === '30days' ? 30 : 7;
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - periodDays + 1);
+
+    // Fetch sessions in the period
+    const sessions = await prisma.session.findMany({
+      where: {
+        profileId,
+        startTime: { gte: startDate }
+      },
+      select: { startTime: true, totalMinutes: true, bonusMinutes: true }
+    });
+
+    // Build a map of timeLimits by dayOfWeek (0=Sunday..6=Saturday)
+    const timeLimitMap = {};
+    for (const tl of profile.timeLimits) {
+      timeLimitMap[tl.dayOfWeek] = tl.dailyLimitMinutes;
+    }
+
+    // Group sessions by date
+    const dayMap = {};
+    for (const s of sessions) {
+      const dateKey = s.startTime.toISOString().split('T')[0];
+      dayMap[dateKey] = (dayMap[dateKey] || 0) + (s.totalMinutes || 0);
+    }
+
+    // Build dailyUsage array for every day in the period
+    const dailyUsage = [];
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+    for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
+      const dateKey = d.toISOString().split('T')[0];
+      dailyUsage.push({ date: dateKey, minutes: dayMap[dateKey] || 0 });
+    }
+
+    // Compute stats
+    const totalMinutes = dailyUsage.reduce((sum, d) => sum + d.minutes, 0);
+    const avgMinutesPerDay = dailyUsage.length > 0 ? Math.round(totalMinutes / dailyUsage.length) : 0;
+
+    // Peak day
+    let peakDay = { date: null, minutes: 0 };
+    for (const d of dailyUsage) {
+      if (d.minutes > peakDay.minutes) {
+        peakDay = { date: d.date, minutes: d.minutes };
+      }
+    }
+
+    // Compliance rate: % of days where usage <= daily limit
+    let compliantDays = 0;
+    let daysWithLimit = 0;
+    for (const d of dailyUsage) {
+      const dateObj = new Date(d.date + 'T00:00:00');
+      const dow = dateObj.getDay(); // 0=Sun..6=Sat
+      const limit = timeLimitMap[dow];
+      if (limit !== undefined) {
+        daysWithLimit++;
+        if (d.minutes <= limit) {
+          compliantDays++;
         }
-      }),
-      prisma.warning.findMany({
-        where: {
-          profileId,
-          warnedAt: { gte: thirtyDaysAgo }
-        }
-      }),
-      prisma.profile.findUnique({
-        where: { id: profileId },
-        include: { timeLimits: true }
-      })
-    ]);
+      }
+    }
+    const complianceRate = daysWithLimit > 0 ? Math.round((compliantDays / daysWithLimit) * 100) : 100;
 
-    // Tính thống kê
-    const totalUsageSeconds = usageLogs.reduce((sum, log) => sum + (log.durationSeconds || 0), 0);
-    
-    // Nhóm theo app
-    const appUsage = usageLogs.reduce((acc, log) => {
-      acc[log.appName] = (acc[log.appName] || 0) + (log.durationSeconds || 0);
-      return acc;
-    }, {});
+    // Weekday vs weekend averages
+    let weekdayTotal = 0, weekdayCount = 0, weekendTotal = 0, weekendCount = 0;
+    for (const d of dailyUsage) {
+      const dateObj = new Date(d.date + 'T00:00:00');
+      const dow = dateObj.getDay();
+      if (dow >= 1 && dow <= 5) {
+        weekdayTotal += d.minutes;
+        weekdayCount++;
+      } else {
+        weekendTotal += d.minutes;
+        weekendCount++;
+      }
+    }
+    const weekdayAvg = weekdayCount > 0 ? Math.round(weekdayTotal / weekdayCount) : 0;
+    const weekendAvg = weekendCount > 0 ? Math.round(weekendTotal / weekendCount) : 0;
 
     res.json({
-      profile,
-      summary: {
-        totalHours: Math.round(totalUsageSeconds / 3600 * 10) / 10,
-        averageHoursPerDay: Math.round(totalUsageSeconds / 3600 / 30 * 10) / 10,
-        totalWarnings: warnings.length,
-        warningsByType: warnings.reduce((acc, w) => {
-          acc[w.warningType] = (acc[w.warningType] || 0) + 1;
-          return acc;
-        }, {})
-      },
-      appUsage: Object.entries(appUsage)
-        .map(([name, seconds]) => ({ name, hours: Math.round(seconds / 3600 * 10) / 10 }))
-        .sort((a, b) => b.hours - a.hours)
-        .slice(0, 10)
+      dailyUsage,
+      totalMinutes,
+      avgMinutesPerDay,
+      peakDay,
+      complianceRate,
+      weekdayAvg,
+      weekendAvg
     });
   } catch (error) {
     console.error('Get reports error:', error);

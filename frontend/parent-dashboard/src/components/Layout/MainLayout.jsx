@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Box, Toolbar, Snackbar, Alert } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import socketService from '../../services/socketService';
 import authService from '../../services/authService';
@@ -12,6 +13,7 @@ function MainLayout() {
   const [requests, setRequests] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
+  const { t } = useTranslation();
   const user = authService.getCurrentUser();
   const unreadCount = requests.filter((r) => !r.status).length;
 
@@ -29,7 +31,7 @@ function MainLayout() {
       setRequests((prev) => [data, ...prev]);
       setSnackbar({
         open: true,
-        message: `${data.deviceName} xin thêm thời gian!`,
+        message: t('common.timeExtensionRequest', { device: data.deviceName }),
         severity: 'info',
       });
     });

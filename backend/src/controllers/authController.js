@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { sendResetPasswordEmail } = require('../services/emailService');
 
 const prisma = new PrismaClient();
 
@@ -180,6 +182,71 @@ const changePassword = async (req, res) => {
   }
 };
 
+// POST /api/auth/forgot-password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Luôn trả OK để tránh leak email tồn tại hay không
+    const successMsg = 'Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.';
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.json({ message: successMsg });
+    }
+
+    // Tạo reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 giờ
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken, resetTokenExpiry },
+    });
+
+    await sendResetPasswordEmail(email, resetToken);
+
+    res.json({ message: successMsg });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Không thể gửi email. Vui lòng thử lại.' });
+  }
+};
+
+// POST /api/auth/reset-password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    res.json({ message: 'Mật khẩu đã được đặt lại thành công.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Không thể đặt lại mật khẩu. Vui lòng thử lại.' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -187,4 +254,6 @@ module.exports = {
   logout,
   updateProfile,
   changePassword,
+  forgotPassword,
+  resetPassword,
 };

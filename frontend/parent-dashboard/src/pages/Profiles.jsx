@@ -26,9 +26,11 @@ import {
   Delete as DeleteIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import profileService from '../services/profileService';
 
 function Profiles() {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -78,7 +80,7 @@ function Profiles() {
 
   const handleSubmit = async () => {
     if (!formData.profileName.trim()) {
-      setError('Vui lòng nhập tên');
+      setError(t('profiles.nameRequired'));
       return;
     }
 
@@ -91,13 +93,13 @@ function Profiles() {
       handleCloseDialog();
       loadProfiles();
     } catch (error) {
-      setError(error.response?.data?.error || 'Có lỗi xảy ra');
+      setError(error.response?.data?.error || t('common.error'));
     }
   };
 
   const handleDelete = async () => {
     if (!selectedProfile) return;
-    
+
     try {
       await profileService.delete(selectedProfile.id);
       setAnchorEl(null);
@@ -134,19 +136,19 @@ function Profiles() {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Hồ sơ con</Typography>
+        <Typography variant="h4">{t('profiles.title')}</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
         >
-          Thêm hồ sơ
+          {t('profiles.addProfile')}
         </Button>
       </Box>
 
       {/* Profiles Grid */}
       {loading ? (
-        <Typography>Đang tải...</Typography>
+        <Typography>{t('common.loading')}</Typography>
       ) : profiles.length > 0 ? (
         <Grid container spacing={3}>
           {profiles.map((profile) => (
@@ -169,7 +171,7 @@ function Profiles() {
                       <Typography variant="h6">{profile.profileName}</Typography>
                       {profile.dateOfBirth && (
                         <Typography variant="body2" color="text.secondary">
-                          {getAge(profile.dateOfBirth)} tuổi
+                          {t('profiles.yearsOld', { age: getAge(profile.dateOfBirth) })}
                         </Typography>
                       )}
                     </Box>
@@ -180,12 +182,12 @@ function Profiles() {
 
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     <Chip
-                      label={profile.isActive ? 'Đang hoạt động' : 'Không hoạt động'}
+                      label={profile.isActive ? t('profiles.active') : t('profiles.inactive')}
                       size="small"
                       color={profile.isActive ? 'success' : 'default'}
                     />
                     <Chip
-                      label={`${profile.timeLimits?.length || 0} giới hạn`}
+                      label={t('profiles.limitsCount', { count: profile.timeLimits?.length || 0 })}
                       size="small"
                       variant="outlined"
                     />
@@ -200,13 +202,13 @@ function Profiles() {
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <PersonIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              Chưa có hồ sơ nào
+              {t('profiles.noProfiles')}
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Tạo hồ sơ con để bắt đầu quản lý thời gian sử dụng thiết bị
+              {t('profiles.noProfilesDesc')}
             </Typography>
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
-              Thêm hồ sơ đầu tiên
+              {t('profiles.addFirst')}
             </Button>
           </CardContent>
         </Card>
@@ -218,20 +220,20 @@ function Profiles() {
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
-          Chỉnh sửa
+          {t('profiles.edit')}
         </MenuItem>
         <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />
           </ListItemIcon>
-          Xóa
+          {t('profiles.delete')}
         </MenuItem>
       </Menu>
 
       {/* Add/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingProfile ? 'Chỉnh sửa hồ sơ' : 'Thêm hồ sơ mới'}
+          {editingProfile ? t('profiles.editProfile') : t('profiles.addNew')}
         </DialogTitle>
         <DialogContent>
           {error && (
@@ -241,7 +243,7 @@ function Profiles() {
           )}
           <TextField
             fullWidth
-            label="Tên con"
+            label={t('profiles.childName')}
             value={formData.profileName}
             onChange={(e) => setFormData({ ...formData, profileName: e.target.value })}
             sx={{ mt: 2, mb: 2 }}
@@ -249,7 +251,7 @@ function Profiles() {
           />
           <TextField
             fullWidth
-            label="Ngày sinh"
+            label={t('profiles.dateOfBirth')}
             type="date"
             value={formData.dateOfBirth}
             onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
@@ -257,9 +259,9 @@ function Profiles() {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseDialog}>Hủy</Button>
+          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={handleSubmit}>
-            {editingProfile ? 'Cập nhật' : 'Thêm'}
+            {editingProfile ? t('profiles.update') : t('profiles.add')}
           </Button>
         </DialogActions>
       </Dialog>

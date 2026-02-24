@@ -14,9 +14,11 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Visibility, VisibilityOff, Email, Lock, Person, Phone } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import authService from '../services/authService';
 
 function Register() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: '',
@@ -39,16 +41,14 @@ function Register() {
     setLoading(true);
     setError('');
 
-    // Validate password match
     if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+      setError(t('auth.register.passwordMismatch'));
       setLoading(false);
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      setError(t('auth.register.passwordTooShort'));
       setLoading(false);
       return;
     }
@@ -62,7 +62,7 @@ function Register() {
       });
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Đăng ký thất bại. Vui lòng thử lại.');
+      setError(err.response?.data?.error || t('auth.register.failed'));
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ function Register() {
               🎯 KidFun
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Tạo tài khoản phụ huynh
+              {t('auth.register.subtitle')}
             </Typography>
           </Box>
 
@@ -111,7 +111,7 @@ function Register() {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Họ và tên"
+              label={t('auth.register.fullName')}
               name="fullName"
               value={formData.fullName}
               onChange={handleChange}
@@ -128,7 +128,7 @@ function Register() {
 
             <TextField
               fullWidth
-              label="Email"
+              label={t('auth.register.email')}
               name="email"
               type="email"
               value={formData.email}
@@ -146,7 +146,7 @@ function Register() {
 
             <TextField
               fullWidth
-              label="Số điện thoại"
+              label={t('auth.register.phone')}
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleChange}
@@ -162,7 +162,7 @@ function Register() {
 
             <TextField
               fullWidth
-              label="Mật khẩu"
+              label={t('auth.register.password')}
               name="password"
               type={showPassword ? 'text' : 'password'}
               value={formData.password}
@@ -187,7 +187,7 @@ function Register() {
 
             <TextField
               fullWidth
-              label="Xác nhận mật khẩu"
+              label={t('auth.register.confirmPassword')}
               name="confirmPassword"
               type={showPassword ? 'text' : 'password'}
               value={formData.confirmPassword}
@@ -211,15 +211,15 @@ function Register() {
               disabled={loading}
               sx={{ mb: 2, py: 1.5 }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Đăng ký'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : t('auth.register.submit')}
             </Button>
           </form>
 
           {/* Login link */}
           <Typography align="center" color="text.secondary">
-            Đã có tài khoản?{' '}
+            {t('auth.register.hasAccount')}{' '}
             <Link component={RouterLink} to="/login" underline="hover">
-              Đăng nhập
+              {t('auth.register.signIn')}
             </Link>
           </Typography>
         </CardContent>

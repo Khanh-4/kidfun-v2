@@ -15,6 +15,12 @@ router.post('/refresh', authenticate, authController.refreshToken);
 // POST /api/auth/logout - Đăng xuất
 router.post('/logout', authController.logout);
 
+// POST /api/auth/forgot-password - Quên mật khẩu
+router.post('/forgot-password', authController.forgotPassword);
+
+// POST /api/auth/reset-password - Đặt lại mật khẩu
+router.post('/reset-password', authController.resetPassword);
+
 // PUT /api/auth/profile - Cập nhật thông tin (cần đăng nhập)
 router.put('/profile', authenticate, authController.updateProfile);
 

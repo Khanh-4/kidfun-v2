@@ -26,10 +26,12 @@ import {
   TrendingUp as TrendingUpIcon,
   EmojiEvents as EmojiEventsIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import profileService from '../services/profileService';
 
 function ActivityHistory() {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState('');
   const [dateRange, setDateRange] = useState('7days');
@@ -42,7 +44,6 @@ function ActivityHistory() {
   const [rowsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
 
-  // Load profiles on mount
   useEffect(() => {
     const loadProfiles = async () => {
       try {
@@ -58,7 +59,6 @@ function ActivityHistory() {
     loadProfiles();
   }, []);
 
-  // Compute date range
   const getDateParams = useCallback(() => {
     const now = new Date();
     if (dateRange === '7days') {
@@ -71,11 +71,9 @@ function ActivityHistory() {
       start.setDate(start.getDate() - 30);
       return { startDate: start.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
     }
-    // custom
     return { startDate: customStart, endDate: customEnd };
   }, [dateRange, customStart, customEnd]);
 
-  // Fetch activity history
   const fetchData = useCallback(async () => {
     if (!selectedProfile) return;
     const { startDate, endDate } = getDateParams();
@@ -100,12 +98,10 @@ function ActivityHistory() {
     }
   }, [selectedProfile, getDateParams, dateRange, page, rowsPerPage]);
 
-  // Reload when filters or page change
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(0);
   }, [selectedProfile, dateRange, customStart, customEnd]);
@@ -122,14 +118,14 @@ function ActivityHistory() {
     if (!minutes) return '—';
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    if (h > 0) return `${h} giờ ${m} phút`;
-    return `${m} phút`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
   };
 
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Lịch sử hoạt động
+        {t('activityHistory.title')}
       </Typography>
 
       {/* Filters */}
@@ -137,10 +133,10 @@ function ActivityHistory() {
         <CardContent>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
             <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel>Hồ sơ con</InputLabel>
+              <InputLabel>{t('activityHistory.childProfile')}</InputLabel>
               <Select
                 value={selectedProfile}
-                label="Hồ sơ con"
+                label={t('activityHistory.childProfile')}
                 onChange={(e) => setSelectedProfile(e.target.value)}
               >
                 {profiles.map((p) => (
@@ -152,15 +148,15 @@ function ActivityHistory() {
             </FormControl>
 
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Khoảng thời gian</InputLabel>
+              <InputLabel>{t('activityHistory.dateRange')}</InputLabel>
               <Select
                 value={dateRange}
-                label="Khoảng thời gian"
+                label={t('activityHistory.dateRange')}
                 onChange={(e) => setDateRange(e.target.value)}
               >
-                <MenuItem value="7days">7 ngày qua</MenuItem>
-                <MenuItem value="30days">30 ngày qua</MenuItem>
-                <MenuItem value="custom">Tùy chọn</MenuItem>
+                <MenuItem value="7days">{t('activityHistory.7days')}</MenuItem>
+                <MenuItem value="30days">{t('activityHistory.30days')}</MenuItem>
+                <MenuItem value="custom">{t('activityHistory.custom')}</MenuItem>
               </Select>
             </FormControl>
 
@@ -169,7 +165,7 @@ function ActivityHistory() {
                 <TextField
                   size="small"
                   type="date"
-                  label="Từ ngày"
+                  label={t('activityHistory.fromDate')}
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
                   InputLabelProps={{ shrink: true }}
@@ -177,7 +173,7 @@ function ActivityHistory() {
                 <TextField
                   size="small"
                   type="date"
-                  label="Đến ngày"
+                  label={t('activityHistory.toDate')}
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
                   InputLabelProps={{ shrink: true }}
@@ -197,7 +193,7 @@ function ActivityHistory() {
                 <AccessTimeIcon color="primary" sx={{ fontSize: 40 }} />
                 <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Tổng thời gian
+                    {t('activityHistory.totalTime')}
                   </Typography>
                   <Typography variant="h5" fontWeight={600}>
                     {formatDuration(summary.totalMinutes)}
@@ -212,7 +208,7 @@ function ActivityHistory() {
                 <TrendingUpIcon color="secondary" sx={{ fontSize: 40 }} />
                 <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Trung bình mỗi ngày
+                    {t('activityHistory.avgPerDay')}
                   </Typography>
                   <Typography variant="h5" fontWeight={600}>
                     {formatDuration(summary.avgPerDay)}
@@ -227,7 +223,7 @@ function ActivityHistory() {
                 <EmojiEventsIcon sx={{ fontSize: 40, color: '#f59e0b' }} />
                 <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Ngày dùng nhiều nhất
+                    {t('activityHistory.peakDay')}
                   </Typography>
                   {summary.peakDay ? (
                     <>
@@ -259,13 +255,13 @@ function ActivityHistory() {
         ) : !selectedProfile ? (
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <Typography color="text.secondary">
-              Vui lòng chọn hồ sơ con để xem lịch sử hoạt động.
+              {t('activityHistory.selectProfile')}
             </Typography>
           </CardContent>
         ) : sessions.length === 0 ? (
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <Typography color="text.secondary">
-              Không có dữ liệu hoạt động trong khoảng thời gian đã chọn.
+              {t('activityHistory.noData')}
             </Typography>
           </CardContent>
         ) : (
@@ -274,11 +270,11 @@ function ActivityHistory() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Ngày</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Thiết bị</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Bắt đầu</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Kết thúc</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Tổng thời gian</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{t('activityHistory.date')}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{t('activityHistory.device')}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{t('activityHistory.start')}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{t('activityHistory.end')}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{t('activityHistory.duration')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -289,11 +285,11 @@ function ActivityHistory() {
                       <TableCell>{formatTime(session.startTime)}</TableCell>
                       <TableCell>
                         {session.endTime ? formatTime(session.endTime) : (
-                          <Chip label="Đang hoạt động" size="small" color="success" />
+                          <Chip label={t('activityHistory.active')} size="small" color="success" />
                         )}
                       </TableCell>
                       <TableCell>
-                        {session.totalMinutes != null ? `${session.totalMinutes} phút` : '—'}
+                        {session.totalMinutes != null ? formatDuration(session.totalMinutes) : '—'}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -308,7 +304,11 @@ function ActivityHistory() {
               rowsPerPage={rowsPerPage}
               rowsPerPageOptions={[10]}
               labelDisplayedRows={({ from, to, count }) =>
-                `${from}–${to} trên ${count !== -1 ? count : `hơn ${to}`}`
+                t('activityHistory.paginationLabel', {
+                  from,
+                  to,
+                  total: count !== -1 ? count : `>${to}`,
+                })
               }
             />
           </>

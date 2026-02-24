@@ -15,6 +15,7 @@ import {
   Timer as TimerIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import profileService from '../services/profileService';
 
 function StatCard({ title, value, icon, color, subtitle }) {
@@ -45,8 +46,9 @@ function StatCard({ title, value, icon, color, subtitle }) {
 }
 
 function ProfileCard({ profile }) {
+  const { t } = useTranslation();
   const usagePercent = Math.min((profile.todayUsage || 0) / (profile.dailyLimit || 120) * 100, 100);
-  
+
   return (
     <Card>
       <CardContent>
@@ -65,7 +67,7 @@ function ProfileCard({ profile }) {
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6">{profile.profileName}</Typography>
             <Chip
-              label={profile.isActive ? 'Đang hoạt động' : 'Không hoạt động'}
+              label={profile.isActive ? t('dashboard.active') : t('dashboard.inactive')}
               size="small"
               color={profile.isActive ? 'success' : 'default'}
             />
@@ -75,10 +77,10 @@ function ProfileCard({ profile }) {
         <Box sx={{ mb: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
-              Thời gian hôm nay
+              {t('dashboard.todayUsage')}
             </Typography>
             <Typography variant="body2" fontWeight={500}>
-              {profile.todayUsage || 0} / {profile.dailyLimit || 120} phút
+              {profile.todayUsage || 0} / {profile.dailyLimit || 120} {t('dashboard.minuteUnit')}
             </Typography>
           </Box>
           <LinearProgress
@@ -96,7 +98,7 @@ function ProfileCard({ profile }) {
         </Box>
 
         <Typography variant="caption" color="text.secondary">
-          {profile._count?.warnings || 0} cảnh báo hôm nay
+          {t('dashboard.warningsToday', { count: profile._count?.warnings || 0 })}
         </Typography>
       </CardContent>
     </Card>
@@ -104,6 +106,7 @@ function ProfileCard({ profile }) {
 }
 
 function Dashboard() {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -124,39 +127,39 @@ function Dashboard() {
 
   const stats = [
     {
-      title: 'Hồ sơ con',
+      title: t('dashboard.profilesTitle'),
       value: profiles.length,
       icon: <PeopleIcon />,
       color: 'primary',
-      subtitle: 'Tổng số hồ sơ đã tạo',
+      subtitle: t('dashboard.profilesSubtitle'),
     },
     {
-      title: 'Thiết bị',
+      title: t('dashboard.devicesTitle'),
       value: 0,
       icon: <DevicesIcon />,
       color: 'secondary',
-      subtitle: 'Thiết bị đang kết nối',
+      subtitle: t('dashboard.devicesSubtitle'),
     },
     {
-      title: 'Thời gian TB',
+      title: t('dashboard.avgTimeTitle'),
       value: '0h',
       icon: <TimerIcon />,
       color: 'success',
-      subtitle: 'Trung bình mỗi ngày',
+      subtitle: t('dashboard.avgTimeSubtitle'),
     },
     {
-      title: 'Cảnh báo',
+      title: t('dashboard.warningsTitle'),
       value: 0,
       icon: <WarningIcon />,
       color: 'warning',
-      subtitle: 'Trong 7 ngày qua',
+      subtitle: t('dashboard.warningsSubtitle'),
     },
   ];
 
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 3 }}>
-        Xin chào! 👋
+        {t('dashboard.greeting')}
       </Typography>
 
       {/* Stats */}
@@ -170,7 +173,7 @@ function Dashboard() {
 
       {/* Profiles */}
       <Typography variant="h5" sx={{ mb: 2 }}>
-        Hồ sơ con của bạn
+        {t('dashboard.yourProfiles')}
       </Typography>
 
       {loading ? (
@@ -188,7 +191,7 @@ function Dashboard() {
           <CardContent sx={{ textAlign: 'center', py: 4 }}>
             <PeopleIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
             <Typography color="text.secondary">
-              Chưa có hồ sơ nào. Hãy tạo hồ sơ con để bắt đầu!
+              {t('dashboard.noProfiles')}
             </Typography>
           </CardContent>
         </Card>
