@@ -1,12 +1,16 @@
 const nodemailer = require('nodemailer');
 
+if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  console.warn('⚠️  SMTP_USER hoặc SMTP_PASS chưa được cấu hình trong .env — chức năng gửi email sẽ không hoạt động');
+}
+
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
   secure: false,
   auth: {
-    user: 'duylamasd1995@gmail.com',
-    pass: 'kgdv fcgb vmtz bnoz',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -46,7 +50,7 @@ const sendResetPasswordEmail = async (email, resetToken) => {
   `;
 
   await transporter.sendMail({
-    from: '"KidFun" <duylamasd1995@gmail.com>',
+    from: `"KidFun" <${process.env.SMTP_USER}>`,
     to: email,
     subject: 'Đặt lại mật khẩu — KidFun',
     html,
