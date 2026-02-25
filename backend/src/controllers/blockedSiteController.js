@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const socketService = require('../services/socketService');
 
 // GET /api/blocked-sites/:profileId
 const getByProfile = async (req, res) => {
@@ -54,6 +55,15 @@ const create = async (req, res) => {
       data: { profileId, blockType, blockValue }
     });
 
+    // Notify child devices in real-time via Socket.IO
+    const allSites = await prisma.blockedWebsite.findMany({
+      where: { profileId }
+    });
+    socketService.notifyFamily(req.user.userId, 'blockedSitesUpdated', {
+      profileId,
+      blockedSites: allSites
+    });
+
     res.status(201).json(blockedSite);
   } catch (error) {
     console.error('Create blocked site error:', error);
@@ -76,7 +86,17 @@ const remove = async (req, res) => {
       return res.status(404).json({ error: 'Blocked site not found' });
     }
 
+    const profileId = blockedSite.profile.id;
     await prisma.blockedWebsite.delete({ where: { id } });
+
+    // Notify child devices in real-time via Socket.IO
+    const allSites = await prisma.blockedWebsite.findMany({
+      where: { profileId }
+    });
+    socketService.notifyFamily(blockedSite.profile.userId, 'blockedSitesUpdated', {
+      profileId,
+      blockedSites: allSites
+    });
 
     res.json({ message: 'Blocked site removed successfully' });
   } catch (error) {

@@ -274,21 +274,38 @@ function ChildDashboard({ device }) {
     useEffect(() => {
         if (!status?.profile?.id || !window.electronAPI?.updateBlockedSites) return;
 
+        const applyBlockedSites = async (sites) => {
+            const websites = sites
+                .filter((s) => s.blockType === 'website')
+                .map((s) => s.blockValue);
+            console.log('[ChildDashboard] Applying blocked websites to hosts:', websites);
+            const result = await window.electronAPI.updateBlockedSites(websites);
+            console.log('[ChildDashboard] updateBlockedSites result:', result);
+        };
+
         const loadBlockedSites = async () => {
             try {
                 const response = await api.get(`/blocked-sites/${status.profile.id}`);
-                const websites = response.data
-                    .filter((s) => s.blockType === 'website')
-                    .map((s) => s.blockValue);
-                if (websites.length > 0) {
-                    await window.electronAPI.updateBlockedSites(websites);
-                }
+                await applyBlockedSites(response.data);
             } catch (err) {
                 console.error('Load blocked sites error:', err);
             }
         };
 
         loadBlockedSites();
+
+        // Listen for real-time updates from Parent
+        socketService.onBlockedSitesUpdated(async (data) => {
+            console.log('[ChildDashboard] Received blockedSitesUpdated:', data);
+            if (data.profileId === status.profile.id) {
+                await applyBlockedSites(data.blockedSites);
+                setSnackbar({
+                    open: true,
+                    message: 'Bố mẹ đã cập nhật danh sách chặn website!',
+                    severity: 'info',
+                });
+            }
+        });
     }, [status?.profile?.id]);
 
     // useEffect 8: Listen for lock screen's "request more time" button (Electron IPC)

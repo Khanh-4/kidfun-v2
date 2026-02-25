@@ -232,10 +232,12 @@ ipcMain.on('unlock-screen', () => {
 
 ipcMain.handle('update-blocked-sites', async (event, sites) => {
   try {
+    console.log('[Main] IPC update-blocked-sites called with', sites?.length, 'sites:', sites);
     const success = hostsManager.updateBlockedSites(sites);
+    console.log('[Main] hostsManager.updateBlockedSites result:', success);
     return { success };
   } catch (err) {
-    console.error('Failed to update blocked sites:', err);
+    console.error('[Main] Failed to update blocked sites:', err);
     return { success: false, error: err.message };
   }
 });

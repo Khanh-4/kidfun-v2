@@ -46,6 +46,14 @@ class SocketService {
                 this.listeners.onTimeLimitUpdated(data);
             }
         });
+
+        // Lắng nghe khi Parent thay đổi danh sách chặn website
+        this.socket.on('blockedSitesUpdated', (data) => {
+            console.log('🚫 Blocked sites updated by parent:', data);
+            if (this.listeners.onBlockedSitesUpdated) {
+                this.listeners.onBlockedSitesUpdated(data);
+            }
+        });
     }
 
     disconnect() {
@@ -68,6 +76,11 @@ class SocketService {
     // Lắng nghe khi Parent thay đổi giới hạn thời gian
     onTimeLimitUpdated(callback) {
         this.listeners.onTimeLimitUpdated = callback;
+    }
+
+    // Lắng nghe khi Parent thay đổi danh sách chặn website
+    onBlockedSitesUpdated(callback) {
+        this.listeners.onBlockedSitesUpdated = callback;
     }
 
     // Child gửi yêu cầu thêm thời gian
