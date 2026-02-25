@@ -38,6 +38,14 @@ class SocketService {
                 this.listeners.onTimeExtensionResponse(data);
             }
         });
+
+        // Lắng nghe khi Parent thay đổi giới hạn thời gian
+        this.socket.on('timeLimitUpdated', (data) => {
+            console.log('⏱️ Time limit updated by parent:', data);
+            if (this.listeners.onTimeLimitUpdated) {
+                this.listeners.onTimeLimitUpdated(data);
+            }
+        });
     }
 
     disconnect() {
@@ -55,6 +63,11 @@ class SocketService {
     // Lắng nghe khi Parent xóa thiết bị
     onDeviceRemoved(callback) {
         this.listeners.onDeviceRemoved = callback;
+    }
+
+    // Lắng nghe khi Parent thay đổi giới hạn thời gian
+    onTimeLimitUpdated(callback) {
+        this.listeners.onTimeLimitUpdated = callback;
     }
 
     // Child gửi yêu cầu thêm thời gian

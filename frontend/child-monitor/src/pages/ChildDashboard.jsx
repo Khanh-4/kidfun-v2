@@ -207,6 +207,29 @@ function ChildDashboard({ device }) {
             window.location.reload();
         });
 
+        // Re-fetch status when parent changes time limit
+        socketService.onTimeLimitUpdated(async () => {
+            try {
+                const response = await api.get('/child/status');
+                setStatus(response.data);
+                setTimeRemaining(response.data.remainingMinutes * 60);
+
+                // Unlock if remaining time > 0
+                if (response.data.remainingMinutes > 0 && isLocked) {
+                    setIsLocked(false);
+                    window.electronAPI?.unlockScreen();
+                }
+
+                setSnackbar({
+                    open: true,
+                    message: 'Bố mẹ đã cập nhật giới hạn thời gian!',
+                    severity: 'info',
+                });
+            } catch (err) {
+                console.error('Refresh status error:', err);
+            }
+        });
+
         socketService.onTimeExtensionResponse((data) => {
             if (data.approved) {
                 // Persist bonus to backend

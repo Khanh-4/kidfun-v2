@@ -103,6 +103,40 @@ function createTray() {
 }
 
 // Lock screen — fullscreen kiosk mode
+let lockFocusInterval = null;
+
+function registerLockShortcuts() {
+  // Block common escape shortcuts
+  // Note: 'Super' alone is NOT a valid Electron accelerator — use Meta+key combos
+  const shortcuts = [
+    'Alt+F4',
+    'Alt+Tab',
+    'Alt+Escape',
+    'CommandOrControl+W',
+    'CommandOrControl+Q',
+    'CommandOrControl+Escape',
+    'Meta+D',      // Show desktop (Windows)
+    'Meta+E',      // Explorer (Windows)
+    'Meta+R',      // Run dialog (Windows)
+    'Meta+Tab',    // Task view (Windows)
+    'F11',         // Toggle fullscreen
+    'Alt+Space',   // Window menu
+  ];
+
+  for (const key of shortcuts) {
+    try {
+      globalShortcut.register(key, () => {
+        // Ensure lock window stays focused
+        if (lockWindow && !lockWindow.isDestroyed()) {
+          lockWindow.focus();
+        }
+      });
+    } catch (err) {
+      console.warn(`Could not register shortcut ${key}:`, err.message);
+    }
+  }
+}
+
 function createLockScreen() {
   if (lockWindow) return;
 
@@ -110,12 +144,14 @@ function createLockScreen() {
     fullscreen: true,
     alwaysOnTop: true,
     frame: false,
-    kiosk: true,
     skipTaskbar: true,
     closable: false,
     minimizable: false,
+    maximizable: false,
     resizable: false,
     movable: false,
+    focusable: true,
+    kiosk: true,
     webPreferences: {
       preload: path.join(__dirname, 'lockPreload.cjs'),
       contextIsolation: true,
@@ -123,16 +159,13 @@ function createLockScreen() {
     },
   });
 
+  // Highest z-order level so it stays above taskbar and other windows
+  lockWindow.setAlwaysOnTop(true, 'screen-saver');
+
   lockWindow.loadFile(path.join(__dirname, 'lockScreen.html'));
 
-  // Block keyboard shortcuts to prevent escape
-  lockWindow.on('focus', () => {
-    globalShortcut.register('Alt+F4', () => {});
-    globalShortcut.register('Alt+Tab', () => {});
-    globalShortcut.register('CommandOrControl+W', () => {});
-    globalShortcut.register('CommandOrControl+Q', () => {});
-    globalShortcut.register('Super', () => {});
-  });
+  // Register shortcuts once after window is created
+  registerLockShortcuts();
 
   lockWindow.on('blur', () => {
     // Re-focus lock window if it loses focus
@@ -141,9 +174,24 @@ function createLockScreen() {
     }
   });
 
+  // Periodically re-focus and re-assert always-on-top to defeat OS task switching
+  lockFocusInterval = setInterval(() => {
+    if (lockWindow && !lockWindow.isDestroyed()) {
+      lockWindow.setAlwaysOnTop(true, 'screen-saver');
+      lockWindow.focus();
+    } else {
+      clearInterval(lockFocusInterval);
+      lockFocusInterval = null;
+    }
+  }, 500);
+
   lockWindow.on('closed', () => {
     lockWindow = null;
     globalShortcut.unregisterAll();
+    if (lockFocusInterval) {
+      clearInterval(lockFocusInterval);
+      lockFocusInterval = null;
+    }
   });
 
   // Prevent closing via system commands
@@ -156,6 +204,12 @@ function destroyLockScreen() {
   if (lockWindow && !lockWindow.isDestroyed()) {
     // Notify lock screen before closing
     lockWindow.webContents.send('unlock-screen');
+
+    // Clear focus interval
+    if (lockFocusInterval) {
+      clearInterval(lockFocusInterval);
+      lockFocusInterval = null;
+    }
 
     // Unregister shortcuts
     globalShortcut.unregisterAll();

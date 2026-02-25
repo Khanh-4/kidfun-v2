@@ -19,6 +19,30 @@ const calcRemaining = async (profileId, deviceId) => {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
+  // Auto-close stale ACTIVE sessions from previous days
+  const staleSessions = await prisma.session.findMany({
+    where: {
+      deviceId,
+      status: 'ACTIVE',
+      startTime: { lt: startOfDay }
+    }
+  });
+
+  if (staleSessions.length > 0) {
+    const now = new Date();
+    for (const session of staleSessions) {
+      const durationMinutes = Math.floor((now - new Date(session.startTime)) / 60000);
+      await prisma.session.update({
+        where: { id: session.id },
+        data: {
+          status: 'COMPLETED',
+          endTime: now,
+          totalMinutes: durationMinutes
+        }
+      });
+    }
+  }
+
   const usageLogs = await prisma.usageLog.findMany({
     where: {
       profileId,
@@ -29,9 +53,13 @@ const calcRemaining = async (profileId, deviceId) => {
   const totalSeconds = usageLogs.reduce((sum, log) => sum + (log.durationSeconds || 0), 0);
   const usedMinutes = Math.round(totalSeconds / 60);
 
-  // Get bonus from active session
+  // Get bonus from active session started TODAY only
   const activeSession = await prisma.session.findFirst({
-    where: { deviceId, status: 'ACTIVE' },
+    where: {
+      deviceId,
+      status: 'ACTIVE',
+      startTime: { gte: startOfDay }
+    },
     orderBy: { startTime: 'desc' }
   });
   const bonusMinutes = activeSession?.bonusMinutes || 0;
@@ -241,6 +269,17 @@ const heartbeat = async (req, res) => {
         data: {
           endTime: now,
           durationSeconds
+        }
+      });
+
+      // Create new usage log for next interval so tracking continues
+      await prisma.usageLog.create({
+        data: {
+          profileId: session.profileId,
+          deviceId: session.deviceId,
+          appName: 'KidFun Monitor',
+          startTime: now,
+          activityType: 'MONITORING'
         }
       });
     }

@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const socketService = require('../services/socketService');
 
 // GET /api/profiles
 const getAllProfiles = async (req, res) => {
@@ -174,6 +175,12 @@ const updateTimeLimits = async (req, res) => {
     const updated = await prisma.timeLimit.findMany({
       where: { profileId },
       orderBy: { dayOfWeek: 'asc' }
+    });
+
+    // Notify child devices in real-time via Socket.IO
+    socketService.notifyFamily(req.user.userId, 'timeLimitUpdated', {
+      profileId,
+      timeLimits: updated
     });
 
     res.json({ message: 'Time limits updated successfully', timeLimits: updated });
