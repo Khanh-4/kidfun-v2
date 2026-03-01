@@ -487,11 +487,45 @@ const createWarning = async (req, res) => {
   }
 };
 
+// GET /api/child/blocked-sites
+// Lấy danh sách blocked sites cho device (dựa trên profileId)
+const getBlockedSites = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+
+    if (!deviceCode) {
+      return res.status(400).json({ error: 'Device code required' });
+    }
+
+    const device = await prisma.device.findUnique({
+      where: { deviceCode }
+    });
+
+    if (!device) {
+      return res.status(404).json({ error: 'Invalid device code' });
+    }
+
+    if (!device.profileId) {
+      return res.status(400).json({ error: 'Device not assigned to a profile' });
+    }
+
+    const blockedSites = await prisma.blockedWebsite.findMany({
+      where: { profileId: device.profileId }
+    });
+
+    res.json(blockedSites);
+  } catch (error) {
+    console.error('Get blocked sites error:', error);
+    res.status(500).json({ error: 'Failed to get blocked sites' });
+  }
+};
+
 module.exports = {
   getStatus,
   startSession,
   heartbeat,
   endSession,
   addBonus,
-  createWarning
+  createWarning,
+  getBlockedSites
 };

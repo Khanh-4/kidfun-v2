@@ -23,4 +23,7 @@ router.post('/bonus', childController.addBonus);
 // POST /api/child/warnings - Ghi log warning
 router.post('/warnings', childController.createWarning);
 
+// GET /api/child/blocked-sites - Lấy danh sách blocked sites (dùng deviceCode)
+router.get('/blocked-sites', childController.getBlockedSites);
+
 module.exports = router;

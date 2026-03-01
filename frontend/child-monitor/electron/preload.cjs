@@ -20,4 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLockRequestMoreTime: (callback) => {
     ipcRenderer.on('lock-request-more-time', () => callback());
   },
+
+  // Listen for emergency unlock (Ctrl+Shift+Alt+Q)
+  onEmergencyUnlock: (callback) => {
+    ipcRenderer.on('emergency-unlock', () => callback());
+  },
 });

@@ -9,17 +9,22 @@ const socketService = {
 
       // Child hoặc Parent tham gia "phòng" của gia đình
       socket.on('joinFamily', ({ userId, role }) => {
-        socket.join(`family_${userId}`);
+        const room = `family_${userId}`;
+        socket.join(room);
         socket.role = role;
         socket.userId = userId;
-        console.log(`👨‍👩‍👧 ${role} joined family_${userId}`);
+        const clients = io.sockets.adapter.rooms.get(room);
+        console.log(`👨‍👩‍👧 ${role} (${socket.id}) joined ${room} — room now has ${clients ? clients.size : 0} members:`, clients ? [...clients] : []);
       });
 
       // Child gửi yêu cầu thêm thời gian
       socket.on('requestTimeExtension', (data) => {
-        console.log('⏰ Time extension request:', data);
+        console.log('⏰ Time extension request from:', socket.id, 'data:', data);
+        const room = `family_${data.userId}`;
+        const clients = io.sockets.adapter.rooms.get(room);
+        console.log(`⏰ Room ${room} has ${clients ? clients.size : 0} clients:`, clients ? [...clients] : []);
         // Gửi đến tất cả Parent trong gia đình
-        io.to(`family_${data.userId}`).emit('timeExtensionRequest', {
+        io.to(room).emit('timeExtensionRequest', {
           id: Date.now(),
           deviceName: data.deviceName,
           profileName: data.profileName,
@@ -50,8 +55,8 @@ const socketService = {
         });
       });
 
-      socket.on('disconnect', () => {
-        console.log('❌ Client disconnected:', socket.id);
+      socket.on('disconnect', (reason) => {
+        console.log(`❌ Client disconnected: ${socket.id} (${socket.role || 'unknown'} of family_${socket.userId || '?'}), reason: ${reason}`);
       });
     });
   },

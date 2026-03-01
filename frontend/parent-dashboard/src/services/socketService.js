@@ -2,6 +2,8 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
+console.log('[ParentSocket] SOCKET_URL:', SOCKET_URL);
+
 class SocketService {
   socket = null;
   listeners = {};
@@ -9,18 +11,27 @@ class SocketService {
   connect(userId) {
     if (this.socket?.connected) return;
 
+    console.log('[ParentSocket] Connecting to:', SOCKET_URL, 'userId:', userId);
+
     this.socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
     this.socket.on('connect', () => {
-      console.log('🔌 Parent connected to server');
+      console.log('🔌 Parent connected to server, socketId:', this.socket.id);
       // Tham gia phòng gia đình
+      console.log('[ParentSocket] Emitting joinFamily:', { userId, role: 'parent' });
       this.socket.emit('joinFamily', { userId, role: 'parent' });
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('❌ Parent disconnected');
+    this.socket.on('connect_error', (err) => {
+      console.error('🔴 Parent socket connect_error:', err.message, 'URL:', SOCKET_URL);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Parent disconnected, reason:', reason);
     });
 
     // Lắng nghe yêu cầu thêm thời gian từ Child

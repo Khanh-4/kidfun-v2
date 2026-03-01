@@ -9,21 +9,25 @@ require('dotenv').config();
 const app = express();
 const httpServer = createServer(app);
 
-// CORS origins từ biến môi trường (dùng chung cho Express và Socket.IO)
-const corsOrigins = process.env.SOCKET_CORS_ORIGIN?.split(',').map(s => s.trim())
-  || ['http://localhost:3000', 'http://localhost:3002'];
+// CORS: cho phép tất cả origins trong dev mode để hỗ trợ LAN
+const corsOrigins = process.env.NODE_ENV === 'production'
+  ? (process.env.SOCKET_CORS_ORIGIN?.split(',').map(s => s.trim()) || ['http://localhost:3000', 'http://localhost:3002'])
+  : '*';
+
+console.log('🔒 CORS origins:', corsOrigins);
 
 // Socket.IO setup
 const io = new Server(httpServer, {
   cors: {
-    origin: corsOrigins,
-    methods: ['GET', 'POST']
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: corsOrigins }));
+app.use(cors({ origin: '*' }));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -285,10 +285,12 @@ function ChildDashboard({ device }) {
 
         const loadBlockedSites = async () => {
             try {
-                const response = await api.get(`/blocked-sites/${status.profile.id}`);
+                console.log('[ChildDashboard] Fetching blocked sites via /child/blocked-sites');
+                const response = await api.get('/child/blocked-sites');
+                console.log('[ChildDashboard] Blocked sites response:', response.data);
                 await applyBlockedSites(response.data);
             } catch (err) {
-                console.error('Load blocked sites error:', err);
+                console.error('[ChildDashboard] Load blocked sites error:', err.response?.status, err.message);
             }
         };
 
@@ -314,6 +316,16 @@ function ChildDashboard({ device }) {
 
         window.electronAPI.onLockRequestMoreTime(() => {
             setShowRequestDialog(true);
+        });
+    }, []);
+
+    // useEffect 9: Listen for emergency unlock (Ctrl+Shift+Alt+Q)
+    useEffect(() => {
+        if (!window.electronAPI?.onEmergencyUnlock) return;
+
+        window.electronAPI.onEmergencyUnlock(() => {
+            console.log('[ChildDashboard] Emergency unlock received');
+            setIsLocked(false);
         });
     }, []);
 
