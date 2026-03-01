@@ -1,7 +1,31 @@
 const { app, BrowserWindow, Menu, Tray, ipcMain, Notification, nativeImage, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const isDev = !app.isPackaged;
+
+// Đọc cấu hình từ file config hoặc environment
+function loadConfig() {
+  const defaults = { apiUrl: 'http://localhost:3001', devPort: 5173 };
+  if (process.env.API_URL) {
+    defaults.apiUrl = process.env.API_URL;
+  }
+  const configPath = isDev
+    ? path.join(__dirname, '..', 'electron-config.json')
+    : path.join(path.dirname(app.getPath('exe')), 'config.json');
+  try {
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.apiUrl) defaults.apiUrl = config.apiUrl;
+      if (config.devPort) defaults.devPort = config.devPort;
+    }
+  } catch (err) {
+    console.warn('Could not read config file:', err.message);
+  }
+  return defaults;
+}
+
+const config = loadConfig();
 
 let mainWindow = null;
 let tray = null;
@@ -20,7 +44,7 @@ function createWindow() {
   });
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL(`http://localhost:${config.devPort}`);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));

@@ -9,17 +9,21 @@ require('dotenv').config();
 const app = express();
 const httpServer = createServer(app);
 
+// CORS origins từ biến môi trường (dùng chung cho Express và Socket.IO)
+const corsOrigins = process.env.SOCKET_CORS_ORIGIN?.split(',').map(s => s.trim())
+  || ['http://localhost:3000', 'http://localhost:3002'];
+
 // Socket.IO setup
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.SOCKET_CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin: corsOrigins,
     methods: ['GET', 'POST']
   }
 });
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: corsOrigins }));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -69,8 +73,20 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`🚀 KidFun V2 Server running on http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+httpServer.listen(PORT, HOST, () => {
+  console.log(`🚀 KidFun V2 Server running on http://${HOST}:${PORT}`);
+  if (HOST === '0.0.0.0') {
+    // Hiển thị IP LAN để các thiết bị khác kết nối
+    const nets = require('os').networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]) {
+        if (net.family === 'IPv4' && !net.internal) {
+          console.log(`🌐 LAN: http://${net.address}:${PORT}`);
+        }
+      }
+    }
+  }
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

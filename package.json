@@ -27,7 +27,8 @@
     "test:backend": "cd backend && npm test",
     "test:frontend": "cd frontend/parent-dashboard && npm test",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "lan:ip": "node scripts/get-lan-ip.js"
   },
   "keywords": ["parental-control", "family", "screen-time", "electron", "react", "nodejs"],
   "author": "Nhom 60 - HUTECH",

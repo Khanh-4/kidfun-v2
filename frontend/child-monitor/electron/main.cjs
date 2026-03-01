@@ -1,8 +1,34 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, nativeImage } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const hostsManager = require('./hostsManager.cjs');
 
 const isDev = !app.isPackaged;
+
+// Đọc cấu hình từ file config hoặc environment
+function loadConfig() {
+  const defaults = { apiUrl: 'http://localhost:3001', devPort: 5174 };
+  // Ưu tiên 1: Environment variables
+  if (process.env.API_URL) {
+    defaults.apiUrl = process.env.API_URL;
+  }
+  // Ưu tiên 2: File config.json cùng thư mục với app
+  const configPath = isDev
+    ? path.join(__dirname, '..', 'electron-config.json')
+    : path.join(path.dirname(app.getPath('exe')), 'config.json');
+  try {
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.apiUrl) defaults.apiUrl = config.apiUrl;
+      if (config.devPort) defaults.devPort = config.devPort;
+    }
+  } catch (err) {
+    console.warn('Could not read config file:', err.message);
+  }
+  return defaults;
+}
+
+const config = loadConfig();
 
 let mainWindow = null;
 let lockWindow = null;
@@ -31,7 +57,7 @@ function createWindow() {
   });
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5174');
+    mainWindow.loadURL(`http://localhost:${config.devPort}`);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
