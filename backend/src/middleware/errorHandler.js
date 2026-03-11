@@ -3,27 +3,43 @@ const errorHandler = (err, req, res, next) => {
 
   // Prisma errors
   if (err.code === 'P2002') {
-    return res.status(409).json({ 
-      error: 'Duplicate entry',
-      message: 'This record already exists'
+    return res.status(409).json({
+      success: false,
+      message: 'This record already exists',
+      code: 'DUPLICATE'
     });
   }
 
   if (err.code === 'P2025') {
-    return res.status(404).json({ 
-      error: 'Not found',
-      message: 'Record not found'
+    return res.status(404).json({
+      success: false,
+      message: 'Record not found',
+      code: 'NOT_FOUND'
     });
   }
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token',
+      code: 'INVALID_TOKEN'
+    });
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      success: false,
+      message: 'Token expired',
+      code: 'TOKEN_EXPIRED'
+    });
   }
 
   // Default error
   res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
+    success: false,
+    message: err.message || 'Internal server error',
+    code: 'INTERNAL_ERROR',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };

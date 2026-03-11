@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const socketService = require('../services/socketService');
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 // GET /api/profiles
 const getAllProfiles = async (req, res) => {
@@ -14,10 +15,10 @@ const getAllProfiles = async (req, res) => {
         }
       }
     });
-    res.json(profiles);
+    sendSuccess(res, profiles);
   } catch (error) {
     console.error('Get profiles error:', error);
-    res.status(500).json({ error: 'Failed to get profiles' });
+    sendError(res, 'Failed to get profiles', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -44,16 +45,13 @@ const createProfile = async (req, res) => {
         dailyLimitMinutes: day === 0 || day === 6 ? 180 : 120 // Weekend: 3h, Weekday: 2h
       });
     }
-    
+
     await prisma.timeLimit.createMany({ data: defaultTimeLimits });
 
-    res.status(201).json({
-      message: 'Profile created successfully',
-      profile
-    });
+    sendSuccess(res, { profile }, 201);
   } catch (error) {
     console.error('Create profile error:', error);
-    res.status(500).json({ error: 'Failed to create profile' });
+    sendError(res, 'Failed to create profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -76,13 +74,13 @@ const getProfileById = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
-    res.json(profile);
+    sendSuccess(res, profile);
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Failed to get profile' });
+    sendError(res, 'Failed to get profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -105,13 +103,13 @@ const updateProfile = async (req, res) => {
     });
 
     if (profile.count === 0) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ message: 'Profile updated successfully' });
+    sendSuccess(res, { message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    sendError(res, 'Failed to update profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -126,13 +124,13 @@ const deleteProfile = async (req, res) => {
     });
 
     if (profile.count === 0) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ message: 'Profile deleted successfully' });
+    sendSuccess(res, { message: 'Profile deleted successfully' });
   } catch (error) {
     console.error('Delete profile error:', error);
-    res.status(500).json({ error: 'Failed to delete profile' });
+    sendError(res, 'Failed to delete profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -148,7 +146,7 @@ const updateTimeLimits = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
     // Upsert each day's time limit
@@ -183,10 +181,10 @@ const updateTimeLimits = async (req, res) => {
       timeLimits: updated
     });
 
-    res.json({ message: 'Time limits updated successfully', timeLimits: updated });
+    sendSuccess(res, { timeLimits: updated });
   } catch (error) {
     console.error('Update time limits error:', error);
-    res.status(500).json({ error: 'Failed to update time limits' });
+    sendError(res, 'Failed to update time limits', 500, 'INTERNAL_ERROR');
   }
 };
 

@@ -3,15 +3,25 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const { sendResetPasswordEmail } = require('../services/emailService');
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 const prisma = new PrismaClient();
 
-// Tạo JWT token
+// Tạo JWT access token
 const generateToken = (user) => {
   return jwt.sign(
     { userId: user.id, email: user.email },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
+};
+
+// Tạo JWT refresh token (secret riêng, expire 7d)
+const generateRefreshToken = (user) => {
+  return jwt.sign(
+    { userId: user.id },
+    process.env.JWT_SECRET + '_refresh',
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 };
 
@@ -23,7 +33,7 @@ const register = async (req, res) => {
     // Kiểm tra email đã tồn tại
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return sendError(res, 'Email already registered', 400, 'EMAIL_EXISTS');
     }
 
     // Hash password
@@ -47,15 +57,12 @@ const register = async (req, res) => {
     });
 
     const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-    res.status(201).json({
-      message: 'Registration successful',
-      user,
-      token
-    });
+    sendSuccess(res, { token, refreshToken, user }, 201);
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    sendError(res, 'Registration failed', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -67,55 +74,73 @@ const login = async (req, res) => {
     // Tìm user
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return sendError(res, 'Invalid email or password', 401, 'INVALID_CREDENTIALS');
     }
 
     // Kiểm tra password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return sendError(res, 'Invalid email or password', 401, 'INVALID_CREDENTIALS');
     }
 
     const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-    res.json({
-      message: 'Login successful',
+    sendSuccess(res, {
+      token,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
         phoneNumber: user.phoneNumber
-      },
-      token
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    sendError(res, 'Login failed', 500, 'INTERNAL_ERROR');
   }
 };
 
-// POST /api/auth/refresh
+// POST /api/auth/refresh-token
 const refreshToken = async (req, res) => {
   try {
-    const { userId } = req.user;
-    
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    const { refreshToken: token } = req.body;
+
+    if (!token) {
+      return sendError(res, 'Refresh token is required', 400, 'MISSING_TOKEN');
     }
 
-    const token = generateToken(user);
-    res.json({ token });
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET + '_refresh');
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return sendError(res, 'Refresh token expired', 401, 'TOKEN_EXPIRED');
+      }
+      return sendError(res, 'Invalid refresh token', 401, 'INVALID_TOKEN');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    if (!user) {
+      return sendError(res, 'User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    // Tạo access token mới + refresh token mới
+    const newToken = generateToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+
+    sendSuccess(res, { token: newToken, refreshToken: newRefreshToken });
   } catch (error) {
     console.error('Refresh token error:', error);
-    res.status(500).json({ error: 'Token refresh failed' });
+    sendError(res, 'Token refresh failed', 500, 'INTERNAL_ERROR');
   }
 };
 
 // POST /api/auth/logout
 const logout = async (req, res) => {
-  // Với JWT stateless, logout chủ yếu xử lý ở client
-  res.json({ message: 'Logout successful' });
+  sendSuccess(res, { message: 'Logged out' });
 };
 
 // PUT /api/auth/profile - Cập nhật thông tin cá nhân
@@ -138,13 +163,10 @@ const updateProfile = async (req, res) => {
       },
     });
 
-    res.json({
-      message: 'Profile updated successfully',
-      user,
-    });
+    sendSuccess(res, { user });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    sendError(res, 'Failed to update profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -157,13 +179,13 @@ const changePassword = async (req, res) => {
     // Lấy user hiện tại
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return sendError(res, 'User not found', 404, 'USER_NOT_FOUND');
     }
 
     // Kiểm tra mật khẩu hiện tại
     const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValidPassword) {
-      return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
+      return sendError(res, 'Mật khẩu hiện tại không đúng', 400, 'INVALID_PASSWORD');
     }
 
     // Hash mật khẩu mới
@@ -175,10 +197,10 @@ const changePassword = async (req, res) => {
       data: { passwordHash: newPasswordHash },
     });
 
-    res.json({ message: 'Password changed successfully' });
+    sendSuccess(res, { message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
-    res.status(500).json({ error: 'Failed to change password' });
+    sendError(res, 'Failed to change password', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -192,7 +214,7 @@ const forgotPassword = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.json({ message: successMsg });
+      return sendSuccess(res, { message: successMsg });
     }
 
     // Tạo reset token
@@ -206,10 +228,10 @@ const forgotPassword = async (req, res) => {
 
     await sendResetPasswordEmail(email, resetToken);
 
-    res.json({ message: successMsg });
+    sendSuccess(res, { message: successMsg });
   } catch (error) {
     console.error('Forgot password error:', error);
-    res.status(500).json({ error: 'Không thể gửi email. Vui lòng thử lại.' });
+    sendError(res, 'Không thể gửi email. Vui lòng thử lại.', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -226,7 +248,7 @@ const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.' });
+      return sendError(res, 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.', 400, 'INVALID_RESET_TOKEN');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -240,10 +262,10 @@ const resetPassword = async (req, res) => {
       },
     });
 
-    res.json({ message: 'Mật khẩu đã được đặt lại thành công.' });
+    sendSuccess(res, { message: 'Mật khẩu đã được đặt lại thành công.' });
   } catch (error) {
     console.error('Reset password error:', error);
-    res.status(500).json({ error: 'Không thể đặt lại mật khẩu. Vui lòng thử lại.' });
+    sendError(res, 'Không thể đặt lại mật khẩu. Vui lòng thử lại.', 500, 'INTERNAL_ERROR');
   }
 };
 

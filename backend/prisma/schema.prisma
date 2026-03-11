@@ -22,6 +22,7 @@ model User {
   profiles      Profile[]
   devices       Device[]
   notifications Notification[]
+  fcmTokens     FCMToken[]
 }
 
 model Profile {
@@ -56,6 +57,7 @@ model Device {
   profile      Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
   applications Application[]
   sessions     Session[]
+  fcmTokens    FCMToken[]
 }
 
 model TimeLimit {
@@ -146,4 +148,17 @@ model Session {
   status       String    @default("ACTIVE")
 
   device Device @relation(fields: [deviceId], references: [id])
+}
+
+model FCMToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  deviceId  Int?
+  token     String   @unique
+  platform  String   // ANDROID | IOS
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
 }

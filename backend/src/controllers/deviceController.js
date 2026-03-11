@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
 const prisma = new PrismaClient();
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 // Tạo mã device ngẫu nhiên
 const generateDeviceCode = () => {
@@ -18,10 +19,10 @@ const getAllDevices = async (req, res) => {
         _count: { select: { sessions: true } }
       }
     });
-    res.json(devices);
+    sendSuccess(res, devices);
   } catch (error) {
     console.error('Get devices error:', error);
-    res.status(500).json({ error: 'Failed to get devices' });
+    sendError(res, 'Failed to get devices', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -39,13 +40,10 @@ const registerDevice = async (req, res) => {
       }
     });
 
-    res.status(201).json({
-      message: 'Device registered successfully',
-      device
-    });
+    sendSuccess(res, { device }, 201);
   } catch (error) {
     console.error('Register device error:', error);
-    res.status(500).json({ error: 'Failed to register device' });
+    sendError(res, 'Failed to register device', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -67,13 +65,13 @@ const getDeviceById = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Device not found' });
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
     }
 
-    res.json(device);
+    sendSuccess(res, device);
   } catch (error) {
     console.error('Get device error:', error);
-    res.status(500).json({ error: 'Failed to get device' });
+    sendError(res, 'Failed to get device', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -97,13 +95,13 @@ const updateDevice = async (req, res) => {
     });
 
     if (device.count === 0) {
-      return res.status(404).json({ error: 'Device not found' });
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ message: 'Device updated successfully' });
+    sendSuccess(res, { message: 'Device updated successfully' });
   } catch (error) {
     console.error('Update device error:', error);
-    res.status(500).json({ error: 'Failed to update device' });
+    sendError(res, 'Failed to update device', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -118,13 +116,13 @@ const deleteDevice = async (req, res) => {
     });
 
     if (device.count === 0) {
-      return res.status(404).json({ error: 'Device not found' });
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ message: 'Device deleted successfully' });
+    sendSuccess(res, { message: 'Device deleted successfully' });
   } catch (error) {
     console.error('Delete device error:', error);
-    res.status(500).json({ error: 'Failed to delete device' });
+    sendError(res, 'Failed to delete device', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -138,16 +136,13 @@ const linkDevice = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'NOT_FOUND');
     }
 
-    res.json({
-      message: 'Device linked successfully',
-      device
-    });
+    sendSuccess(res, { device });
   } catch (error) {
     console.error('Link device error:', error);
-    res.status(500).json({ error: 'Failed to link device' });
+    sendError(res, 'Failed to link device', 500, 'INTERNAL_ERROR');
   }
 };
 

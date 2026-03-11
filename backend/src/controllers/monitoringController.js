@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 // GET /api/monitoring/usage/:profileId
 const getUsageStats = async (req, res) => {
@@ -21,7 +22,7 @@ const getUsageStats = async (req, res) => {
     // Tính tổng thời gian sử dụng
     const totalSeconds = usageLogs.reduce((sum, log) => sum + (log.durationSeconds || 0), 0);
 
-    res.json({
+    sendSuccess(res, {
       usageLogs,
       summary: {
         totalMinutes: Math.round(totalSeconds / 60),
@@ -31,7 +32,7 @@ const getUsageStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Get usage stats error:', error);
-    res.status(500).json({ error: 'Failed to get usage stats' });
+    sendError(res, 'Failed to get usage stats', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -40,7 +41,7 @@ const logUsage = async (req, res) => {
   try {
     const { profileId, deviceId, appName, websiteUrl, startTime, endTime, activityType } = req.body;
 
-    const durationSeconds = endTime && startTime 
+    const durationSeconds = endTime && startTime
       ? Math.round((new Date(endTime) - new Date(startTime)) / 1000)
       : null;
 
@@ -57,10 +58,10 @@ const logUsage = async (req, res) => {
       }
     });
 
-    res.status(201).json(usageLog);
+    sendSuccess(res, usageLog, 201);
   } catch (error) {
     console.error('Log usage error:', error);
-    res.status(500).json({ error: 'Failed to log usage' });
+    sendError(res, 'Failed to log usage', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -75,10 +76,10 @@ const getWarnings = async (req, res) => {
       take: 50
     });
 
-    res.json(warnings);
+    sendSuccess(res, warnings);
   } catch (error) {
     console.error('Get warnings error:', error);
-    res.status(500).json({ error: 'Failed to get warnings' });
+    sendError(res, 'Failed to get warnings', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -96,10 +97,10 @@ const createWarning = async (req, res) => {
       }
     });
 
-    res.status(201).json(warning);
+    sendSuccess(res, warning, 201);
   } catch (error) {
     console.error('Create warning error:', error);
-    res.status(500).json({ error: 'Failed to create warning' });
+    sendError(res, 'Failed to create warning', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -115,7 +116,7 @@ const getReports = async (req, res) => {
       include: { timeLimits: true }
     });
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
     // Determine date range from period
@@ -199,7 +200,7 @@ const getReports = async (req, res) => {
     const weekdayAvg = weekdayCount > 0 ? Math.round(weekdayTotal / weekdayCount) : 0;
     const weekendAvg = weekendCount > 0 ? Math.round(weekendTotal / weekendCount) : 0;
 
-    res.json({
+    sendSuccess(res, {
       dailyUsage,
       totalMinutes,
       avgMinutesPerDay,
@@ -210,7 +211,7 @@ const getReports = async (req, res) => {
     });
   } catch (error) {
     console.error('Get reports error:', error);
-    res.status(500).json({ error: 'Failed to get reports' });
+    sendError(res, 'Failed to get reports', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -228,7 +229,7 @@ const getActivityHistory = async (req, res) => {
       where: { id: profileId, userId: req.user.userId }
     });
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
     // Build date filter
@@ -281,14 +282,14 @@ const getActivityHistory = async (req, res) => {
       peakDay = { date: peak[0], minutes: peak[1] };
     }
 
-    res.json({
+    sendSuccess(res, {
       sessions,
       totalCount,
       summary: { totalMinutes, avgPerDay, peakDay }
     });
   } catch (error) {
     console.error('Get activity history error:', error);
-    res.status(500).json({ error: 'Failed to get activity history' });
+    sendError(res, 'Failed to get activity history', 500, 'INTERNAL_ERROR');
   }
 };
 
