@@ -39,6 +39,7 @@ const deviceRoutes = require('./routes/devices');
 const monitoringRoutes = require('./routes/monitoring');
 const blockedSiteRoutes = require('./routes/blockedSites');
 const childRoutes = require('./routes/child');
+const fcmRoutes = require('./routes/fcm');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -47,6 +48,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/blocked-sites', blockedSiteRoutes);
 app.use('/api/child', childRoutes);
+app.use('/api/fcm-tokens', fcmRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -59,6 +61,15 @@ app.get('/api/health', (req, res) => {
     }
   });
 });
+
+// Init Firebase (skip nếu không có config — dev mode)
+const { initFirebase } = require('./services/firebaseService');
+try {
+  initFirebase();
+  console.log('Firebase initialized');
+} catch (err) {
+  console.warn('Firebase not configured:', err.message);
+}
 
 // Socket.IO - sử dụng socketService
 const socketService = require('./services/socketService');
