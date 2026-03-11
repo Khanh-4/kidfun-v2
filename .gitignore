@@ -145,11 +145,25 @@ vite.config.ts.timestamp-*
 *.db
 *.db-journal
 
+# Firebase service account keys
+firebase-service-account.json
+*firebase*.json
+!firebase.json
+
 # IDE
 .idea/
+.vscode/settings.json
 *.swp
 *.swo
 
 # OS files
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
+
+# Flutter (mobile/)
+.dart_tool/
+.packages
+*.iml
+.metadata
+pubspec.lock
