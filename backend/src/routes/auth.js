@@ -9,11 +9,11 @@ router.post('/register', authController.register);
 // POST /api/auth/login - Đăng nhập
 router.post('/login', authController.login);
 
-// POST /api/auth/refresh - Làm mới token
-router.post('/refresh', authenticate, authController.refreshToken);
+// POST /api/auth/refresh-token - Làm mới token (không cần auth, dùng refresh token trong body)
+router.post('/refresh-token', authController.refreshToken);
 
-// POST /api/auth/logout - Đăng xuất
-router.post('/logout', authController.logout);
+// POST /api/auth/logout - Đăng xuất (cần JWT)
+router.post('/logout', authenticate, authController.logout);
 
 // POST /api/auth/forgot-password - Quên mật khẩu
 router.post('/forgot-password', authController.forgotPassword);

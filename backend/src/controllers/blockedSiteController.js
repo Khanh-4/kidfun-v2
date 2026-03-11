@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const socketService = require('../services/socketService');
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 // GET /api/blocked-sites/:profileId
 const getByProfile = async (req, res) => {
@@ -13,7 +14,7 @@ const getByProfile = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
     const blockedSites = await prisma.blockedWebsite.findMany({
@@ -21,10 +22,10 @@ const getByProfile = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json(blockedSites);
+    sendSuccess(res, blockedSites);
   } catch (error) {
     console.error('Get blocked sites error:', error);
-    res.status(500).json({ error: 'Failed to get blocked sites' });
+    sendError(res, 'Failed to get blocked sites', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -39,7 +40,7 @@ const create = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
     // Check duplicate
@@ -48,7 +49,7 @@ const create = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(409).json({ error: 'This entry already exists' });
+      return sendError(res, 'This entry already exists', 409, 'DUPLICATE');
     }
 
     const blockedSite = await prisma.blockedWebsite.create({
@@ -64,10 +65,10 @@ const create = async (req, res) => {
       blockedSites: allSites
     });
 
-    res.status(201).json(blockedSite);
+    sendSuccess(res, blockedSite, 201);
   } catch (error) {
     console.error('Create blocked site error:', error);
-    res.status(500).json({ error: 'Failed to create blocked site' });
+    sendError(res, 'Failed to create blocked site', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -83,7 +84,7 @@ const remove = async (req, res) => {
     });
 
     if (!blockedSite || blockedSite.profile.userId !== req.user.userId) {
-      return res.status(404).json({ error: 'Blocked site not found' });
+      return sendError(res, 'Blocked site not found', 404, 'NOT_FOUND');
     }
 
     const profileId = blockedSite.profile.id;
@@ -98,10 +99,10 @@ const remove = async (req, res) => {
       blockedSites: allSites
     });
 
-    res.json({ message: 'Blocked site removed successfully' });
+    sendSuccess(res, { message: 'Blocked site removed successfully' });
   } catch (error) {
     console.error('Delete blocked site error:', error);
-    res.status(500).json({ error: 'Failed to delete blocked site' });
+    sendError(res, 'Failed to delete blocked site', 500, 'INTERNAL_ERROR');
   }
 };
 

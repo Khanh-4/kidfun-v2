@@ -50,10 +50,13 @@ app.use('/api/child', childRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'KidFun V2 API is running',
-    timestamp: new Date().toISOString()
+  res.json({
+    success: true,
+    data: {
+      status: 'OK',
+      message: 'KidFun V3 API is running',
+      timestamp: new Date().toISOString()
+    }
   });
 });
 
@@ -62,17 +65,12 @@ const socketService = require('./services/socketService');
 socketService.init(io);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ success: false, message: 'Route not found', code: 'NOT_FOUND' });
 });
 
 // Start server
