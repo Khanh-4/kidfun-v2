@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
 
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
   console.warn('⚠️  SMTP_USER hoặc SMTP_PASS chưa được cấu hình trong .env — chức năng gửi email sẽ không hoạt động');
@@ -11,6 +12,13 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
+  },
+  // Fix ENETUNREACH trên Railway: ép kết nối qua IPv4 thay vì IPv6
+  dnsLookup: (hostname, options, callback) => {
+    dns.resolve4(hostname, (err, addresses) => {
+      if (err) return callback(err);
+      callback(null, addresses[0], 4);
+    });
   },
 });
 
