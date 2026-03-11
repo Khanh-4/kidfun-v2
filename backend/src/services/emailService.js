@@ -1,26 +1,49 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 
-if (!process.env.RESEND_API_KEY) {
-  console.warn('⚠️  RESEND_API_KEY chưa được cấu hình trong .env — chức năng gửi email sẽ không hoạt động');
+const OAuth2 = google.auth.OAuth2;
+
+if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+  console.warn('⚠️  GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN chưa được cấu hình trong .env — chức năng gửi email sẽ không hoạt động');
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const oauth2Client = new OAuth2(
+  process.env.GMAIL_CLIENT_ID,
+  process.env.GMAIL_CLIENT_SECRET,
+  'https://developers.google.com/oauthplayground'
+);
+
+oauth2Client.setCredentials({
+  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+});
 
 /**
- * Gửi email chung qua Resend API
+ * Gửi email chung qua Gmail API OAuth2
  * @param {string} to - Địa chỉ email nhận
  * @param {string} subject - Tiêu đề email
  * @param {string} html - Nội dung HTML
  */
 async function sendEmail(to, subject, html) {
-  const { data, error } = await resend.emails.send({
-    from: 'KidFun <onboarding@resend.dev>',
-    to: [to],
+  const accessToken = await oauth2Client.getAccessToken();
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      type: 'OAuth2',
+      user: process.env.GMAIL_USER,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      accessToken: accessToken.token,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `KidFun <${process.env.GMAIL_USER}>`,
+    to,
     subject,
     html,
   });
-  if (error) throw error;
-  return data;
 }
 
 const sendResetPasswordEmail = async (email, resetToken) => {
