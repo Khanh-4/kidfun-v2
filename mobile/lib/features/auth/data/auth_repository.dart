@@ -63,11 +63,26 @@ class AuthRepository {
 
   Future<void> logout() async {
     try {
+      // Unregister FCM token trước khi logout
+      final fcmToken = await SecureStorage.getFcmToken();
+      if (fcmToken != null) {
+        await _dio.post(ApiConstants.fcmUnregister, data: {'token': fcmToken});
+      }
       await _dio.post(ApiConstants.logout);
     } catch (e) {
       // Ignore errors when logging out
     } finally {
       await SecureStorage.clearAll();
+    }
+  }
+
+  /// Đăng ký FCM token lên server sau khi đăng nhập/đăng ký thành công
+  Future<void> registerFcmToken(String fcmToken) async {
+    try {
+      await _dio.post(ApiConstants.fcmRegister, data: {'token': fcmToken});
+      await SecureStorage.saveFcmToken(fcmToken);
+    } catch (_) {
+      // Không throw — lỗi FCM không ảnh hưởng luồng chính
     }
   }
 
