@@ -32,11 +32,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final hasToken = await _repo.isLoggedIn();
       if (hasToken) {
-        // Tạm thời chỉ check xem có token không, vì user model chưa có endpoint fetch riêng `getMe()`
-        // Tương lai có thể gọi getProfile hoặc getUserDetails để lấy thông tin.
-        // Ở đây giả lập lấy UserModel rỗng
-        // Để pass qua Authenticated, token sẽ được interceptor validate khi gọi API get profiles
-        state = AuthAuthenticated(UserModel(id: 0, email: 'temp@mail.com', fullName: 'Đang tải...'));
+        // Token tồn tại → coi như đã đăng nhập
+        // Interceptor của DioClient sẽ validate khi gọi API thực tế
+        state = AuthAuthenticated(UserModel(id: 0, email: '', fullName: 'Đang tải...'));
       } else {
         state = AuthUnauthenticated();
       }
@@ -50,6 +48,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.login(email, password);
       state = AuthAuthenticated(user);
+      // Gửi FCM token lên server sau khi login thành công
+      _sendFcmTokenIfAvailable();
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
@@ -60,6 +60,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.register(name, email, password);
       state = AuthAuthenticated(user);
+      // Gửi FCM token lên server sau khi đăng ký thành công
+      _sendFcmTokenIfAvailable();
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
@@ -69,5 +71,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthLoading();
     await _repo.logout();
     state = AuthUnauthenticated();
+  }
+
+  /// Gửi FCM token lên server nếu đã có (từ Firebase Messaging)
+  Future<void> _sendFcmTokenIfAvailable() async {
+    final fcmToken = await SecureStorage.getFcmToken();
+    if (fcmToken != null) {
+      await _repo.registerFcmToken(fcmToken);
+    }
   }
 }
