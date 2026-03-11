@@ -25,7 +25,7 @@ android {
         applicationId = "com.kidfun.mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21  // firebase_messaging requires minSdk 21+
+        minSdk = flutter.minSdkVersion  // firebase_messaging requires minSdk 21+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
