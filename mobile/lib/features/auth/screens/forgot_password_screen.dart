@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/auth_repository.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -12,14 +13,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _isLoading = false;
 
   void _sendResetLink() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isLoading = false);
-
-    if (mounted) {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email khôi phục đã được gửi!')),
+        const SnackBar(content: Text('Vui lòng nhập email')),
       );
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    try {
+      await AuthRepository().forgotPassword(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Email khôi phục đã được gửi!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

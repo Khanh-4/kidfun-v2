@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/auth_provider.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -15,18 +18,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _isLoading = false;
-
-  void _register() async {
+  void _register() {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() => _isLoading = false);
+      final name = _nameController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      ref.read(authProvider.notifier).register(name, email, password);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next is AuthError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
+        );
+      } else if (next is AuthAuthenticated) {
+        context.go('/home');
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final _isLoading = authState is AuthLoading;
     return Scaffold(
       appBar: AppBar(title: const Text('Đăng ký')),
       body: SafeArea(
@@ -96,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    // Navigate to back (Login)
+                    context.pop();
                   },
                   child: const Text('Đã có tài khoản? Đăng nhập'),
                 ),

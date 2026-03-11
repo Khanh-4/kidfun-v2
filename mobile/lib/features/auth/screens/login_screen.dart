@@ -1,27 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isLoading = false;
-
-  void _login() async {
-    // API logic will be implemented in Task 2.4
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isLoading = false);
+  void _login() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    if (email.isNotEmpty && password.isNotEmpty) {
+      ref.read(authProvider.notifier).login(email, password);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập đủ email và mật khẩu')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next is AuthError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
+        );
+      } else if (next is AuthAuthenticated) {
+        context.go('/home');
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final _isLoading = authState is AuthLoading;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -70,13 +88,13 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
-                  // Navigate to forgot password
+                  context.push('/forgot-password');
                 },
                 child: const Text('Quên mật khẩu?'),
               ),
               TextButton(
                 onPressed: () {
-                  // Navigate to register
+                  context.push('/register');
                 },
                 child: const Text('Chưa có tài khoản? Đăng ký'),
               ),
