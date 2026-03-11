@@ -1,29 +1,30 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
+const { Resend } = require('resend');
 
-if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-  console.warn('⚠️  SMTP_USER hoặc SMTP_PASS chưa được cấu hình trong .env — chức năng gửi email sẽ không hoạt động');
+if (!process.env.RESEND_API_KEY) {
+  console.warn('⚠️  RESEND_API_KEY chưa được cấu hình trong .env — chức năng gửi email sẽ không hoạt động');
 }
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  // Fix ENETUNREACH trên Railway: ép kết nối qua IPv4 thay vì IPv6
-  dnsLookup: (hostname, options, callback) => {
-    dns.resolve4(hostname, (err, addresses) => {
-      if (err) return callback(err);
-      callback(null, addresses[0], 4);
-    });
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+/**
+ * Gửi email chung qua Resend API
+ * @param {string} to - Địa chỉ email nhận
+ * @param {string} subject - Tiêu đề email
+ * @param {string} html - Nội dung HTML
+ */
+async function sendEmail(to, subject, html) {
+  const { data, error } = await resend.emails.send({
+    from: 'KidFun <onboarding@resend.dev>',
+    to: [to],
+    subject,
+    html,
+  });
+  if (error) throw error;
+  return data;
+}
 
 const sendResetPasswordEmail = async (email, resetToken) => {
-  const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+  const resetUrl = `${process.env.PARENT_DASHBOARD_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
 
   const html = `
     <div style="max-width: 480px; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b;">
@@ -57,12 +58,7 @@ const sendResetPasswordEmail = async (email, resetToken) => {
     </div>
   `;
 
-  await transporter.sendMail({
-    from: `"KidFun" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject: 'Đặt lại mật khẩu — KidFun',
-    html,
-  });
+  return sendEmail(email, 'Đặt lại mật khẩu — KidFun', html);
 };
 
-module.exports = { sendResetPasswordEmail };
+module.exports = { sendEmail, sendResetPasswordEmail };
