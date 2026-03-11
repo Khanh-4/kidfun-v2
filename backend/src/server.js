@@ -84,23 +84,24 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found', code: 'NOT_FOUND' });
 });
 
-// Start server
+// Start server (skip khi chạy test — supertest tự handle)
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
-httpServer.listen(PORT, HOST, () => {
-  console.log(`🚀 KidFun V2 Server running on http://${HOST}:${PORT}`);
-  if (HOST === '0.0.0.0') {
-    // Hiển thị IP LAN để các thiết bị khác kết nối
-    const nets = require('os').networkInterfaces();
-    for (const name of Object.keys(nets)) {
-      for (const net of nets[name]) {
-        if (net.family === 'IPv4' && !net.internal) {
-          console.log(`🌐 LAN: http://${net.address}:${PORT}`);
+if (process.env.NODE_ENV !== 'test') {
+  httpServer.listen(PORT, HOST, () => {
+    console.log(`🚀 KidFun V3 Server running on http://${HOST}:${PORT}`);
+    if (HOST === '0.0.0.0') {
+      const nets = require('os').networkInterfaces();
+      for (const name of Object.keys(nets)) {
+        for (const net of nets[name]) {
+          if (net.family === 'IPv4' && !net.internal) {
+            console.log(`🌐 LAN: http://${net.address}:${PORT}`);
+          }
         }
       }
     }
-  }
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
 module.exports = { app, io };
