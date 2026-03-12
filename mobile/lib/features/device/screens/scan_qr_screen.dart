@@ -67,36 +67,6 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quét mã QR'),
-        actions: [
-          IconButton(
-            icon: ValueListenableBuilder(
-              valueListenable: _controller.torchState,
-              builder: (context, state, child) {
-                switch (state) {
-                  case TorchState.off:
-                    return const Icon(Icons.flash_off, color: Colors.grey);
-                  case TorchState.on:
-                    return const Icon(Icons.flash_on, color: Colors.yellow);
-                }
-              },
-            ),
-            onPressed: () => _controller.toggleTorch(),
-          ),
-          IconButton(
-            icon: ValueListenableBuilder(
-              valueListenable: _controller.cameraFacingState,
-              builder: (context, state, child) {
-                switch (state) {
-                  case CameraFacing.front:
-                    return const Icon(Icons.camera_front);
-                  case CameraFacing.back:
-                    return const Icon(Icons.camera_rear);
-                }
-              },
-            ),
-            onPressed: () => _controller.switchCamera(),
-          ),
-        ],
       ),
       body: Stack(
         children: [
