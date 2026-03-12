@@ -117,6 +117,23 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
                     backgroundColor: Colors.white,
                   ),
                 ),
+                const SizedBox(height: 32),
+                const Text(
+                  'Hoặc nhập mã số này trên máy của trẻ:',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _pairingCode!,
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 8.0,
+                    color: Colors.blue,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ],
           ),
