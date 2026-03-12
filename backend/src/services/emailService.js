@@ -100,4 +100,40 @@ const sendResetPasswordEmail = async (email, resetToken) => {
   return sendEmail(email, 'Đặt lại mật khẩu — KidFun', html);
 };
 
-module.exports = { sendEmail, sendResetPasswordEmail };
+const sendOtpEmail = async (email, otp) => {
+  const html = `
+    <div style="max-width: 480px; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b;">
+      <div style="text-align: center; padding: 32px 0 16px;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(45deg, #6366f1, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          🎯 KidFun
+        </h1>
+      </div>
+      <div style="background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e2e8f0;">
+        <h2 style="margin: 0 0 16px; font-size: 20px; color: #1e293b;">Mã xác nhận đặt lại mật khẩu</h2>
+        <p style="margin: 0 0 8px; color: #475569; line-height: 1.6;">Xin chào,</p>
+        <p style="margin: 0 0 24px; color: #475569; line-height: 1.6;">
+          Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản KidFun của bạn.
+          Nhập mã OTP bên dưới để tiếp tục:
+        </p>
+        <div style="text-align: center; margin: 0 0 24px;">
+          <div style="display: inline-block; padding: 20px 40px; background: linear-gradient(45deg, #6366f1, #818cf8); border-radius: 12px;">
+            <span style="font-size: 36px; font-weight: 800; letter-spacing: 10px; color: #ffffff;">${otp}</span>
+          </div>
+        </div>
+        <p style="margin: 0 0 8px; color: #64748b; font-size: 14px; line-height: 1.6;">
+          Mã này sẽ hết hạn sau <strong>15 phút</strong>.
+        </p>
+        <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+          Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. Tài khoản của bạn vẫn an toàn.
+        </p>
+      </div>
+      <div style="text-align: center; padding: 24px 0; color: #94a3b8; font-size: 12px;">
+        © ${new Date().getFullYear()} KidFun — Hệ thống quản lý thiết bị thông minh cho trẻ em
+      </div>
+    </div>
+  `;
+
+  return sendEmail(email, 'Mã OTP đặt lại mật khẩu — KidFun', html);
+};
+
+module.exports = { sendEmail, sendResetPasswordEmail, sendOtpEmail };
