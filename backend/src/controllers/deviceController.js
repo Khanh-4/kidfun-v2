@@ -126,20 +126,109 @@ const deleteDevice = async (req, res) => {
   }
 };
 
+// POST /api/devices/generate-pairing-code
+const generatePairingCode = async (req, res) => {
+  try {
+    const { profileId } = req.body;
+    if (!profileId) {
+      return sendError(res, 'profileId is required', 400, 'MISSING_FIELDS');
+    }
+
+    // Kiểm tra xem profile có thuộc về user hiện tại không
+    const profile = await prisma.profile.findFirst({
+      where: {
+        id: parseInt(profileId),
+        userId: req.user.userId
+      }
+    });
+
+    if (!profile) {
+      return sendError(res, 'Profile not found or unauthorized', 404, 'NOT_FOUND');
+    }
+
+    // Tạo mã code 6 số random
+    const pairingCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const pairingCodeExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+
+    // Tạo device nháp
+    const device = await prisma.device.create({
+      data: {
+        userId: req.user.userId,
+        profileId: parseInt(profileId),
+        deviceCode: crypto.randomUUID(), // Dùng UUID tạm trong lúc chờ link thật
+        deviceName: 'Pending Device',
+        pairingCode,
+        pairingCodeExpiry
+      }
+    });
+
+    sendSuccess(res, { pairingCode, deviceId: device.id, expiresAt: pairingCodeExpiry }, 201);
+  } catch (error) {
+    console.error('Generate pairing code error:', error);
+    sendError(res, 'Failed to generate pairing code', 500, 'INTERNAL_ERROR');
+  }
+};
+
 // POST /api/devices/link
 const linkDevice = async (req, res) => {
   try {
-    const { deviceCode } = req.body;
+    const { pairingCode, deviceCode, deviceName, platform, osVersion } = req.body;
 
-    const device = await prisma.device.findUnique({
+    if (!pairingCode || !deviceCode || !deviceName) {
+      return sendError(res, 'pairingCode, deviceCode, and deviceName are required', 400, 'MISSING_FIELDS');
+    }
+
+    // Tìm device nháp chưa hết hạn
+    const pendingDevice = await prisma.device.findFirst({
+      where: {
+        pairingCode,
+        pairingCodeExpiry: { gt: new Date() }
+      }
+    });
+
+    if (!pendingDevice) {
+      return sendError(res, 'Pairing code is invalid or expired', 400, 'INVALID_CODE');
+    }
+
+    // Kiểm tra nếu deviceCode phần cứng đã có trong DB thì lấy id cũ ghi đè, nếu không thì dùng record pending
+    // Tránh duplicate deviceCode unique constraint
+    const existingHardwareDevice = await prisma.device.findUnique({
       where: { deviceCode }
     });
 
-    if (!device) {
-      return sendError(res, 'Invalid device code', 404, 'NOT_FOUND');
+    let linkedDevice;
+
+    if (existingHardwareDevice) {
+      // Cập nhật device cũ với thông tin profile mới, xóa pending device
+      linkedDevice = await prisma.device.update({
+        where: { id: existingHardwareDevice.id },
+        data: {
+          userId: pendingDevice.userId,
+          profileId: pendingDevice.profileId,
+          deviceName,
+          osVersion: osVersion || existingHardwareDevice.osVersion,
+          isOnline: true,
+          lastSeen: new Date()
+        }
+      });
+      await prisma.device.delete({ where: { id: pendingDevice.id } });
+    } else {
+      // Cập nhật đè lên device pending
+      linkedDevice = await prisma.device.update({
+        where: { id: pendingDevice.id },
+        data: {
+          deviceCode,
+          deviceName,
+          osVersion: osVersion || pendingDevice.osVersion,
+          pairingCode: null,
+          pairingCodeExpiry: null,
+          isOnline: true,
+          lastSeen: new Date()
+        }
+      });
     }
 
-    sendSuccess(res, { device });
+    sendSuccess(res, { message: 'Device linked successfully', device: linkedDevice });
   } catch (error) {
     console.error('Link device error:', error);
     sendError(res, 'Failed to link device', 500, 'INTERNAL_ERROR');
@@ -152,5 +241,6 @@ module.exports = {
   getDeviceById,
   updateDevice,
   deleteDevice,
-  linkDevice
+  linkDevice,
+  generatePairingCode
 };
