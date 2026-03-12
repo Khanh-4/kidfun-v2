@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DioClient {
   static final Dio _dio = Dio(BaseOptions(
@@ -20,9 +21,18 @@ class DioClient {
   static Interceptor _authInterceptor() {
     return InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // Tự động attach JWT token
-        final token = await SecureStorage.getToken();
-        if (token != null) {
+        // Check role to determine which token to use
+        final prefs = await SharedPreferences.getInstance();
+        final role = prefs.getString('user_role');
+
+        String? token;
+        if (role == 'child') {
+          token = prefs.getString('device_token');
+        } else {
+          token = await SecureStorage.getToken();
+        }
+
+        if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         handler.next(options);
