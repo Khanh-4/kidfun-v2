@@ -5,6 +5,8 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
+import 'features/auth/screens/role_selection_screen.dart';
+import 'features/auth/providers/role_provider.dart';
 import 'features/profile/screens/profile_list_screen.dart';
 import 'features/profile/screens/create_profile_screen.dart';
 import 'features/profile/screens/edit_profile_screen.dart';
@@ -63,6 +65,7 @@ class HomeScreen extends ConsumerWidget {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final roleState = ref.watch(roleProvider);
 
   return GoRouter(
     initialLocation: '/splash',
@@ -70,6 +73,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/splash',
         builder: (context, state) => const SplashLoader(),
+      ),
+      GoRoute(
+        path: '/role-selection',
+        builder: (context, state) => const RoleSelectionScreen(),
       ),
       GoRoute(
         path: '/login',
@@ -124,17 +131,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthScreen = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
           state.matchedLocation == '/forgot-password';
+      final isRoleSelection = state.matchedLocation == '/role-selection';
 
-      if (authState is AuthLoading) {
+      if (authState is AuthLoading || roleState.isLoading) {
         return isSplash ? null : '/splash';
       }
 
+      final role = roleState.valueOrNull;
+
+      // 1. Check Role Selection
+      if (role == null) {
+        return isRoleSelection ? null : '/role-selection';
+      }
+
+      // 2. Child Role bypasses Login and gets forced to scan UI
+      if (role == 'child') {
+        if (!state.matchedLocation.startsWith('/devices/scan')) {
+          // You could go to a ChildHomeScreen here actually, but scanning is requested.
+          return '/devices/scan';
+        }
+        return null; // Already inside permissible route for child
+      }
+
+      // 3. Parent Role handling (Auth check)
       if (authState is AuthUnauthenticated || authState is AuthError) {
         return isAuthScreen ? null : '/login';
       }
 
       if (authState is AuthAuthenticated) {
-        return (isAuthScreen || isSplash) ? '/home' : null;
+        // Redirect to Home if logged in, but trying to access Auth or RoleSelection screens
+        if (isAuthScreen || isSplash || isRoleSelection) {
+          return '/home';
+        }
       }
 
       return null;

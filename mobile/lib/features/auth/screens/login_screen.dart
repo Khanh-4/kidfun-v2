@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../providers/role_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -97,6 +98,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   context.push('/register');
                 },
                 child: const Text('Chưa có tài khoản? Đăng ký'),
+              ),
+              const Divider(height: 32),
+              TextButton.icon(
+                onPressed: () {
+                  ref.read(roleProvider.notifier).clearRole();
+                },
+                icon: const Icon(Icons.swap_horiz, color: Colors.grey),
+                label: const Text('Đổi vai trò (Phụ huynh / Trẻ em)', style: TextStyle(color: Colors.grey)),
               ),
             ],
           ),
