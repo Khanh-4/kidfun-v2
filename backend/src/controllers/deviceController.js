@@ -172,11 +172,14 @@ const generatePairingCode = async (req, res) => {
 // POST /api/devices/link
 const linkDevice = async (req, res) => {
   try {
-    const { pairingCode, deviceCode, deviceName, platform, osVersion } = req.body;
+    let { pairingCode, deviceCode, deviceName, platform, osVersion } = req.body;
 
-    if (!pairingCode || !deviceCode || !deviceName) {
-      return sendError(res, 'pairingCode, deviceCode, and deviceName are required', 400, 'MISSING_FIELDS');
+    if (!pairingCode) {
+      return sendError(res, 'pairingCode is required', 400, 'MISSING_FIELDS');
     }
+
+    deviceCode = deviceCode || 'DEV-' + Math.random().toString(36).substr(2, 9);
+    deviceName = deviceName || 'Thiết bị chưa rõ tên';
 
     // Tìm device nháp chưa hết hạn
     const pendingDevice = await prisma.device.findFirst({
