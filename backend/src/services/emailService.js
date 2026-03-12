@@ -21,6 +21,7 @@ oauth2Client.setCredentials({
  */
 function buildRaw(to, from, subject, html) {
   const boundary = `boundary_${Date.now()}`;
+  const htmlBase64 = Buffer.from(html, 'utf-8').toString('base64');
   const mime = [
     `From: ${from}`,
     `To: ${to}`,
@@ -30,9 +31,9 @@ function buildRaw(to, from, subject, html) {
     '',
     `--${boundary}`,
     'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: quoted-printable',
+    'Content-Transfer-Encoding: base64',
     '',
-    html,
+    htmlBase64,
     '',
     `--${boundary}--`,
   ].join('\r\n');
