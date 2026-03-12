@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../providers/device_provider.dart';
+import '../../auth/providers/role_provider.dart';
 
 class ScanQrScreen extends ConsumerStatefulWidget {
   const ScanQrScreen({super.key});
@@ -46,7 +47,13 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        context.pop();
+        final roleState = ref.read(roleProvider).valueOrNull;
+        if (roleState?.role == 'child') {
+          // Trigger redirect by updating state
+          ref.read(roleProvider.notifier).setLinked(true);
+        } else {
+          context.pop();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -114,11 +121,26 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quét mã QR'),
-      ),
-      body: Stack(
+    final roleState = ref.watch(roleProvider).valueOrNull;
+    final isChild = roleState?.role == 'child';
+
+    return PopScope(
+      canPop: !isChild,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Quét mã QR'),
+          automaticallyImplyLeading: !isChild,
+          actions: [
+            if (isChild)
+              TextButton(
+                onPressed: () {
+                  ref.read(roleProvider.notifier).clearRole();
+                },
+                child: const Text('Đổi vai trò', style: TextStyle(color: Colors.white)),
+              ),
+          ],
+        ),
+        body: Stack(
         children: [
           MobileScanner(
             controller: _controller,
@@ -178,6 +200,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
           )
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
