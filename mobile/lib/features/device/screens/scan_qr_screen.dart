@@ -15,7 +15,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
   final MobileScannerController _controller = MobileScannerController();
   bool _isProcessing = false;
 
-  void _onDetect(BarcodeCapture capture) async {
+  void _onDetect(BarcodeCapture capture) {
     if (_isProcessing) return;
 
     final List<Barcode> barcodes = capture.barcodes;
@@ -24,6 +24,12 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
     final barcode = barcodes.first;
     final code = barcode.rawValue;
     if (code == null || code.isEmpty) return;
+
+    _processPairingCode(code);
+  }
+
+  Future<void> _processPairingCode(String code) async {
+    if (_isProcessing) return;
 
     setState(() => _isProcessing = true);
     // Stop scanning once detected
@@ -56,6 +62,50 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
     }
   }
 
+  void _showManualEntryDialog() {
+    final TextEditingController codeController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Nhập mã thủ công'),
+          content: TextField(
+            controller: codeController,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: const InputDecoration(
+              hintText: 'Nhập mã 6 số',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final code = codeController.text.trim();
+                if (code.length == 6) {
+                  Navigator.of(context).pop();
+                  _processPairingCode(code);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vui lòng nhập đủ 6 số')),
+                  );
+                }
+              },
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -67,36 +117,6 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quét mã QR'),
-        actions: [
-          IconButton(
-            icon: ValueListenableBuilder(
-              valueListenable: _controller.torchState,
-              builder: (context, state, child) {
-                switch (state) {
-                  case TorchState.off:
-                    return const Icon(Icons.flash_off, color: Colors.grey);
-                  case TorchState.on:
-                    return const Icon(Icons.flash_on, color: Colors.yellow);
-                }
-              },
-            ),
-            onPressed: () => _controller.toggleTorch(),
-          ),
-          IconButton(
-            icon: ValueListenableBuilder(
-              valueListenable: _controller.cameraFacingState,
-              builder: (context, state, child) {
-                switch (state) {
-                  case CameraFacing.front:
-                    return const Icon(Icons.camera_front);
-                  case CameraFacing.back:
-                    return const Icon(Icons.camera_rear);
-                }
-              },
-            ),
-            onPressed: () => _controller.switchCamera(),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -126,9 +146,9 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
                   const Center(
                     child: CircularProgressIndicator(),
                   )
-                else
+                else ...[
                   const Positioned(
-                    bottom: 100,
+                    bottom: 120,
                     left: 0,
                     right: 0,
                     child: Text(
@@ -136,7 +156,23 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
-                  )
+                  ),
+                  Positioned(
+                    bottom: 40,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: TextButton.icon(
+                        onPressed: _showManualEntryDialog,
+                        icon: const Icon(Icons.keyboard, color: Colors.white),
+                        label: const Text(
+                          'Nhập mã thủ công',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]
               ],
             ),
           )
