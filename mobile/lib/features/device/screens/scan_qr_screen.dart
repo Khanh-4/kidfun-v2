@@ -37,8 +37,8 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
     _controller.stop();
 
     try {
-      // In a real app we might ask for device name first, here we use a placeholder or generic name
-      await ref.read(deviceProvider.notifier).linkDevice(code, 'Thiết bị trẻ em');
+      // Pass only pairing_code, device info is grabbed in repository
+      await ref.read(deviceProvider.notifier).linkDevice(code);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

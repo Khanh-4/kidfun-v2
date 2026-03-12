@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../shared/models/device_model.dart';
@@ -27,12 +29,27 @@ class DeviceRepository {
     }
   }
 
-  Future<void> linkDevice(String pairingCode, String deviceName) async {
+  Future<void> linkDevice(String pairingCode) async {
     try {
+      final deviceInfo = DeviceInfoPlugin();
+      String deviceName = 'Thiết bị không rõ';
+      String deviceCode = 'unknown_device_code';
+
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        deviceName = '${androidInfo.brand} ${androidInfo.model}'.trim();
+        deviceCode = androidInfo.id; // unique ID on Android
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        deviceName = iosInfo.name;
+        deviceCode = iosInfo.identifierForVendor ?? 'unknown_ios_id';
+      }
+
       final response = await _dio.post(
         ApiConstants.devicesLink,
         data: {
           'pairingCode': pairingCode,
+          'deviceCode': deviceCode,
           'deviceName': deviceName,
         },
       );

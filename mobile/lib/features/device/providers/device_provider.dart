@@ -37,9 +37,9 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     }
   }
 
-  Future<void> linkDevice(String pairingCode, String deviceName) async {
+  Future<void> linkDevice(String pairingCode) async {
     try {
-      await _repo.linkDevice(pairingCode, deviceName);
+      await _repo.linkDevice(pairingCode);
       await fetchDevices();
     } catch (e) {
       throw Exception((e as Exception).toString().replaceAll('Exception: ', ''));
