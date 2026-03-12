@@ -8,6 +8,9 @@ import 'features/auth/screens/forgot_password_screen.dart';
 import 'features/profile/screens/profile_list_screen.dart';
 import 'features/profile/screens/create_profile_screen.dart';
 import 'features/profile/screens/edit_profile_screen.dart';
+import 'features/device/screens/device_list_screen.dart';
+import 'features/device/screens/add_device_screen.dart';
+import 'features/device/screens/scan_qr_screen.dart';
 import 'shared/models/profile_model.dart';
 import 'core/theme/app_theme.dart';
 
@@ -38,6 +41,11 @@ class HomeScreen extends ConsumerWidget {
             ElevatedButton(
               onPressed: () => context.push('/profiles'),
               child: const Text('Quản lý hồ sơ các bé'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => context.push('/devices'),
+              child: const Text('Quản lý thiết bị'),
             ),
             const SizedBox(height: 12),
             OutlinedButton(
@@ -93,6 +101,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               final profile = state.extra as ProfileModel;
               return EditProfileScreen(profile: profile);
             },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/devices',
+        builder: (context, state) => const DeviceListScreen(),
+        routes: [
+          GoRoute(
+            path: 'add',
+            builder: (context, state) => const AddDeviceScreen(),
+          ),
+          GoRoute(
+            path: 'scan',
+            builder: (context, state) => const ScanQrScreen(),
           ),
         ],
       ),
