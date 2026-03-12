@@ -20,4 +20,9 @@ class ApiConstants {
   // FCM endpoints
   static const String fcmRegister = '/api/fcm-tokens/register';
   static const String fcmUnregister = '/api/fcm-tokens/unregister';
+
+  // Device endpoints
+  static const String devices = '/api/devices';
+  static const String devicesGeneratePairingCode = '/api/devices/generate-pairing-code';
+  static const String devicesLink = '/api/devices/link';
 }
