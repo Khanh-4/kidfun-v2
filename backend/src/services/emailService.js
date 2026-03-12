@@ -1,4 +1,3 @@
-const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 
 const OAuth2 = google.auth.OAuth2;
@@ -18,32 +17,48 @@ oauth2Client.setCredentials({
 });
 
 /**
- * Gửi email chung qua Gmail API OAuth2
+ * Tạo raw email theo chuẩn RFC 2822 (base64url)
+ */
+function buildRaw(to, from, subject, html) {
+  const boundary = `boundary_${Date.now()}`;
+  const mime = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: quoted-printable',
+    '',
+    html,
+    '',
+    `--${boundary}--`,
+  ].join('\r\n');
+
+  return Buffer.from(mime).toString('base64url');
+}
+
+/**
+ * Gửi email chung qua Gmail REST API (không dùng SMTP)
  * @param {string} to - Địa chỉ email nhận
  * @param {string} subject - Tiêu đề email
  * @param {string} html - Nội dung HTML
  */
 async function sendEmail(to, subject, html) {
-  const accessToken = await oauth2Client.getAccessToken();
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      type: 'OAuth2',
-      user: process.env.GMAIL_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken: accessToken.token,
-    },
+  const from = `KidFun <${process.env.GMAIL_USER}>`;
+  const raw = buildRaw(to, from, subject, html);
+
+  const res = await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw },
   });
 
-  await transporter.sendMail({
-    from: `KidFun <${process.env.GMAIL_USER}>`,
-    to,
-    subject,
-    html,
-  });
+  console.log(`✅ Email sent to ${to} | messageId: ${res.data.id}`);
+  return res.data;
 }
 
 const sendResetPasswordEmail = async (email, resetToken) => {
