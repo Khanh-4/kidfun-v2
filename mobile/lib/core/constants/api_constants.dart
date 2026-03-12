@@ -12,6 +12,7 @@ class ApiConstants {
   static const String refreshToken = '/api/auth/refresh-token';
   static const String logout = '/api/auth/logout';
   static const String forgotPassword = '/api/auth/forgot-password';
+  static const String resetPasswordOtp = '/api/auth/reset-password-otp';
 
   // Profile endpoints
   static const String profiles = '/api/profiles';
