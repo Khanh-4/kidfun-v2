@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const prisma = new PrismaClient();
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
@@ -231,7 +232,19 @@ const linkDevice = async (req, res) => {
       });
     }
 
-    sendSuccess(res, { message: 'Device linked successfully', device: linkedDevice });
+    // Generate long-lived JWT for the child device
+    const token = jwt.sign(
+      { 
+        deviceId: linkedDevice.id,
+        role: 'child',
+        profileId: linkedDevice.profileId,
+        userId: linkedDevice.userId
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    );
+
+    sendSuccess(res, { message: 'Device linked successfully', token, device: linkedDevice });
   } catch (error) {
     console.error('Link device error:', error);
     sendError(res, 'Failed to link device', 500, 'INTERNAL_ERROR');
