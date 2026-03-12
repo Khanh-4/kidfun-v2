@@ -226,7 +226,12 @@ const forgotPassword = async (req, res) => {
       data: { resetToken, resetTokenExpiry },
     });
 
-    await sendResetPasswordEmail(email, resetToken);
+    try {
+      await sendResetPasswordEmail(email, resetToken);
+    } catch (emailError) {
+      console.error('Forgot password - send email error:', emailError);
+      // Vẫn trả success để không leak thông tin user có tồn tại hay không
+    }
 
     sendSuccess(res, { message: successMsg });
   } catch (error) {
