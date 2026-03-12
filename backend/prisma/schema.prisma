@@ -53,6 +53,8 @@ model Device {
   osVersion  String?
   isOnline   Boolean   @default(false)
   lastSeen   DateTime?
+  pairingCode       String?   @unique
+  pairingCodeExpiry DateTime?
   createdAt  DateTime  @default(now())
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
