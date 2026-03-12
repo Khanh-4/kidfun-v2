@@ -13,6 +13,7 @@ import 'features/profile/screens/edit_profile_screen.dart';
 import 'features/device/screens/device_list_screen.dart';
 import 'features/device/screens/add_device_screen.dart';
 import 'features/device/screens/scan_qr_screen.dart';
+import 'features/device/screens/child_dashboard_screen.dart';
 import 'shared/models/profile_model.dart';
 import 'core/theme/app_theme.dart';
 
@@ -125,6 +126,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      GoRoute(
+        path: '/child-dashboard',
+        builder: (context, state) => const ChildDashboardScreen(),
+      ),
     ],
     redirect: (context, state) {
       final isSplash = state.matchedLocation == '/splash';
@@ -137,7 +142,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isSplash ? null : '/splash';
       }
 
-      final role = roleState.valueOrNull;
+      final roleData = roleState.valueOrNull;
+      final role = roleData?.role;
+      final isLinked = roleData?.isLinked ?? false;
 
       // 1. Check Role Selection
       if (role == null) {
@@ -146,9 +153,14 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 2. Child Role bypasses Login and gets forced to scan UI
       if (role == 'child') {
-        if (!state.matchedLocation.startsWith('/devices/scan')) {
-          // You could go to a ChildHomeScreen here actually, but scanning is requested.
-          return '/devices/scan';
+        if (isLinked) {
+          if (state.matchedLocation != '/child-dashboard') {
+            return '/child-dashboard';
+          }
+        } else {
+          if (!state.matchedLocation.startsWith('/devices/scan')) {
+            return '/devices/scan';
+          }
         }
         return null; // Already inside permissible route for child
       }
