@@ -18,8 +18,11 @@ router.post('/logout', authenticate, authController.logout);
 // POST /api/auth/forgot-password - Quên mật khẩu
 router.post('/forgot-password', authController.forgotPassword);
 
-// POST /api/auth/reset-password - Đặt lại mật khẩu
+// POST /api/auth/reset-password - Đặt lại mật khẩu (link cũ, giữ lại tương thích)
 router.post('/reset-password', authController.resetPassword);
+
+// POST /api/auth/reset-password-otp - Đặt lại mật khẩu bằng OTP 6 số
+router.post('/reset-password-otp', authController.resetPasswordWithOtp);
 
 // PUT /api/auth/profile - Cập nhật thông tin (cần đăng nhập)
 router.put('/profile', authenticate, authController.updateProfile);

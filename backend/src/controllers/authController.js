@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
-const { sendResetPasswordEmail } = require('../services/emailService');
+const { sendOtpEmail } = require('../services/emailService');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 const prisma = new PrismaClient();
@@ -210,33 +210,72 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
     // Luôn trả OK để tránh leak email tồn tại hay không
-    const successMsg = 'Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.';
+    const successMsg = 'Nếu email tồn tại, chúng tôi đã gửi mã OTP đến email của bạn.';
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return sendSuccess(res, { message: successMsg });
     }
 
-    // Tạo reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 giờ
+    // Tạo OTP 6 chữ số, hết hạn sau 15 phút
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetOtpExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { resetToken, resetTokenExpiry },
+      data: { resetOtp: otp, resetOtpExpiry },
     });
 
     try {
-      await sendResetPasswordEmail(email, resetToken);
+      await sendOtpEmail(email, otp);
     } catch (emailError) {
-      console.error('Forgot password - send email error:', emailError);
-      // Vẫn trả success để không leak thông tin user có tồn tại hay không
+      console.error('Forgot password - send OTP email error:', emailError);
+      // Vẫn trả success để không leak thông tin user
     }
 
-    sendSuccess(res, { message: successMsg });
+    return sendSuccess(res, { message: successMsg });
   } catch (error) {
     console.error('Forgot password error:', error);
-    sendError(res, 'Không thể gửi email. Vui lòng thử lại.', 500, 'INTERNAL_ERROR');
+    sendError(res, 'Không thể gửi OTP. Vui lòng thử lại.', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// POST /api/auth/reset-password-otp
+const resetPasswordWithOtp = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return sendError(res, 'email, otp và newPassword là bắt buộc.', 400, 'MISSING_FIELDS');
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (
+      !user ||
+      !user.resetOtp ||
+      !user.resetOtpExpiry ||
+      user.resetOtp !== otp ||
+      new Date() > user.resetOtpExpiry
+    ) {
+      return sendError(res, 'OTP không hợp lệ hoặc đã hết hạn.', 400, 'INVALID_OTP');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetOtp: null,
+        resetOtpExpiry: null,
+      },
+    });
+
+    return sendSuccess(res, { message: 'Mật khẩu đã được đặt lại thành công.' });
+  } catch (error) {
+    console.error('Reset password with OTP error:', error);
+    sendError(res, 'Không thể đặt lại mật khẩu. Vui lòng thử lại.', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -283,4 +322,5 @@ module.exports = {
   changePassword,
   forgotPassword,
   resetPassword,
+  resetPasswordWithOtp,
 };

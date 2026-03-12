@@ -16,6 +16,8 @@ model User {
   phoneNumber       String?
   resetToken        String?
   resetTokenExpiry  DateTime?
+  resetOtp          String?
+  resetOtpExpiry    DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   
