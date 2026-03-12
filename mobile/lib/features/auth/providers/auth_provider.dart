@@ -32,8 +32,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final hasToken = await _repo.isLoggedIn();
       if (hasToken) {
-        // Token tồn tại → coi như đã đăng nhập
-        // Interceptor của DioClient sẽ validate khi gọi API thực tế
         state = AuthAuthenticated(UserModel(id: 0, email: '', fullName: 'Đang tải...'));
       } else {
         state = AuthUnauthenticated();
@@ -48,7 +46,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.login(email, password);
       state = AuthAuthenticated(user);
-      // Gửi FCM token lên server sau khi login thành công
       _sendFcmTokenIfAvailable();
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
@@ -60,7 +57,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.register(name, email, password);
       state = AuthAuthenticated(user);
-      // Gửi FCM token lên server sau khi đăng ký thành công
       _sendFcmTokenIfAvailable();
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
@@ -73,11 +69,82 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthUnauthenticated();
   }
 
-  /// Gửi FCM token lên server nếu đã có (từ Firebase Messaging)
   Future<void> _sendFcmTokenIfAvailable() async {
     final fcmToken = await SecureStorage.getFcmToken();
     if (fcmToken != null) {
       await _repo.registerFcmToken(fcmToken);
     }
   }
+}
+
+// ─── Forgot Password State ───────────────────────────────────────────────────
+
+class ForgotPasswordState {
+  final bool isOtpSent;
+  final bool isLoading;
+  final String? errorMessage;
+  final bool isSuccess;
+
+  const ForgotPasswordState({
+    this.isOtpSent = false,
+    this.isLoading = false,
+    this.errorMessage,
+    this.isSuccess = false,
+  });
+
+  ForgotPasswordState copyWith({
+    bool? isOtpSent,
+    bool? isLoading,
+    String? errorMessage,
+    bool? isSuccess,
+    bool clearError = false,
+  }) {
+    return ForgotPasswordState(
+      isOtpSent: isOtpSent ?? this.isOtpSent,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      isSuccess: isSuccess ?? this.isSuccess,
+    );
+  }
+}
+
+final forgotPasswordProvider =
+    StateNotifierProvider.autoDispose<ForgotPasswordNotifier, ForgotPasswordState>(
+  (ref) => ForgotPasswordNotifier(),
+);
+
+class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
+  final _repo = AuthRepository();
+
+  ForgotPasswordNotifier() : super(const ForgotPasswordState());
+
+  /// Bước 1: Gửi email → nhận OTP 6 số
+  Future<void> sendOtp(String email) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _repo.forgotPassword(email);
+      state = state.copyWith(isLoading: false, isOtpSent: true);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: (e as Exception).toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
+  /// Bước 2: Xác nhận OTP + đặt mật khẩu mới
+  Future<void> resetPassword(String email, String otp, String newPassword) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _repo.resetPasswordWithOtp(email, otp, newPassword);
+      state = state.copyWith(isLoading: false, isSuccess: true);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: (e as Exception).toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
+  void reset() => state = const ForgotPasswordState();
 }

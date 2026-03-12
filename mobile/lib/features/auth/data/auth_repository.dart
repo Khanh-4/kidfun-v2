@@ -90,4 +90,34 @@ class AuthRepository {
     final token = await SecureStorage.getToken();
     return token != null;
   }
+
+  /// Đặt lại mật khẩu bằng OTP 6 số đã nhận qua email
+  Future<void> resetPasswordWithOtp(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.resetPasswordOtp,
+        data: {
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+        },
+      );
+      // Throw nếu server trả success: false
+      if (response.data['success'] == false) {
+        throw Exception(response.data['message'] ?? 'Đặt lại mật khẩu thất bại');
+      }
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data['message'] != null) {
+        throw Exception(e.response?.data['message']);
+      }
+      throw Exception('Lỗi kết nối. Vui lòng thử lại.');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi đặt lại mật khẩu: $e');
+    }
+  }
 }
