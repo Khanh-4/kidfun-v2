@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../shared/models/device_model.dart';
@@ -55,6 +56,18 @@ class DeviceRepository {
       );
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
+      }
+
+      // Extract token from response and save it
+      final data = response.data['data'];
+      String? token;
+      if (data != null) {
+        token = data['token'] ?? data['accessToken'];
+      }
+      
+      if (token != null && token.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('device_token', token);
       }
     } on DioException catch (e) {
       if (e.response != null && e.response?.data['message'] != null) {
