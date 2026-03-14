@@ -6,6 +6,17 @@ class SecureStorage {
   static const _tokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _fcmTokenKey = 'fcm_token';
+  static const _userIdKey = 'user_id';
+
+  // ── User ID ──────────────────────────────────────
+  static Future<void> saveUserId(int userId) async {
+    await _storage.write(key: _userIdKey, value: userId.toString());
+  }
+
+  static Future<int?> getUserId() async {
+    final val = await _storage.read(key: _userIdKey);
+    return val != null ? int.tryParse(val) : null;
+  }
 
   // ── JWT Auth Token ──────────────────────────────
   static Future<void> saveToken(String token) async {

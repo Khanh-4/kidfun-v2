@@ -33,7 +33,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final hasToken = await _repo.isLoggedIn();
       if (hasToken) {
-        state = AuthAuthenticated(UserModel(id: 0, email: '', fullName: 'Đang tải...'));
+        final userId = await SecureStorage.getUserId();
+        state = AuthAuthenticated(
+          UserModel(id: userId ?? 0, email: '', fullName: 'Đang tải...'),
+        );
+        // Reconnect socket for returning users
+        if (userId != null && userId > 0) {
+          SocketService.instance.connectAsParent(userId);
+        }
       } else {
         state = AuthUnauthenticated();
       }
@@ -46,9 +53,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthLoading();
     try {
       final user = await _repo.login(email, password);
+      await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
-      SocketService.instance.joinFamily(user.id);
+      SocketService.instance.connectAsParent(user.id);
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
@@ -58,9 +66,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthLoading();
     try {
       final user = await _repo.register(name, email, password);
+      await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
-      SocketService.instance.joinFamily(user.id);
+      SocketService.instance.connectAsParent(user.id);
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }

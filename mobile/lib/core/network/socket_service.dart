@@ -6,7 +6,12 @@ typedef SocketCallback = void Function(Map<String, dynamic> data);
 class SocketService {
   static SocketService? _instance;
   IO.Socket? _socket;
-  
+
+  // Connection credentials — kept for auto-rejoin on reconnect
+  int? _userId;
+  String? _deviceCode;
+  bool _intentionalDisconnect = false;
+
   // Multiple listeners support
   final List<SocketCallback> _onlineListeners = [];
   final List<SocketCallback> _offlineListeners = [];
@@ -17,6 +22,8 @@ class SocketService {
   }
 
   SocketService._();
+
+  // ── Listener management ──────────────────────────────────────────────
 
   void addDeviceOnlineListener(SocketCallback callback) {
     if (!_onlineListeners.contains(callback)) _onlineListeners.add(callback);
@@ -34,107 +41,135 @@ class SocketService {
     _offlineListeners.remove(callback);
   }
 
-  // Backward compatibility for single callback (if needed, but better to migrate)
-  set onDeviceOnlineCallback(SocketCallback? callback) {
-    _onlineListeners.clear();
-    if (callback != null) _onlineListeners.add(callback);
-  }
-
-  set onDeviceOfflineCallback(SocketCallback? callback) {
-    _offlineListeners.clear();
-    if (callback != null) _offlineListeners.add(callback);
-  }
-
-  IO.Socket get socket {
-    if (_socket == null) {
-      print('🚀 Creating Socket.IO instance for: ${ApiConstants.baseUrl}');
-      _socket = IO.io(ApiConstants.baseUrl, <String, dynamic>{
-        'transports': ['websocket'],
-        'autoConnect': false,
-        'reconnection': true,
-        'reconnectionAttempts': 10,
-        'reconnectionDelay': 3000,
-      });
-
-      _socket!.on('connect', (_) {
-        print('🟢🟢🟢 SOCKET CONNECTED: ${_socket!.id}');
-      });
-
-      _socket!.on('connecting', (_) {
-        print('🟡 Socket connecting...');
-      });
-
-      _socket!.on('disconnect', (_) {
-        print('🔴🔴🔴 SOCKET DISCONNECTED');
-      });
-
-      _socket!.on('connect_error', (err) {
-        print('❌❌❌ SOCKET ERROR: $err');
-      });
-
-      // Device events
-      _socket!.on('deviceOnline', (data) {
-        print('📱 Device online event received: $data');
-        final mapData = Map<String, dynamic>.from(data);
-        for (final listener in List.from(_onlineListeners)) {
-          listener(mapData);
-        }
-      });
-
-      _socket!.on('deviceOffline', (data) {
-        print('📱 Device offline event received: $data');
-        final mapData = Map<String, dynamic>.from(data);
-        for (final listener in List.from(_offlineListeners)) {
-          listener(mapData);
-        }
-      });
-
-      // Events cho Sprint 4 (placeholder)
-      _socket!.on('timeLimitUpdated', (data) {
-        print('⏰ Time limit updated: $data');
-      });
-
-      _socket!.on('timeExtensionResponse', (data) {
-        print('⏳ Time extension response: $data');
-      });
-    }
-    return _socket!;
-  }
-
-  /// Parent: join family room sau khi login
-  void joinFamily(int userId) {
-    print('👨👩👧 CALLING joinFamily for user $userId');
-    print('📡 Socket connected before emit: ${socket.connected}');
-    socket.connect();
-    print('📡 Socket connected after connect(): ${socket.connected}');
-    socket.emit('joinFamily', {'userId': userId});
-  }
-
-  /// Child: join device room sau khi link
-  void joinDevice(String deviceCode) {
-    print('📱 CALLING joinDevice: $deviceCode');
-    print('📡 Socket connected before emit: ${socket.connected}');
-    socket.connect();
-    print('📡 Socket connected after connect(): ${socket.connected}');
-    socket.emit('joinDevice', {'deviceCode': deviceCode});
-  }
-
-  /// Kiểm tra kết nối
   bool get isConnected => _socket?.connected ?? false;
 
-  /// Disconnect (khi logout)
+  // ── Internal: create socket & wire up all listeners ──────────────────
+
+  void _ensureSocket() {
+    if (_socket != null) return;
+
+    print('🚀 Creating NEW Socket.IO instance for: ${ApiConstants.baseUrl}');
+
+    _socket = IO.io(ApiConstants.baseUrl, <String, dynamic>{
+      'transports': ['polling', 'websocket'], // polling first — safer on Railway
+      'autoConnect': false,
+      'forceNew': true,
+      'reconnection': true,
+      'reconnectionAttempts': 999999, // keep trying
+      'reconnectionDelay': 2000,
+      'reconnectionDelayMax': 10000,
+    });
+
+    _socket!.onConnect((_) {
+      print('🟢🟢🟢 SOCKET CONNECTED: ${_socket!.id}');
+      // Re-join rooms every time we (re)connect
+      _rejoinRooms();
+    });
+
+    _socket!.onDisconnect((reason) {
+      print('🔴🔴🔴 SOCKET DISCONNECTED: $reason');
+      if (!_intentionalDisconnect) {
+        print('🔄 Unexpected disconnect — socket_io_client will auto-reconnect');
+      }
+    });
+
+    _socket!.onConnectError((err) {
+      print('❌ SOCKET CONNECT ERROR: $err');
+    });
+
+    _socket!.onReconnect((_) {
+      print('🔄🟢 SOCKET RECONNECTED');
+    });
+
+    _socket!.onReconnectAttempt((_) {
+      print('🔄 Socket reconnection attempt...');
+    });
+
+    // ── Device events ──────────────────────────────────────────────────
+    _socket!.on('deviceOnline', (data) {
+      print('📱 deviceOnline event: $data');
+      final mapData = Map<String, dynamic>.from(data);
+      for (final listener in List.from(_onlineListeners)) {
+        listener(mapData);
+      }
+    });
+
+    _socket!.on('deviceOffline', (data) {
+      print('📱 deviceOffline event: $data');
+      final mapData = Map<String, dynamic>.from(data);
+      for (final listener in List.from(_offlineListeners)) {
+        listener(mapData);
+      }
+    });
+
+    // Sprint 4 placeholders
+    _socket!.on('timeLimitUpdated', (data) {
+      print('⏰ Time limit updated: $data');
+    });
+
+    _socket!.on('timeExtensionResponse', (data) {
+      print('⏳ Time extension response: $data');
+    });
+  }
+
+  /// Emit joinFamily / joinDevice after every (re)connect
+  void _rejoinRooms() {
+    if (_userId != null) {
+      print('👨‍👩‍👧 Emitting joinFamily for user $_userId');
+      _socket?.emit('joinFamily', {'userId': _userId});
+    }
+    if (_deviceCode != null) {
+      print('📱 Emitting joinDevice for $_deviceCode');
+      _socket?.emit('joinDevice', {'deviceCode': _deviceCode});
+    }
+  }
+
+  // ── Public API ───────────────────────────────────────────────────────
+
+  /// Parent: connect and join family room. Stays connected until [disconnect].
+  void connectAsParent(int userId) {
+    print('👨‍👩‍👧 connectAsParent userId=$userId');
+    _userId = userId;
+    _deviceCode = null;
+    _intentionalDisconnect = false;
+    _ensureSocket();
+    if (!_socket!.connected) {
+      _socket!.connect();
+    } else {
+      // Already connected — just (re)join room
+      _rejoinRooms();
+    }
+  }
+
+  /// Child: connect and join device room. Stays connected until [disconnect].
+  void connectAsChild(String deviceCode) {
+    print('📱 connectAsChild deviceCode=$deviceCode');
+    _deviceCode = deviceCode;
+    _userId = null;
+    _intentionalDisconnect = false;
+    _ensureSocket();
+    if (!_socket!.connected) {
+      _socket!.connect();
+    } else {
+      _rejoinRooms();
+    }
+  }
+
+  /// Backward-compat aliases
+  void joinFamily(int userId) => connectAsParent(userId);
+  void joinDevice(String deviceCode) => connectAsChild(deviceCode);
+
+  /// Disconnect — call ONLY on logout.
   void disconnect() {
-    print('🔌🔌🔌 SocketService.disconnect() CALLED');
+    print('🔌 INTENTIONAL disconnect (logout)');
     print('📍 StackTrace:\n${StackTrace.current}');
-    
+    _intentionalDisconnect = true;
+    _userId = null;
+    _deviceCode = null;
     _socket?.disconnect();
     _socket?.destroy();
     _socket = null;
     _onlineListeners.clear();
     _offlineListeners.clear();
-    
-    // Reset instance so next call to .instance creates a fresh service
-    _instance = null;
-    print('🔌 Socket disconnected, cleared, and instance reset');
   }
 }
