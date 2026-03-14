@@ -86,8 +86,15 @@ class DeviceRepository {
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
       }
-      final List data = response.data['data'];
-      return data.map((json) => DeviceModel.fromJson(json)).toList();
+      // Assuming response.data['data'] has 'devices' array based on the new specs
+      final data = response.data['data'];
+      List devicesData = [];
+      if (data is List) {
+        devicesData = data;
+      } else if (data['devices'] is List) {
+        devicesData = data['devices'];
+      }
+      return devicesData.map((json) => DeviceModel.fromJson(json)).toList();
     } on DioException catch (e) {
       if (e.response != null && e.response?.data['message'] != null) {
         throw Exception(e.response?.data['message']);
@@ -96,6 +103,63 @@ class DeviceRepository {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Lỗi tải danh sách thiết bị: $e');
+    }
+  }
+
+  Future<DeviceModel> createDevice(String name, {int? profileId}) async {
+    try {
+      final data = {
+        'deviceName': name,
+        if (profileId != null) 'profileId': profileId,
+      };
+      // fallback to directly typing endpoint
+      final response = await _dio.post('/api/devices', data: data);
+      if (response.data['success'] == false) {
+        throw Exception(response.data['message']);
+      }
+      return DeviceModel.fromJson(response.data['data']['device']);
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data['message'] != null) {
+        throw Exception(e.response?.data['message']);
+      }
+      throw Exception('Lỗi kết nối. Vui lòng thử lại.');
+    } catch (e) {
+      throw Exception('Lỗi tạo thiết bị: $e');
+    }
+  }
+
+  Future<DeviceModel> assignProfile(int deviceId, int profileId) async {
+    try {
+      final response = await _dio.put('/api/devices/$deviceId', data: {
+        'profileId': profileId,
+      });
+      if (response.data['success'] == false) {
+        throw Exception(response.data['message']);
+      }
+      return DeviceModel.fromJson(response.data['data']['device']);
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data['message'] != null) {
+        throw Exception(e.response?.data['message']);
+      }
+      throw Exception('Lỗi kết nối. Vui lòng thử lại.');
+    } catch (e) {
+      throw Exception('Lỗi gán profile vào thiết bị: $e');
+    }
+  }
+
+  Future<void> deleteDevice(int id) async {
+    try {
+      final response = await _dio.delete('/api/devices/$id');
+      if (response.data['success'] == false) {
+        throw Exception(response.data['message']);
+      }
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data['message'] != null) {
+        throw Exception(e.response?.data['message']);
+      }
+      throw Exception('Lỗi kết nối. Vui lòng thử lại.');
+    } catch (e) {
+      throw Exception('Lỗi xóa thiết bị: $e');
     }
   }
 }
