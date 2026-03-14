@@ -21,6 +21,9 @@ class SocketService {
       _socket = IO.io(ApiConstants.baseUrl, <String, dynamic>{
         'transports': ['websocket'],
         'autoConnect': false,
+        'reconnection': true,
+        'reconnectionAttempts': 10,
+        'reconnectionDelay': 3000,
       });
 
       _socket!.on('connect', (_) {
