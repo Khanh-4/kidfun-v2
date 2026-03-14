@@ -60,9 +60,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _isLoading = false;
     });
 
-    // Auto-connect Socket.IO with saved deviceCode
+    // Connect Socket.IO (idempotent — won't duplicate if already connected)
     if (deviceCode != null && deviceCode.isNotEmpty) {
-      SocketService.instance.joinDevice(deviceCode);
+      SocketService.instance.connectAsChild(deviceCode);
     }
 
     // Poll socket connection status every 3 seconds
@@ -382,7 +382,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             IconButton(
               onPressed: () {
                 if (_deviceCode != null) {
-                  SocketService.instance.joinDevice(_deviceCode!);
+                  SocketService.instance.connectAsChild(_deviceCode!);
                 }
               },
               icon: const Icon(Icons.refresh),

@@ -47,7 +47,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
         final prefs = await SharedPreferences.getInstance();
         final savedDeviceCode = prefs.getString('device_code');
         if (savedDeviceCode != null && savedDeviceCode.isNotEmpty) {
-          SocketService.instance.joinDevice(savedDeviceCode);
+          SocketService.instance.connectAsChild(savedDeviceCode);
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
