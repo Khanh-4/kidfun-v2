@@ -68,6 +68,7 @@ class DeviceRepository {
       if (token != null && token.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('device_token', token);
+        await prefs.setString('device_code', deviceCode);
       }
     } on DioException catch (e) {
       if (e.response != null && e.response?.data['message'] != null) {
