@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/device_provider.dart';
 import '../../auth/providers/role_provider.dart';
+import '../../../core/network/socket_service.dart';
 
 class ScanQrScreen extends ConsumerStatefulWidget {
   const ScanQrScreen({super.key});
@@ -41,6 +43,13 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen> {
       await ref.read(deviceProvider.notifier).linkDevice(code);
       
       if (mounted) {
+        // Auto-join Socket.IO room with device code
+        final prefs = await SharedPreferences.getInstance();
+        final savedDeviceCode = prefs.getString('device_code');
+        if (savedDeviceCode != null && savedDeviceCode.isNotEmpty) {
+          SocketService.instance.joinDevice(savedDeviceCode);
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Liên kết thiết bị thành công!'),
