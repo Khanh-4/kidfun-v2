@@ -6,7 +6,7 @@ const { authenticate } = require('../middleware/auth');
 // POST /api/fcm-tokens/register - Đăng ký FCM token
 router.post('/register', authenticate, fcmController.registerToken);
 
-// DELETE /api/fcm-tokens/unregister - Hủy đăng ký FCM token
-router.delete('/unregister', authenticate, fcmController.unregisterToken);
+// POST /api/fcm-tokens/unregister - Hủy đăng ký FCM token
+router.post('/unregister', authenticate, fcmController.unregisterToken);
 
 module.exports = router;
