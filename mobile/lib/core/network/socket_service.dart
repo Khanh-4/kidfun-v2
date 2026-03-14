@@ -69,20 +69,19 @@ class SocketService {
   /// Parent: join family room sau khi login
   void joinFamily(int userId) {
     print('👨👩👧 CALLING joinFamily for user $userId');
-    print('📡 Socket instance state before connect(): ${socket.connected}');
+    print('📡 Socket connected before emit: ${socket.connected}');
     socket.connect();
-    
-    // Đợi một chút để socket connect rồi mới emit (hoặc emit thẳng vì socket.io client thường queue packet)
+    print('📡 Socket connected after connect(): ${socket.connected}');
     socket.emit('joinFamily', {'userId': userId});
-    print('📡 Socket emit joinFamily sent. Current state: ${socket.connected}');
   }
 
   /// Child: join device room sau khi link
   void joinDevice(String deviceCode) {
     print('📱 CALLING joinDevice: $deviceCode');
+    print('📡 Socket connected before emit: ${socket.connected}');
     socket.connect();
+    print('📡 Socket connected after connect(): ${socket.connected}');
     socket.emit('joinDevice', {'deviceCode': deviceCode});
-    print('📱 Socket emit joinDevice sent. Current state: ${socket.connected}');
   }
 
   /// Kiểm tra kết nối
