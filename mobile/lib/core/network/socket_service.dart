@@ -1,13 +1,15 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../constants/api_constants.dart';
 
+typedef SocketCallback = void Function(Map<String, dynamic> data);
+
 class SocketService {
   static SocketService? _instance;
   IO.Socket? _socket;
   
-  // Callbacks
-  Function(Map<String, dynamic>)? onDeviceOnlineCallback;
-  Function(Map<String, dynamic>)? onDeviceOfflineCallback;
+  // Multiple listeners support
+  final List<SocketCallback> _onlineListeners = [];
+  final List<SocketCallback> _offlineListeners = [];
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -15,6 +17,33 @@ class SocketService {
   }
 
   SocketService._();
+
+  void addDeviceOnlineListener(SocketCallback callback) {
+    if (!_onlineListeners.contains(callback)) _onlineListeners.add(callback);
+  }
+
+  void removeDeviceOnlineListener(SocketCallback callback) {
+    _onlineListeners.remove(callback);
+  }
+
+  void addDeviceOfflineListener(SocketCallback callback) {
+    if (!_offlineListeners.contains(callback)) _offlineListeners.add(callback);
+  }
+
+  void removeDeviceOfflineListener(SocketCallback callback) {
+    _offlineListeners.remove(callback);
+  }
+
+  // Backward compatibility for single callback (if needed, but better to migrate)
+  set onDeviceOnlineCallback(SocketCallback? callback) {
+    _onlineListeners.clear();
+    if (callback != null) _onlineListeners.add(callback);
+  }
+
+  set onDeviceOfflineCallback(SocketCallback? callback) {
+    _offlineListeners.clear();
+    if (callback != null) _offlineListeners.add(callback);
+  }
 
   IO.Socket get socket {
     if (_socket == null) {
@@ -46,12 +75,18 @@ class SocketService {
       // Device events
       _socket!.on('deviceOnline', (data) {
         print('📱 Device online event received: $data');
-        onDeviceOnlineCallback?.call(Map<String, dynamic>.from(data));
+        final mapData = Map<String, dynamic>.from(data);
+        for (final listener in List.from(_onlineListeners)) {
+          listener(mapData);
+        }
       });
 
       _socket!.on('deviceOffline', (data) {
         print('📱 Device offline event received: $data');
-        onDeviceOfflineCallback?.call(Map<String, dynamic>.from(data));
+        final mapData = Map<String, dynamic>.from(data);
+        for (final listener in List.from(_offlineListeners)) {
+          listener(mapData);
+        }
       });
 
       // Events cho Sprint 4 (placeholder)
@@ -93,6 +128,8 @@ class SocketService {
     _socket?.disconnect();
     _socket?.destroy();
     _socket = null;
+    _onlineListeners.clear();
+    _offlineListeners.clear();
     print('🔌 Socket disconnected and destroyed');
   }
 }
