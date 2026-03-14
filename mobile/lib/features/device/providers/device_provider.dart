@@ -28,32 +28,48 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   }
 
   void _setupSocketListeners() {
+    print('🔌 DeviceProvider: Setting up Socket.IO listeners...');
     SocketService.instance.onDeviceOnlineCallback = (data) {
+      print('📱 Socket Event: deviceOnline -> $data');
       // deviceId can come as int or String depending on backend serialization
       final rawId = data['deviceId'];
       final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      print('📱 Parsed deviceId: $deviceId');
       if (deviceId != null) _updateDeviceStatus(deviceId, true);
     };
 
     SocketService.instance.onDeviceOfflineCallback = (data) {
+      print('📱 Socket Event: deviceOffline -> $data');
       final rawId = data['deviceId'];
       final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      print('📱 Parsed deviceId: $deviceId');
       if (deviceId != null) _updateDeviceStatus(deviceId, false);
     };
   }
 
   void _updateDeviceStatus(int deviceId, bool isOnline) {
+    print('🔄 _updateDeviceStatus: deviceId=$deviceId, isOnline=$isOnline');
+    print('🔄 Current UI state: ${state.runtimeType}');
+    
     if (state is DeviceLoaded) {
       final devices = (state as DeviceLoaded).devices;
+      print('🔄 Devices in list: ${devices.map((d) => d.id).toList()}');
+      
       final updated = devices.map((d) {
         if (d.id == deviceId) {
+          print('✅ MATCH FOUND for device $deviceId. Updating to $isOnline');
           return d.copyWith(isOnline: isOnline, lastSeen: DateTime.now());
         }
         return d;
       }).toList();
+      
       // Only update state if something actually changed
       final changed = updated.any((d) => d.id == deviceId && d.isOnline == isOnline);
-      if (changed) state = DeviceLoaded(updated);
+      print('🔄 State changed: $changed');
+      if (changed) {
+        state = DeviceLoaded(updated);
+        print('✨ State updated with new device list');
+      }
     }
   }
 
