@@ -251,6 +251,37 @@ const linkDevice = async (req, res) => {
   }
 };
 
+// GET /api/devices/:id/status
+const getDeviceStatus = async (req, res) => {
+  try {
+    const device = await prisma.device.findFirst({
+      where: {
+        id: parseInt(req.params.id),
+        userId: req.user.userId
+      }
+    });
+
+    if (!device) {
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
+    }
+
+    sendSuccess(res, {
+      device: {
+        id: device.id,
+        deviceName: device.deviceName,
+        deviceCode: device.deviceCode,
+        osVersion: device.osVersion,
+        profileId: device.profileId
+      },
+      isOnline: device.isOnline,
+      lastSeen: device.lastSeen
+    });
+  } catch (error) {
+    console.error('Get device status error:', error);
+    sendError(res, 'Failed to get device status', 500, 'INTERNAL_ERROR');
+  }
+};
+
 module.exports = {
   getAllDevices,
   registerDevice,
@@ -258,5 +289,6 @@ module.exports = {
   updateDevice,
   deleteDevice,
   linkDevice,
-  generatePairingCode
+  generatePairingCode,
+  getDeviceStatus
 };
