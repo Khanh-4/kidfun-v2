@@ -87,6 +87,18 @@ app.use((req, res) => {
 // Start server (skip khi chạy test — supertest tự handle)
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
+
+// Reset all devices to offline when server starts
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+prisma.device.updateMany({
+  data: { isOnline: false }
+}).then(() => {
+  console.log('📱 All devices reset to offline');
+}).catch(err => {
+  console.error('❌ Failed to reset devices:', err);
+});
+
 if (process.env.NODE_ENV !== 'test') {
   httpServer.listen(PORT, HOST, () => {
     console.log(`🚀 KidFun V3 Server running on http://${HOST}:${PORT}`);

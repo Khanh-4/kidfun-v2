@@ -1,3 +1,6 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 const socketService = {
   io: null,
 
@@ -55,8 +58,64 @@ const socketService = {
         });
       });
 
-      socket.on('disconnect', (reason) => {
+      // Child join device room
+      socket.on('joinDevice', async ({ deviceCode }) => {
+        socket.deviceCode = deviceCode;
+        socket.join(`device_${deviceCode}`);
+        console.log(`📱 Device ${deviceCode} joined`);
+
+        try {
+          const device = await prisma.device.findFirst({ 
+            where: { deviceCode },
+            include: { profile: true }
+          });
+          
+          if (device) {
+            // Update status online
+            await prisma.device.update({
+              where: { id: device.id },
+              data: { isOnline: true, lastSeen: new Date() }
+            });
+
+            // Notify Parent
+            io.to(`family_${device.userId}`).emit('deviceOnline', {
+              deviceId: device.id,
+              profileId: device.profileId,
+              deviceName: device.deviceName,
+            });
+            
+            console.log(`🟢 Device ${device.deviceName} is ONLINE`);
+          }
+        } catch (err) {
+          console.error('joinDevice error:', err);
+        }
+      });
+
+      socket.on('disconnect', async (reason) => {
         console.log(`❌ Client disconnected: ${socket.id} (${socket.role || 'unknown'} of family_${socket.userId || '?'}), reason: ${reason}`);
+        
+        if (socket.deviceCode) {
+          try {
+            const device = await prisma.device.findFirst({ 
+              where: { deviceCode: socket.deviceCode } 
+            });
+            
+            if (device) {
+              await prisma.device.update({
+                where: { id: device.id },
+                data: { isOnline: false, lastSeen: new Date() }
+              });
+
+              io.to(`family_${device.userId}`).emit('deviceOffline', {
+                deviceId: device.id,
+              });
+              
+              console.log(`🔴 Device ${device.deviceName} is OFFLINE`);
+            }
+          } catch (err) {
+            console.error('disconnect error:', err);
+          }
+        }
       });
     });
   },

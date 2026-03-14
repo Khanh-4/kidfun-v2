@@ -24,6 +24,9 @@ router.get('/:id', deviceController.getDeviceById);
 // PUT /api/devices/:id - Cập nhật thiết bị
 router.put('/:id', deviceController.updateDevice);
 
+// GET /api/devices/:id/status - Lấy trạng thái thiết bị
+router.get('/:id/status', deviceController.getDeviceStatus);
+
 // DELETE /api/devices/:id - Xóa thiết bị
 router.delete('/:id', deviceController.deleteDevice);
 
