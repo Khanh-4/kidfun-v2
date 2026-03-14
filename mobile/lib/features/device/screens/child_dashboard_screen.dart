@@ -232,7 +232,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            _isSocketConnected ? 'Đã kết nối' : 'Mất kết nối',
+            _isSocketConnected ? 'Đã kết nối máy chủ' : 'Mất kết nối máy chủ',
             style: GoogleFonts.nunito(
               color: _isSocketConnected ? Colors.greenAccent : Colors.red.shade200,
               fontSize: 14,
@@ -362,7 +362,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isSocketConnected ? '🟢 Đã kết nối với Phụ huynh' : '🔴 Mất kết nối',
+                  _isSocketConnected ? '🟢 Đã kết nối với máy chủ' : '🔴 Mất kết nối',
                   style: GoogleFonts.nunito(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
