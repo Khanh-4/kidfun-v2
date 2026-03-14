@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/auth_repository.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../core/network/socket_service.dart';
 
 // Auth states
 sealed class AuthState {}
@@ -47,6 +48,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _repo.login(email, password);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
+      SocketService.instance.joinFamily(user.id);
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
@@ -58,6 +60,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _repo.register(name, email, password);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
+      SocketService.instance.joinFamily(user.id);
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
@@ -66,6 +69,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     state = AuthLoading();
     await _repo.logout();
+    SocketService.instance.disconnect();
     state = AuthUnauthenticated();
   }
 
