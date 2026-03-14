@@ -24,25 +24,27 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   void initState() {
     super.initState();
     // Listen for deviceOnline Socket event — na navigate back when child successfully links
-    SocketService.instance.onDeviceOnlineCallback = (data) {
-      if (mounted && _pairingCode != null) {
-        // Refresh device list and go back
-        ref.read(deviceProvider.notifier).fetchDevices();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('📱 Thiết bị "${data['deviceName'] ?? 'mới'}" đã kết nối!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        context.pop();
-      }
-    };
+    SocketService.instance.addDeviceOnlineListener(_onDeviceOnline);
+  }
+
+  void _onDeviceOnline(Map<String, dynamic> data) {
+    if (mounted && _pairingCode != null) {
+      // Refresh device list and go back
+      ref.read(deviceProvider.notifier).fetchDevices();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('📱 Thiết bị "${data['deviceName'] ?? 'mới'}" đã kết nối!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      context.pop();
+    }
   }
 
   @override
   void dispose() {
-    // Remove the callback so DeviceProvider can take it back when we leave
-    SocketService.instance.onDeviceOnlineCallback = null;
+    // Remove the callback so we don't leak or trigger unexpectedly
+    SocketService.instance.removeDeviceOnlineListener(_onDeviceOnline);
     super.dispose();
   }
 
