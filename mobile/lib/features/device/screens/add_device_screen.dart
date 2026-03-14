@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../providers/device_provider.dart';
 import '../../../shared/models/profile_model.dart';
+import '../../../core/network/socket_service.dart';
 
 class AddDeviceScreen extends ConsumerStatefulWidget {
   const AddDeviceScreen({super.key});
@@ -17,6 +19,32 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   String? _pairingCode;
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for deviceOnline Socket event — na navigate back when child successfully links
+    SocketService.instance.onDeviceOnlineCallback = (data) {
+      if (mounted && _pairingCode != null) {
+        // Refresh device list and go back
+        ref.read(deviceProvider.notifier).fetchDevices();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📱 Thiết bị "${data['deviceName'] ?? 'mới'}" đã kết nối!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.pop();
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    // Remove the callback so DeviceProvider can take it back when we leave
+    SocketService.instance.onDeviceOnlineCallback = null;
+    super.dispose();
+  }
 
   void _generateCode() async {
     if (_selectedProfile == null) return;
