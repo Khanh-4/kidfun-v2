@@ -19,15 +19,17 @@ class ProfileModel {
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
-      id: json['id'],
-      userId: json['userId'],
-      profileName: json['profileName'],
+      id: json['id'] is int ? json['id'] as int : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      userId: json['userId'] is int ? json['userId'] as int : int.tryParse(json['userId']?.toString() ?? '0') ?? 0,
+      profileName: json['profileName']?.toString() ?? 'Unknown',
       dateOfBirth: json['dateOfBirth'] != null
-          ? DateTime.parse(json['dateOfBirth'])
+          ? DateTime.tryParse(json['dateOfBirth'].toString())
           : null,
-      avatarUrl: json['avatarUrl'],
-      isActive: json['isActive'] ?? true,
-      createdAt: DateTime.parse(json['createdAt']),
+      avatarUrl: json['avatarUrl']?.toString(),
+      isActive: json['isActive'] is bool ? json['isActive'] as bool : true,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
