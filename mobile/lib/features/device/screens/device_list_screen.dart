@@ -52,19 +52,24 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
                       child: Text(p.profileName),
                     );
                   }).toList(),
-                  onChanged: (val) {
+                  onChanged: (val) async {
                     if (val != null) {
-                      ref.read(deviceProvider.notifier).assignProfile(device.id, val).then((_) {
-                        if (context.mounted) Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Đã cập nhật cấu hình thiết bị')),
-                        );
-                      }).catchError((e) {
-                         if (context.mounted) Navigator.pop(ctx);
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           SnackBar(content: Text('Lỗi: $e')),
-                         );
-                      });
+                      // Close sheet first, then assign
+                      Navigator.pop(ctx);
+                      try {
+                        await ref.read(deviceProvider.notifier).assignProfile(device.id, val);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Đã cập nhật cấu hình thiết bị')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
                     }
                   },
                   hint: const Text('Chọn một hồ sơ'),
@@ -73,18 +78,38 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
                 const Divider(),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    ref.read(deviceProvider.notifier).deleteDevice(device.id).then((_) {
-                      if (context.mounted) Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã xoá thiết bị thành công')),
-                      );
-                    }).catchError((e) {
-                      if (context.mounted) Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Lỗi: $e')),
-                      );
-                    });
+                  onPressed: () async {
+                    // Close bottom sheet BEFORE calling API to avoid deactivated ancestor crash
+                    Navigator.pop(ctx);
+
+                    try {
+                      await ref.read(deviceProvider.notifier).deleteDevice(device.id);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Đã xoá thiết bị thành công'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      final errStr = e.toString().toLowerCase();
+                      // If device already deleted (404), just refresh list silently
+                      if (errStr.contains('404') || errStr.contains('not found')) {
+                        ref.read(deviceProvider.notifier).fetchDevices();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Thiết bị đã bị xoá trước đó, đã làm mới danh sách.')),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   icon: const Icon(Icons.delete, color: Colors.white),

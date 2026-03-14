@@ -29,11 +29,16 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
 
   void _setupSocketListeners() {
     SocketService.instance.onDeviceOnlineCallback = (data) {
-      _updateDeviceStatus(data['deviceId'] as int, true);
+      // deviceId can come as int or String depending on backend serialization
+      final rawId = data['deviceId'];
+      final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      if (deviceId != null) _updateDeviceStatus(deviceId, true);
     };
 
     SocketService.instance.onDeviceOfflineCallback = (data) {
-      _updateDeviceStatus(data['deviceId'] as int, false);
+      final rawId = data['deviceId'];
+      final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      if (deviceId != null) _updateDeviceStatus(deviceId, false);
     };
   }
 
@@ -46,7 +51,9 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
         }
         return d;
       }).toList();
-      state = DeviceLoaded(updated);
+      // Only update state if something actually changed
+      final changed = updated.any((d) => d.id == deviceId && d.isOnline == isOnline);
+      if (changed) state = DeviceLoaded(updated);
     }
   }
 

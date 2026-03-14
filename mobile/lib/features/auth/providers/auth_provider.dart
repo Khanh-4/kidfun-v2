@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/auth_repository.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../core/storage/secure_storage.dart';
-import '../../core/network/socket_service.dart';
+import '../../../core/network/socket_service.dart';
 
 // Auth states
 sealed class AuthState {}
