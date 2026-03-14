@@ -124,12 +124,17 @@ class SocketService {
 
   /// Disconnect (khi logout)
   void disconnect() {
-    print('🔌 Manually calling disconnect()');
+    print('🔌🔌🔌 SocketService.disconnect() CALLED');
+    print('📍 StackTrace:\n${StackTrace.current}');
+    
     _socket?.disconnect();
     _socket?.destroy();
     _socket = null;
     _onlineListeners.clear();
     _offlineListeners.clear();
-    print('🔌 Socket disconnected and destroyed');
+    
+    // Reset instance so next call to .instance creates a fresh service
+    _instance = null;
+    print('🔌 Socket disconnected, cleared, and instance reset');
   }
 }
