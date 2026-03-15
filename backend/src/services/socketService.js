@@ -61,20 +61,24 @@ const socketService = {
               data: { isOnline: true, lastSeen: new Date() }
             });
 
+            // Cache device info vào socket để dùng khi disconnect (tránh query DB lại)
+            socket.deviceId = device.id;
+            socket.deviceUserId = device.userId;
             socket.userId = device.userId;
 
             // Notify Parent
             const familyRoom = `family_${device.userId}`;
             const parentClients = io.sockets.adapter.rooms.get(familyRoom);
-            
+
             console.log(`🟢 [SOCKET] Device ${device.deviceName} (ID: ${device.id}) is ONLINE.`);
             console.log(`📣 [SOCKET] Notifying ${familyRoom}. Active parents in room: ${parentClients ? parentClients.size : 0}`);
-            
+
             // Emit to family room
             io.to(familyRoom).emit('deviceOnline', {
               deviceId: device.id,
               profileId: device.profileId,
               deviceName: device.deviceName,
+              profileName: device.profile?.profileName || null,
             });
             
             // Broadcast to the specifically joined device room too (if any other part of app listens)
@@ -86,6 +90,18 @@ const socketService = {
         } catch (err) {
           console.error('❌ [SOCKET] joinDevice error:', err);
         }
+      });
+
+      // Child gửi heartbeat để cập nhật lastSeen
+      socket.on('heartbeat', async ({ deviceCode }) => {
+        const code = deviceCode || socket.deviceCode;
+        if (!code) return;
+        try {
+          await prisma.device.updateMany({
+            where: { deviceCode: code },
+            data: { lastSeen: new Date(), isOnline: true },
+          });
+        } catch (err) { /* silent fail */ }
       });
 
       // Child gửi yêu cầu thêm thời gian
@@ -128,24 +144,33 @@ const socketService = {
 
       socket.on('disconnect', async (reason) => {
         console.log(`❌ [SOCKET] Client disconnected: ${socket.id} (Role: ${socket.role || 'unknown'}, Family: ${socket.userId || '?'}). Reason: ${reason}`);
-        
+
         if (socket.deviceCode) {
           try {
-            const device = await prisma.device.findFirst({ 
-              where: { deviceCode: socket.deviceCode } 
-            });
-            
-            if (device) {
+            // Ưu tiên dùng deviceId đã cache (nhanh hơn, tránh query DB)
+            let deviceId = socket.deviceId;
+            let deviceUserId = socket.deviceUserId;
+
+            if (!deviceId) {
+              // Fallback: query DB nếu chưa có cache (joinDevice thất bại hoặc reconnect cũ)
+              const device = await prisma.device.findFirst({
+                where: { deviceCode: socket.deviceCode }
+              });
+              if (device) {
+                deviceId = device.id;
+                deviceUserId = device.userId;
+              }
+            }
+
+            if (deviceId) {
               await prisma.device.update({
-                where: { id: device.id },
+                where: { id: deviceId },
                 data: { isOnline: false, lastSeen: new Date() }
               });
 
-              const familyRoom = `family_${device.userId}`;
-              console.log(`🔴 [SOCKET] Device ${device.deviceName} is OFFLINE. Notifying ${familyRoom}`);
-              io.to(familyRoom).emit('deviceOffline', {
-                deviceId: device.id,
-              });
+              const familyRoom = `family_${deviceUserId}`;
+              console.log(`🔴 [SOCKET] Device ID ${deviceId} is OFFLINE. Notifying ${familyRoom}`);
+              io.to(familyRoom).emit('deviceOffline', { deviceId });
             }
           } catch (err) {
             console.error('❌ [SOCKET] disconnect error:', err);
