@@ -23,6 +23,11 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   final _repo = DeviceRepository();
   final List<Map<String, dynamic>> _pendingUpdates = [];
 
+  // Keep references for proper cleanup
+  late final SocketCallback _onDeviceLinked;
+  late final SocketCallback _onDeviceOnline;
+  late final SocketCallback _onDeviceOffline;
+
   DeviceNotifier() : super(DeviceLoading()) {
     _setupSocketListeners();
     fetchDevices();
@@ -30,9 +35,13 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
 
   void _setupSocketListeners() {
     print('🔌 [DeviceProvider] Setting up Socket listeners');
-    
-    // Listen for Online event
-    SocketService.instance.onDeviceOnlineCallback = (data) {
+
+    _onDeviceLinked = (data) {
+      print('📱 [DeviceProvider] RECEIVED deviceLinked: $data. Refreshing list...');
+      fetchDevices();
+    };
+
+    _onDeviceOnline = (data) {
       print('📱 [DeviceProvider] RECEIVED deviceOnline: $data');
       final rawId = data['deviceId'];
       final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
@@ -41,8 +50,7 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       }
     };
 
-    // Listen for Offline event
-    SocketService.instance.onDeviceOfflineCallback = (data) {
+    _onDeviceOffline = (data) {
       print('📱 [DeviceProvider] RECEIVED deviceOffline: $data');
       final rawId = data['deviceId'];
       final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
@@ -51,17 +59,16 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       }
     };
 
-    // Listen for Linked event - refresh list
-    SocketService.instance.onDeviceLinkedCallback = (data) {
-      print('📱 [DeviceProvider] RECEIVED deviceLinked: $data. Refreshing list...');
-      fetchDevices();
-    };
+    // ★ Use list-based listeners (supports multiple subscribers)
+    SocketService.instance.addDeviceLinkedListener(_onDeviceLinked);
+    SocketService.instance.addDeviceOnlineListener(_onDeviceOnline);
+    SocketService.instance.addDeviceOfflineListener(_onDeviceOffline);
   }
 
   void _updateDeviceStatus(int deviceId, bool isOnline) {
     if (state is DeviceLoaded) {
       final devices = (state as DeviceLoaded).devices;
-      
+
       bool found = false;
       final updated = devices.map((d) {
         if (d.id == deviceId) {
@@ -86,16 +93,18 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
 
   void _applyPendingUpdates() {
     if (_pendingUpdates.isEmpty || state is! DeviceLoaded) return;
-    
+
     final devices = (state as DeviceLoaded).devices;
     var updatedDevices = List<DeviceModel>.from(devices);
-    
+
     for (var update in _pendingUpdates) {
       final id = update['deviceId'] as int;
       final online = update['isOnline'] as bool;
-      updatedDevices = updatedDevices.map((d) => d.id == id ? d.copyWith(isOnline: online, lastSeen: DateTime.now()) : d).toList();
+      updatedDevices = updatedDevices
+          .map((d) => d.id == id ? d.copyWith(isOnline: online, lastSeen: DateTime.now()) : d)
+          .toList();
     }
-    
+
     _pendingUpdates.clear();
     state = DeviceLoaded(updatedDevices);
   }
@@ -104,7 +113,7 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     // Silent loading if we already have data
     final bool isSilent = state is DeviceLoaded;
     if (!isSilent) state = DeviceLoading();
-    
+
     try {
       final devices = await _repo.getDevices();
       state = DeviceLoaded(devices);
@@ -162,9 +171,10 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
 
   @override
   void dispose() {
-    SocketService.instance.onDeviceOnlineCallback = null;
-    SocketService.instance.onDeviceOfflineCallback = null;
-    SocketService.instance.onDeviceLinkedCallback = null;
+    print('🔌 [DeviceProvider] Removing Socket listeners');
+    SocketService.instance.removeDeviceLinkedListener(_onDeviceLinked);
+    SocketService.instance.removeDeviceOnlineListener(_onDeviceOnline);
+    SocketService.instance.removeDeviceOfflineListener(_onDeviceOffline);
     super.dispose();
   }
 }

@@ -35,48 +35,48 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
       SocketService.instance.reconnect();
     }
 
-    // ★ Listen for deviceLinked event as per Sprint document
-    SocketService.instance.onDeviceLinkedCallback = (data) {
-      _handleSuccessfulLink(data);
-    };
-
-    // Fallback: also listen for deviceOnline just in case
-    SocketService.instance.addDeviceOnlineListener(_handleSuccessfulLink);
+    // ★ ONLY listen for deviceLinked (not deviceOnline - that fires for ALL devices going online
+    // and would incorrectly navigate when an already-linked device reconnects)
+    SocketService.instance.addDeviceLinkedListener(_handleSuccessfulLink);
+    print('📡 [AddDeviceScreen] deviceLinked listener registered');
   }
 
   void _handleSuccessfulLink(Map<String, dynamic> data) {
     if (!mounted || _isLinked) return;
-    
-    print('🚀 [AddDeviceScreen] Success! Device linked/online: $data');
 
-    if (_pairingCode != null) {
-      setState(() => _isLinked = true);
-      
-      // Refresh device list
-      ref.read(deviceProvider.notifier).fetchDevices();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Thiết bị "${data['deviceName']}" đã kết nối thành công!'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      
-      // Auto-navigate to Device List after 1.5 seconds
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) {
-          context.pop();
-        }
-      });
+    print('🚀 [AddDeviceScreen] deviceLinked received: $data');
+
+    if (_pairingCode == null) {
+      print('⚠️ [AddDeviceScreen] Ignoring event — no pairingCode (screen not in QR mode)');
+      return;
     }
+
+    setState(() => _isLinked = true);
+
+    // Refresh device list in background
+    ref.read(deviceProvider.notifier).fetchDevices();
+
+    final deviceName = data['deviceName']?.toString() ?? 'Thiết bị con';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ Thiết bị "$deviceName" đã kết nối thành công!'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    // Auto-navigate to Device List after 1.5 seconds
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        context.pop();
+      }
+    });
   }
 
   @override
   void dispose() {
-    print('📡 [AddDeviceScreen] Cleaning up listeners');
-    SocketService.instance.onDeviceLinkedCallback = null;
-    SocketService.instance.removeDeviceOnlineListener(_handleSuccessfulLink);
+    print('📡 [AddDeviceScreen] Cleaning up deviceLinked listener');
+    SocketService.instance.removeDeviceLinkedListener(_handleSuccessfulLink);
     super.dispose();
   }
 
