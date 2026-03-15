@@ -21,6 +21,7 @@ class DeviceError extends DeviceState {
 
 class DeviceNotifier extends StateNotifier<DeviceState> {
   final _repo = DeviceRepository();
+  final List<Map<String, dynamic>> _pendingUpdates = [];
 
   DeviceNotifier() : super(DeviceLoading()) {
     _setupSocketListeners();
@@ -61,7 +62,6 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       final updated = devices.map((d) {
         if (d.id == deviceId) {
           found = true;
-          if (d.isOnline == isOnline) return d; // No change
           print('✨ [DeviceProvider] Updating device $deviceId to ${isOnline ? 'ONLINE' : 'OFFLINE'}');
           return d.copyWith(isOnline: isOnline, lastSeen: DateTime.now());
         }
@@ -74,22 +74,54 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
         print('⚠️ [DeviceProvider] Received status for device $deviceId but it is not in the current list');
       }
     } else {
-      print('⏳ [DeviceProvider] Received status update but state is not Loaded (${state.runtimeType})');
+      print('⏳ [DeviceProvider] State is ${state.runtimeType}. Queuing update for device $deviceId as ${isOnline ? 'ONLINE' : 'OFFLINE'}');
+      _pendingUpdates.add({'deviceId': deviceId, 'isOnline': isOnline});
     }
   }
 
+  void _applyPendingUpdates() {
+    if (_pendingUpdates.isEmpty || state is! DeviceLoaded) return;
+    
+    print('🔄 [DeviceProvider] Applying ${_pendingUpdates.length} pending socket updates');
+    final devices = (state as DeviceLoaded).devices;
+    var updatedDevices = List<DeviceModel>.from(devices);
+    
+    for (var update in _pendingUpdates) {
+      final id = update['deviceId'] as int;
+      final online = update['isOnline'] as bool;
+      
+      updatedDevices = updatedDevices.map((d) {
+        if (d.id == id) {
+          return d.copyWith(isOnline: online, lastSeen: DateTime.now());
+        }
+        return d;
+      }).toList();
+    }
+    
+    _pendingUpdates.clear();
+    state = DeviceLoaded(updatedDevices);
+  }
+
   Future<void> fetchDevices() async {
-    // Only show loading if we don't have data yet
-    if (state is! DeviceLoaded) {
+    // Chỉ hiện loading nếu chưa có dữ liệu. Nếu đã có thì refresh ngầm.
+    final bool isSilent = state is DeviceLoaded;
+    if (!isSilent) {
       state = DeviceLoading();
     }
     
     try {
+      print('📡 [DeviceProvider] Fetching devices from API...');
       final devices = await _repo.getDevices();
       state = DeviceLoaded(devices);
       print('✅ [DeviceProvider] Fetched ${devices.length} devices');
+      
+      // Áp dụng các cập nhật socket nhận được trong lúc đang loading
+      _applyPendingUpdates();
     } catch (e) {
-      state = DeviceError(e.toString().replaceAll('Exception: ', ''));
+      print('❌ [DeviceProvider] fetchDevices error: $e');
+      if (!isSilent) {
+        state = DeviceError(e.toString().replaceAll('Exception: ', ''));
+      }
     }
   }
 

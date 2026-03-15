@@ -11,6 +11,7 @@ class DeviceRepository {
 
   Future<String> generatePairingCode(int profileId) async {
     try {
+      print('📡 [DeviceRepo] Generating pairing code for profile: $profileId');
       final response = await _dio.post(
         ApiConstants.devicesGeneratePairingCode,
         data: {'profileId': profileId},
@@ -18,13 +19,17 @@ class DeviceRepository {
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
       }
-      return response.data['data']['pairingCode'];
+      final code = response.data['data']['pairingCode'];
+      print('📡 [DeviceRepo] Pairing code generated: $code');
+      return code;
     } on DioException catch (e) {
+      print('❌ [DeviceRepo] generatePairingCode DioError: ${e.message}');
       if (e.response != null && e.response?.data['message'] != null) {
         throw Exception(e.response?.data['message']);
       }
-      throw Exception('Lỗi kết nối. Vui lòng thử lại.');
+      throw Exception('Lỗi kết nối server. Vui lòng thử lại.');
     } catch (e) {
+      print('❌ [DeviceRepo] generatePairingCode error: $e');
       if (e is Exception) rethrow;
       throw Exception('Lỗi tạo mã QR: $e');
     }
@@ -32,20 +37,26 @@ class DeviceRepository {
 
   Future<void> linkDevice(String pairingCode) async {
     try {
+      print('📡 [DeviceRepo] Linking device with pairing code: $pairingCode');
       final deviceInfo = DeviceInfoPlugin();
       String deviceName = 'Thiết bị không rõ';
       String deviceCode = 'unknown_device_code';
 
       if (Platform.isAndroid) {
+        print('📡 [DeviceRepo] Getting Android device info...');
         final androidInfo = await deviceInfo.androidInfo;
         deviceName = '${androidInfo.brand} ${androidInfo.model}'.trim();
         deviceCode = androidInfo.id; // unique ID on Android
+        print('📡 [DeviceRepo] Android info: $deviceName, $deviceCode');
       } else if (Platform.isIOS) {
+        print('📡 [DeviceRepo] Getting iOS device info...');
         final iosInfo = await deviceInfo.iosInfo;
         deviceName = iosInfo.name;
         deviceCode = iosInfo.identifierForVendor ?? 'unknown_ios_id';
+        print('📡 [DeviceRepo] iOS info: $deviceName, $deviceCode');
       }
 
+      print('📡 [DeviceRepo] Sending link request to server...');
       final response = await _dio.post(
         ApiConstants.devicesLink,
         data: {
@@ -54,13 +65,18 @@ class DeviceRepository {
           'deviceName': deviceName,
         },
       );
+      
       if (response.data['success'] == false) {
+        print('❌ [DeviceRepo] linkDevice server error: ${response.data['message']}');
         throw Exception(response.data['message']);
       }
 
-      // Build 15: Fix loop root cause - save device_code even if token is null
+      print('✅ [DeviceRepo] linkDevice SUCCESS. Saving local credentials...');
+      
+      // Fix loop root cause - save device_code even if token is null
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('device_code', deviceCode);
+      print('✅ [DeviceRepo] Saved device_code to SharedPreferences: $deviceCode');
 
       // Extract token if exists (optional during link)
       final data = response.data['data'];
@@ -68,14 +84,21 @@ class DeviceRepository {
         final token = data['token'] ?? data['accessToken'];
         if (token != null && token.toString().isNotEmpty) {
           await prefs.setString('device_token', token.toString());
+          print('✅ [DeviceRepo] Saved device_token to SharedPreferences');
+        } else {
+          print('⚠️ [DeviceRepo] No token found in response data');
         }
+      } else {
+        print('⚠️ [DeviceRepo] No data object found in response');
       }
     } on DioException catch (e) {
+      print('❌ [DeviceRepo] linkDevice DioError: ${e.message}');
       if (e.response != null && e.response?.data['message'] != null) {
         throw Exception(e.response?.data['message']);
       }
       throw Exception('Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
+      print('❌ [DeviceRepo] linkDevice error: $e');
       if (e is Exception) rethrow;
       throw Exception('Lỗi liên kết thiết bị: $e');
     }
@@ -87,7 +110,6 @@ class DeviceRepository {
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
       }
-      // Assuming response.data['data'] has 'devices' array based on the new specs
       final data = response.data['data'];
       List devicesData = [];
       if (data is List) {
@@ -113,7 +135,6 @@ class DeviceRepository {
         'deviceName': name,
         if (profileId != null) 'profileId': profileId,
       };
-      // fallback to directly typing endpoint
       final response = await _dio.post('/api/devices', data: data);
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
