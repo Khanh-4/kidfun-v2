@@ -8,61 +8,26 @@ const socketService = {
     this.io = io;
 
     io.on('connection', (socket) => {
-      console.log('🔌 Client connected:', socket.id);
+      console.log(`🔌 [SOCKET] Client connected: ${socket.id} (Total: ${io.engine.clientsCount})`);
 
       // Child hoặc Parent tham gia "phòng" của gia đình
       socket.on('joinFamily', ({ userId, role }) => {
+        if (!userId) return;
         const room = `family_${userId}`;
         socket.join(room);
-        socket.role = role;
+        socket.role = role || 'parent';
         socket.userId = userId;
         const clients = io.sockets.adapter.rooms.get(room);
-        console.log(`👨‍👩‍👧 ${role} (${socket.id}) joined ${room} — room now has ${clients ? clients.size : 0} members:`, clients ? [...clients] : []);
-      });
-
-      // Child gửi yêu cầu thêm thời gian
-      socket.on('requestTimeExtension', (data) => {
-        console.log('⏰ Time extension request from:', socket.id, 'data:', data);
-        const room = `family_${data.userId}`;
-        const clients = io.sockets.adapter.rooms.get(room);
-        console.log(`⏰ Room ${room} has ${clients ? clients.size : 0} clients:`, clients ? [...clients] : []);
-        // Gửi đến tất cả Parent trong gia đình
-        io.to(room).emit('timeExtensionRequest', {
-          id: Date.now(),
-          deviceName: data.deviceName,
-          profileName: data.profileName,
-          reason: data.reason,
-          requestedMinutes: data.requestedMinutes || 30,
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      // Parent xóa thiết bị
-      socket.on('removeDevice', (data) => {
-        console.log('🗑️ Device removed:', data);
-        // Thông báo đến tất cả client trong gia đình
-        io.to(`family_${data.userId}`).emit('deviceRemoved', {
-          deviceId: data.deviceId,
-          deviceCode: data.deviceCode,
-        });
-      });
-
-      // Parent phản hồi yêu cầu
-      socket.on('respondTimeExtension', (data) => {
-        console.log('✅ Time extension response:', data);
-        // Gửi kết quả đến Child
-        io.to(`family_${data.userId}`).emit('timeExtensionResponse', {
-          approved: data.approved,
-          additionalMinutes: data.additionalMinutes || 0,
-          message: data.message,
-        });
+        console.log(`👨‍👩‍👧 [SOCKET] ${socket.role} (${socket.id}) joined ${room}. Room size: ${clients ? clients.size : 0}`);
       });
 
       // Child join device room
       socket.on('joinDevice', async ({ deviceCode }) => {
+        if (!deviceCode) return;
         socket.deviceCode = deviceCode;
+        socket.role = 'child';
         socket.join(`device_${deviceCode}`);
-        console.log(`📱 Device ${deviceCode} joined`);
+        console.log(`📱 [SOCKET] Device ${deviceCode} joined room`);
 
         try {
           const device = await prisma.device.findFirst({ 
@@ -77,22 +42,63 @@ const socketService = {
               data: { isOnline: true, lastSeen: new Date() }
             });
 
+            // Gán userId cho socket để khi disconnect biết báo cho ai
+            socket.userId = device.userId;
+
             // Notify Parent
-            io.to(`family_${device.userId}`).emit('deviceOnline', {
+            const familyRoom = `family_${device.userId}`;
+            console.log(`🟢 [SOCKET] Device ${device.deviceName} (ID: ${device.id}) is ONLINE. Notifying ${familyRoom}`);
+            
+            io.to(familyRoom).emit('deviceOnline', {
               deviceId: device.id,
               profileId: device.profileId,
               deviceName: device.deviceName,
             });
-            
-            console.log(`🟢 Device ${device.deviceName} is ONLINE`);
+          } else {
+            console.warn(`⚠️ [SOCKET] joinDevice: No device found for code ${deviceCode}`);
           }
         } catch (err) {
-          console.error('joinDevice error:', err);
+          console.error('❌ [SOCKET] joinDevice error:', err);
         }
       });
 
+      // Child gửi yêu cầu thêm thời gian
+      socket.on('requestTimeExtension', (data) => {
+        console.log('⏰ [SOCKET] Time extension request:', data);
+        const room = `family_${data.userId || socket.userId}`;
+        io.to(room).emit('timeExtensionRequest', {
+          id: Date.now(),
+          deviceName: data.deviceName,
+          profileName: data.profileName,
+          reason: data.reason,
+          requestedMinutes: data.requestedMinutes || 30,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Parent phản hồi yêu cầu
+      socket.on('respondTimeExtension', (data) => {
+        console.log('✅ [SOCKET] Time extension response:', data);
+        const room = `family_${data.userId || socket.userId}`;
+        io.to(room).emit('timeExtensionResponse', {
+          approved: data.approved,
+          additionalMinutes: data.additionalMinutes || 0,
+          message: data.message,
+        });
+      });
+
+      // Parent xóa thiết bị
+      socket.on('removeDevice', (data) => {
+        console.log('🗑️ [SOCKET] Device removed:', data);
+        const room = `family_${data.userId || socket.userId}`;
+        io.to(room).emit('deviceRemoved', {
+          deviceId: data.deviceId,
+          deviceCode: data.deviceCode,
+        });
+      });
+
       socket.on('disconnect', async (reason) => {
-        console.log(`❌ Client disconnected: ${socket.id} (${socket.role || 'unknown'} of family_${socket.userId || '?'}), reason: ${reason}`);
+        console.log(`❌ [SOCKET] Client disconnected: ${socket.id} (Role: ${socket.role || 'unknown'}, Family: ${socket.userId || '?'}). Reason: ${reason}`);
         
         if (socket.deviceCode) {
           try {
@@ -106,23 +112,23 @@ const socketService = {
                 data: { isOnline: false, lastSeen: new Date() }
               });
 
-              io.to(`family_${device.userId}`).emit('deviceOffline', {
+              const familyRoom = `family_${device.userId}`;
+              console.log(`🔴 [SOCKET] Device ${device.deviceName} is OFFLINE. Notifying ${familyRoom}`);
+              io.to(familyRoom).emit('deviceOffline', {
                 deviceId: device.id,
               });
-              
-              console.log(`🔴 Device ${device.deviceName} is OFFLINE`);
             }
           } catch (err) {
-            console.error('disconnect error:', err);
+            console.error('❌ [SOCKET] disconnect error:', err);
           }
         }
       });
     });
   },
 
-  // Gửi thông báo đến gia đình cụ thể
   notifyFamily(userId, event, data) {
     if (this.io) {
+      console.log(`📣 [SOCKET] Notifying family_${userId} of event ${event}`);
       this.io.to(`family_${userId}`).emit(event, data);
     }
   },
