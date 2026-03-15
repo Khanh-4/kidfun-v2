@@ -9,11 +9,15 @@ class SocketService {
   IO.Socket? _socket;
   
   // Connection credentials for auto-rejoin
-  int? _userId;
-  String? _deviceCode;
-  String? _role; // 'parent' or 'child'
+  int? _lastUserId;
+  String? _lastDeviceCode;
+  String? _currentRole; // 'parent' or 'child'
   
-  // Callbacks as requested in Sprint document
+  // Guard flags to prevent duplicate joins
+  bool _hasJoinedFamily = false;
+  bool _hasJoinedDevice = false;
+
+  // Specific callbacks as requested in BUGFIX Round 2
   SocketCallback? onDeviceLinkedCallback;
   SocketCallback? onDeviceOnlineCallback;
   SocketCallback? onDeviceOfflineCallback;
@@ -28,7 +32,7 @@ class SocketService {
   }
 
   SocketService._() {
-    print('🚀 [SOCKET] Singleton instance created');
+    print('🚀 [SOCKET] SocketService Singleton Initialized');
   }
 
   // ── Listener Management ──────────────────────────────────────────────
@@ -40,14 +44,9 @@ class SocketService {
 
   bool get isConnected => _socket?.connected ?? false;
 
-  // ── Initialization ───────────────────────────────────────────────────
-
-  void _ensureSocket() {
-    if (_socket != null) return;
-
-    print('🚀 [SOCKET] Initializing for: ${ApiConstants.baseUrl}');
-    
-    try {
+  IO.Socket get socket {
+    if (_socket == null) {
+      print('🚀 [SOCKET] Creating new IO.socket instance for ${ApiConstants.baseUrl}');
       _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
         .setTransports(['websocket', 'polling']) 
         .enableAutoConnect() 
@@ -58,11 +57,21 @@ class SocketService {
       );
 
       _socket!.onConnect((_) {
-        print('🟢🟢🟢 [SOCKET] CONNECTED: ${_socket!.id} as $role');
-        _rejoinRooms();
+        print('🟢🟢🟢 [SOCKET] CONNECTED: ${_socket!.id} (Role: $_currentRole)');
+        // Khi reconnect, ta cần emit lại lệnh join
+        if (_currentRole == 'parent' && _lastUserId != null) {
+          _emitJoinFamily(_lastUserId!);
+        } else if (_currentRole == 'child' && _lastDeviceCode != null) {
+          _emitJoinDevice(_lastDeviceCode!);
+        }
       });
 
-      _socket!.onDisconnect((reason) => print('🔴🔴🔴 [SOCKET] DISCONNECTED: $reason'));
+      _socket!.onDisconnect((reason) {
+        print('🔴🔴🔴 [SOCKET] DISCONNECTED: $reason');
+        _hasJoinedFamily = false;
+        _hasJoinedDevice = false;
+      });
+
       _socket!.onConnectError((err) => print('❌ [SOCKET] CONNECTION ERROR: $err'));
 
       // ── Event Handlers ────────────────────────────────────────────────
@@ -89,75 +98,100 @@ class SocketService {
           listener(mapData);
         }
       });
-      
-    } catch (e) {
-      print('❌ [SOCKET] CRITICAL ERROR during initialization: $e');
     }
+    return _socket!;
   }
 
-  void _rejoinRooms() {
-    if (_userId != null) {
-      print('👨‍👩‍👧 [SOCKET] Re-joining family room: $_userId');
-      _socket?.emit('joinFamily', {'userId': _userId, 'role': _role});
-    }
-    if (_deviceCode != null) {
-       print('📱 [SOCKET] Re-joining device room: $_deviceCode');
-      _socket?.emit('joinDevice', {'deviceCode': _deviceCode});
-    }
-  }
+  // ── Room Join Logic (Robust with connection check) ───────────────────
 
-  // ── Public API ───────────────────────────────────────────────────────
-
-  String get role => _role ?? 'unknown';
-
-  void connectAsParent(int userId) {
+  /// Parent: join family room
+  void joinFamily(int userId) {
     if (userId == 0) return;
-    _userId = userId;
-    _role = 'parent';
-    _ensureSocket();
-    if (!_socket!.connected) _socket!.connect();
-    _rejoinRooms();
+    
+    print('📡 [SOCKET] joinFamily called for userId=$userId');
+    _lastUserId = userId;
+    _currentRole = 'parent';
+    _lastDeviceCode = null;
+    _hasJoinedFamily = false;
+
+    // Đảm bảo socket đang mở
+    socket.connect();
+
+    // Nếu đã connect rồi -> emit ngay
+    if (socket.connected) {
+      _emitJoinFamily(userId);
+    } 
+    // Nếu chưa, nó sẽ được gọi trong onConnect listener ở trên
   }
 
-  void connectAsChild(String deviceCode) {
+  void _emitJoinFamily(int userId) {
+    if (_hasJoinedFamily) return; // Tránh emit trùng lặp nếu onConnect và manual call cả hai cùng chạy
+    print('👨‍👩‍👧 [SOCKET] Emitting joinFamily: userId=$userId');
+    socket.emit('joinFamily', {'userId': userId, 'role': 'parent'});
+    _hasJoinedFamily = true;
+  }
+
+  /// Child: join device room
+  void joinDevice(String deviceCode) {
     if (deviceCode.isEmpty) return;
-    _deviceCode = deviceCode;
-    _role = 'child';
-    _ensureSocket();
-    if (!_socket!.connected) _socket!.connect();
-    _rejoinRooms();
+
+    print('📱 [SOCKET] joinDevice called for deviceCode=$deviceCode');
+    _lastDeviceCode = deviceCode;
+    _currentRole = 'child';
+    _lastUserId = null;
+    _hasJoinedDevice = false;
+
+    socket.connect();
+
+    if (socket.connected) {
+      _emitJoinDevice(deviceCode);
+    }
   }
 
-  /// ★ Handle App Lifecycle (Bug 3)
+  void _emitJoinDevice(String deviceCode) {
+    if (_hasJoinedDevice) return;
+    print('📱 [SOCKET] Emitting joinDevice: deviceCode=$deviceCode');
+    socket.emit('joinDevice', {'deviceCode': deviceCode});
+    _hasJoinedDevice = true;
+  }
+
+  // Backward compatibility alias (if any)
+  void connectAsParent(int userId) => joinFamily(userId);
+  void connectAsChild(String deviceCode) => joinDevice(deviceCode);
+
+  // ── Lifecycle Management ─────────────────────────────────────────────
+
   void onAppPaused() {
-    if (_role == 'child') {
-      print('⏸️ [SOCKET] App Paused: Disconnecting Child to show Offline');
-      _socket?.disconnect();
+    if (_currentRole == 'child') {
+      print('⏸️ [SOCKET] Child App Paused: Disconnecting to show offline status');
+      socket.disconnect();
     }
   }
 
   void onAppResumed() {
-    if (_role == 'child' && _deviceCode != null) {
-      print('▶️ [SOCKET] App Resumed: Reconnecting Child');
-      _socket?.connect();
-    } else if (_role == 'parent' && _userId != null) {
-      if (!isConnected) {
-        print('▶️ [SOCKET] App Resumed: Reconnecting Parent');
-        _socket?.connect();
+    print('▶️ [SOCKET] App Resumed. Checking connection for $_currentRole');
+    if (_currentRole == 'child' && _lastDeviceCode != null) {
+      joinDevice(_lastDeviceCode!);
+    } else if (_currentRole == 'parent' && _lastUserId != null) {
+      if (!socket.connected) {
+        joinFamily(_lastUserId!);
       }
     }
   }
 
   void reconnect() {
-    _socket?.disconnect();
-    _socket?.connect();
+    print('🔄 [SOCKET] Manually triggering reconnect...');
+    socket.disconnect();
+    socket.connect();
   }
 
   void disconnect() {
-    print('🔌 [SOCKET] Full disconnect');
-    _userId = null;
-    _deviceCode = null;
-    _role = null;
+    print('🔌 [SOCKET] Full disconnect initiated');
+    _lastUserId = null;
+    _lastDeviceCode = null;
+    _currentRole = null;
+    _hasJoinedFamily = false;
+    _hasJoinedDevice = false;
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
