@@ -25,6 +25,12 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
     super.initState();
     // Listen for deviceOnline Socket event
     SocketService.instance.addDeviceOnlineListener(_onDeviceOnline);
+    
+    // Check if socket is connected, if not, try to reconnect
+    if (!SocketService.instance.isConnected) {
+      print('⚠️ [AddDeviceScreen] Socket not connected on init. Attempting reconnect...');
+      SocketService.instance.reconnect();
+    }
   }
 
   void _onDeviceOnline(Map<String, dynamic> data) {

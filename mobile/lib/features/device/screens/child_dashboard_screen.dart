@@ -381,9 +381,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           if (!_isSocketConnected)
             IconButton(
               onPressed: () {
-                if (_deviceCode != null) {
-                  SocketService.instance.connectAsChild(_deviceCode!);
-                }
+                SocketService.instance.reconnect();
               },
               icon: const Icon(Icons.refresh),
               tooltip: 'Kết nối lại',

@@ -57,60 +57,69 @@ class SocketService {
   // ── Initialization ───────────────────────────────────────────────────
 
   void _ensureSocket() {
-    if (_socket != null) return;
+    if (_socket != null) {
+      print('🚀 [SOCKET] Socket exists. Connected=${_socket!.connected}');
+      return;
+    }
 
     print('🚀 [SOCKET] Initializing for: ${ApiConstants.baseUrl}');
     
-    // Use OptionBuilder for more reliable configuration
-    _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
-      .setTransports(['polling', 'websocket']) 
-      .enableAutoConnect() 
-      .enableReconnection()
-      .setReconnectionAttempts(99999)
-      .setReconnectionDelay(2000)
-      .setReconnectionDelayMax(5000)
-      .build()
-    );
+    try {
+      // Sửa lạiTransport: Ưu tiên websocket và gỡ Polling nếu nó gây lỗi handshake
+      // Nhiều môi trường Railway/Heroku/Nginx hoạt động tốt hơn chỉ với websocket giúp tránh lỗi 400 Bad Request
+      _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
+        .setTransports(['websocket', 'polling']) 
+        .enableAutoConnect() 
+        .enableReconnection()
+        .setReconnectionAttempts(99999)
+        .setReconnectionDelay(2000)
+        .setReconnectionDelayMax(5000)
+        .build()
+      );
 
-    _socket!.onConnect((_) {
-      print('🟢🟢🟢 [SOCKET] CONNECTED: ${_socket!.id}');
-      _rejoinRooms();
-    });
+      _socket!.onConnect((_) {
+        print('🟢🟢🟢 [SOCKET] CONNECTED: ${_socket!.id}');
+        _rejoinRooms();
+      });
 
-    _socket!.onConnecting((_) => print('🟡 [SOCKET] Connecting...'));
+      _socket!.onConnecting((_) => print('🟡 [SOCKET] Connecting...'));
 
-    _socket!.onDisconnect((reason) {
-      print('🔴🔴🔴 [SOCKET] DISCONNECTED: $reason');
-    });
+      _socket!.onDisconnect((reason) {
+        print('🔴🔴🔴 [SOCKET] DISCONNECTED: $reason');
+      });
 
-    _socket!.onConnectError((err) {
-      print('❌ [SOCKET] CONNECTION ERROR: $err');
-    });
+      _socket!.onConnectError((err) {
+        print('❌ [SOCKET] CONNECTION ERROR ($role): $err');
+      });
 
-    _socket!.onReconnect((_) => print('🔄🟢 [SOCKET] RECONNECTED'));
-    _socket!.onReconnectAttempt((_) => print('🔄 [SOCKET] Reconnecting...'));
+      _socket!.onReconnect((_) => print('🔄🟢 [SOCKET] RECONNECTED'));
+      _socket!.onReconnectAttempt((_) => print('🔄 [SOCKET] Reconnecting...'));
 
-    // ── Event Handlers ────────────────────────────────────────────────
-    
-    _socket!.on('deviceOnline', (data) {
-      print('📱 [SOCKET] RECEIVED deviceOnline: $data');
-      final mapData = Map<String, dynamic>.from(data);
-      for (final listener in List.from(_onlineListeners)) {
-        listener(mapData);
-      }
-    });
+      // ── Event Handlers ────────────────────────────────────────────────
+      
+      _socket!.on('deviceOnline', (data) {
+        print('📱 [SOCKET] RECEIVED deviceOnline: $data');
+        final mapData = Map<String, dynamic>.from(data);
+        for (final listener in List.from(_onlineListeners)) {
+          listener(mapData);
+        }
+      });
 
-    _socket!.on('deviceOffline', (data) {
-      print('📱 [SOCKET] RECEIVED deviceOffline: $data');
-      final mapData = Map<String, dynamic>.from(data);
-      for (final listener in List.from(_offlineListeners)) {
-        listener(mapData);
-      }
-    });
+      _socket!.on('deviceOffline', (data) {
+        print('📱 [SOCKET] RECEIVED deviceOffline: $data');
+        final mapData = Map<String, dynamic>.from(data);
+        for (final listener in List.from(_offlineListeners)) {
+          listener(mapData);
+        }
+      });
 
-    // Sprint 4 Placeholders
-    _socket!.on('timeLimitUpdated', (data) => print('⏰ [SOCKET] Time limit updated: $data'));
-    _socket!.on('timeExtensionResponse', (data) => print('⏳ [SOCKET] Extension response: $data'));
+      // Sprint 4 Placeholders
+      _socket!.on('timeLimitUpdated', (data) => print('⏰ [SOCKET] Time limit updated: $data'));
+      _socket!.on('timeExtensionResponse', (data) => print('⏳ [SOCKET] Extension response: $data'));
+      
+    } catch (e) {
+      print('❌ [SOCKET] CRITICAL ERROR during initialization: $e');
+    }
   }
 
   void _rejoinRooms() {
@@ -132,6 +141,8 @@ class SocketService {
 
   // ── Public API ───────────────────────────────────────────────────────
 
+  String get role => _role ?? 'unknown';
+
   /// Dùng cho Parent apps
   void connectAsParent(int userId) {
     print('👨‍👩‍👧 [SOCKET] connectAsParent: $userId');
@@ -139,9 +150,9 @@ class SocketService {
     _role = 'parent';
     _deviceCode = null;
     _ensureSocket();
-    if (!_socket!.connected) {
+    if (_socket != null && !_socket!.connected) {
       _socket!.connect();
-    } else {
+    } else if (_socket != null) {
       _rejoinRooms();
     }
   }
@@ -153,10 +164,25 @@ class SocketService {
     _role = 'child';
     _userId = null;
     _ensureSocket();
-    if (!_socket!.connected) {
+    if (_socket != null && !_socket!.connected) {
+      _socket!.connect();
+    } else if (_socket != null) {
+      _rejoinRooms();
+    }
+  }
+
+  /// Manual reconnect
+  void reconnect() {
+    print('🔄 [SOCKET] Manually triggering reconnect...');
+    if (_socket != null) {
+      _socket!.disconnect();
       _socket!.connect();
     } else {
-      _rejoinRooms();
+      if (_role == 'parent' && _userId != null) {
+        connectAsParent(_userId!);
+      } else if (_role == 'child' && _deviceCode != null) {
+        connectAsChild(_deviceCode!);
+      }
     }
   }
 
@@ -172,7 +198,7 @@ class SocketService {
     _deviceCode = null;
     _role = null;
     _socket?.disconnect();
-    _socket?.dispose(); // Proper clean up for socket_io_client
+    _socket?.dispose(); 
     _socket = null;
     _instance = null; // Reset singleton
   }
