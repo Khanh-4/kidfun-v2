@@ -10,24 +10,43 @@ const socketService = {
     io.on('connection', (socket) => {
       console.log(`🔌 [SOCKET] Client connected: ${socket.id} (Total: ${io.engine.clientsCount})`);
 
+      // Heartbeat
+      socket.on('ping', (data) => {
+        socket.emit('pong', data);
+      });
+
       // Child hoặc Parent tham gia "phòng" của gia đình
       socket.on('joinFamily', ({ userId, role }) => {
-        if (!userId) return;
+        // Tránh lỗi với userId = 0 hoặc null
+        if (userId === undefined || userId === null || userId === 0) {
+          console.warn(`⚠️ [SOCKET] joinFamily: Invalid userId received: ${userId}`);
+          return;
+        }
+
         const room = `family_${userId}`;
         socket.join(room);
         socket.role = role || 'parent';
         socket.userId = userId;
+        
+        // Kiểm tra room size
         const clients = io.sockets.adapter.rooms.get(room);
-        console.log(`👨‍👩‍👧 [SOCKET] ${socket.role} (${socket.id}) joined ${room}. Room size: ${clients ? clients.size : 0}`);
+        console.log(`👨‍👩‍👧 [SOCKET] ${socket.role} (${socket.id}) JOINED ${room}. Total in room: ${clients ? clients.size : 0}`);
+        
+        // Notify socket that join was successful
+        socket.emit('roomJoined', { room, size: clients ? clients.size : 0 });
       });
 
       // Child join device room
       socket.on('joinDevice', async ({ deviceCode }) => {
-        if (!deviceCode) return;
+        if (!deviceCode) {
+          console.warn('⚠️ [SOCKET] joinDevice: No deviceCode provided');
+          return;
+        }
+        
         socket.deviceCode = deviceCode;
         socket.role = 'child';
         socket.join(`device_${deviceCode}`);
-        console.log(`📱 [SOCKET] Device ${deviceCode} joined room`);
+        console.log(`📱 [SOCKET] Child Device ${deviceCode} JOINED room device_${deviceCode}`);
 
         try {
           const device = await prisma.device.findFirst({ 
@@ -36,26 +55,33 @@ const socketService = {
           });
           
           if (device) {
-            // Update status online
+            // Update status online trong DB
             await prisma.device.update({
               where: { id: device.id },
               data: { isOnline: true, lastSeen: new Date() }
             });
 
-            // Gán userId cho socket để khi disconnect biết báo cho ai
             socket.userId = device.userId;
 
             // Notify Parent
             const familyRoom = `family_${device.userId}`;
-            console.log(`🟢 [SOCKET] Device ${device.deviceName} (ID: ${device.id}) is ONLINE. Notifying ${familyRoom}`);
+            const parentClients = io.sockets.adapter.rooms.get(familyRoom);
             
+            console.log(`🟢 [SOCKET] Device ${device.deviceName} (ID: ${device.id}) is ONLINE.`);
+            console.log(`📣 [SOCKET] Notifying ${familyRoom}. Active parents in room: ${parentClients ? parentClients.size : 0}`);
+            
+            // Emit to family room
             io.to(familyRoom).emit('deviceOnline', {
               deviceId: device.id,
               profileId: device.profileId,
               deviceName: device.deviceName,
             });
+            
+            // Broadcast to the specifically joined device room too (if any other part of app listens)
+            io.to(`device_${deviceCode}`).emit('statusUpdated', { isOnline: true });
+
           } else {
-            console.warn(`⚠️ [SOCKET] joinDevice: No device found for code ${deviceCode}`);
+            console.warn(`⚠️ [SOCKET] joinDevice: No device found in DB for code ${deviceCode}`);
           }
         } catch (err) {
           console.error('❌ [SOCKET] joinDevice error:', err);
@@ -64,8 +90,9 @@ const socketService = {
 
       // Child gửi yêu cầu thêm thời gian
       socket.on('requestTimeExtension', (data) => {
-        console.log('⏰ [SOCKET] Time extension request:', data);
-        const room = `family_${data.userId || socket.userId}`;
+        const uId = data.userId || socket.userId;
+        const room = `family_${uId}`;
+        console.log(`⏰ [SOCKET] Time extension request for family: ${room}`);
         io.to(room).emit('timeExtensionRequest', {
           id: Date.now(),
           deviceName: data.deviceName,
@@ -78,8 +105,9 @@ const socketService = {
 
       // Parent phản hồi yêu cầu
       socket.on('respondTimeExtension', (data) => {
-        console.log('✅ [SOCKET] Time extension response:', data);
-        const room = `family_${data.userId || socket.userId}`;
+        const uId = data.userId || socket.userId;
+        const room = `family_${uId}`;
+        console.log(`✅ [SOCKET] Time extension response for family: ${room}`);
         io.to(room).emit('timeExtensionResponse', {
           approved: data.approved,
           additionalMinutes: data.additionalMinutes || 0,
@@ -89,8 +117,9 @@ const socketService = {
 
       // Parent xóa thiết bị
       socket.on('removeDevice', (data) => {
-        console.log('🗑️ [SOCKET] Device removed:', data);
-        const room = `family_${data.userId || socket.userId}`;
+        const uId = data.userId || socket.userId;
+        const room = `family_${uId}`;
+        console.log(`🗑️ [SOCKET] Device removed for family: ${room}`);
         io.to(room).emit('deviceRemoved', {
           deviceId: data.deviceId,
           deviceCode: data.deviceCode,
@@ -128,8 +157,9 @@ const socketService = {
 
   notifyFamily(userId, event, data) {
     if (this.io) {
-      console.log(`📣 [SOCKET] Notifying family_${userId} of event ${event}`);
-      this.io.to(`family_${userId}`).emit(event, data);
+      const room = `family_${userId}`;
+      console.log(`📣 [SOCKET] External Notification: ${room} -> ${event}`);
+      this.io.to(room).emit(event, data);
     }
   },
 };
