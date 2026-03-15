@@ -112,20 +112,32 @@ class SocketService {
 
   void connectAsParent(int userId) {
     if (userId == 0) return;
+    print('📡 [SOCKET] connectAsParent called for userId=$userId');
     _userId = userId;
     _role = 'parent';
     _ensureSocket();
-    if (!_socket!.connected) _socket!.connect();
-    _rejoinRooms();
+    
+    // Connect if needed
+    if (!_socket!.connected) {
+      _socket!.connect();
+    } else {
+      // If already connected, manual trigger rejoin
+      _rejoinRooms();
+    }
   }
 
   void connectAsChild(String deviceCode) {
     if (deviceCode.isEmpty) return;
+    print('📡 [SOCKET] connectAsChild called for code $deviceCode');
     _deviceCode = deviceCode;
     _role = 'child';
     _ensureSocket();
-    if (!_socket!.connected) _socket!.connect();
-    _rejoinRooms();
+    
+    if (!_socket!.connected) {
+      _socket!.connect();
+    } else {
+      _rejoinRooms();
+    }
   }
 
   /// ★ Handle App Lifecycle (Bug 3)

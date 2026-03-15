@@ -39,12 +39,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         // Reconnect socket for returning users
         if (userId != null && userId > 0) {
+          print('📡 [Auth] Auto-login SUCCESS. Connecting Socket for user $userId');
           SocketService.instance.connectAsParent(userId);
         }
       } else {
         state = AuthUnauthenticated();
       }
-    } catch (_) {
+    } catch (e) {
+      print('❌ [Auth] checkAuth error: $e');
       state = AuthUnauthenticated();
     }
   }
@@ -56,6 +58,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
+      print('📡 [Auth] Login SUCCESS. Connecting Socket for user ${user.id}');
       SocketService.instance.connectAsParent(user.id);
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
@@ -69,6 +72,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
+      print('📡 [Auth] Register SUCCESS. Connecting Socket for user ${user.id}');
       SocketService.instance.connectAsParent(user.id);
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
