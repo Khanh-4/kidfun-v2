@@ -236,7 +236,7 @@ const linkDevice = async (req, res) => {
       });
     }
 
-    // Generate long-lived JWT for the child device (before emitting socket event)
+    // Generate long-lived JWT for the child device
     const token = jwt.sign(
       {
         deviceId: linkedDevice.id,
