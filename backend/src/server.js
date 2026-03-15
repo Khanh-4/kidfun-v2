@@ -22,7 +22,8 @@ const io = new Server(httpServer, {
     origin: '*',
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  allowEIO3: true // Support older socket.io-client versions (v2/v3)
 });
 
 // Middleware
