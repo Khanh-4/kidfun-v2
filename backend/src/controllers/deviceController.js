@@ -237,6 +237,31 @@ const linkDevice = async (req, res) => {
     }
 
     // Generate long-lived JWT for the child device (before emitting socket event)
+    if (socketService.io) {
+      socketService.io.to('family_' + linkedDevice.userId).emit('device_linked_success', {
+        deviceId: linkedDevice.id,
+        deviceName: linkedDevice.deviceName
+      });
+    }
+
+    // Notify Parent via Socket.IO
+    let profileName = null;
+    if (linkedDevice.profileId) {
+      try {
+        const profile = await prisma.profile.findUnique({ where: { id: linkedDevice.profileId } });
+        profileName = profile?.profileName || null;
+      } catch (e) { /* non-critical */ }
+    }
+    socketService.notifyFamily(linkedDevice.userId, 'deviceLinked', {
+      deviceId: linkedDevice.id,
+      deviceCode: linkedDevice.deviceCode,
+      deviceName: linkedDevice.deviceName,
+      profileId: linkedDevice.profileId,
+      profileName,
+    });
+    console.log(`📱 Device "${linkedDevice.deviceName}" linked → notified family_${linkedDevice.userId}`);
+
+    // Generate long-lived JWT for the child device
     const token = jwt.sign(
       {
         deviceId: linkedDevice.id,
