@@ -13,12 +13,14 @@ class SocketService {
   String? _deviceCode;
   String? _role; // 'parent' or 'child'
   
-  // Multiple listeners support - KEEP these even when socket is null
+  // Callbacks as requested in Sprint document
+  SocketCallback? onDeviceLinkedCallback;
+  SocketCallback? onDeviceOnlineCallback;
+  SocketCallback? onDeviceOfflineCallback;
+
+  // Multiple listeners support (for providers)
   final List<SocketCallback> _onlineListeners = [];
   final List<SocketCallback> _offlineListeners = [];
-  
-  // Heartbeat timer
-  Timer? _heartbeatTimer;
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -27,57 +29,31 @@ class SocketService {
 
   SocketService._() {
     print('🚀 [SOCKET] Singleton instance created');
-    _startHeartbeat();
   }
 
   // ── Listener Management ──────────────────────────────────────────────
 
-  void addDeviceOnlineListener(SocketCallback callback) {
-    if (!_onlineListeners.contains(callback)) {
-      _onlineListeners.add(callback);
-      print('📡 [SOCKET] Added online listener. Total: ${_onlineListeners.length}');
-    }
-  }
-
-  void removeDeviceOnlineListener(SocketCallback callback) {
-    _onlineListeners.remove(callback);
-    print('📡 [SOCKET] Removed online listener. Total: ${_onlineListeners.length}');
-  }
-
-  void addDeviceOfflineListener(SocketCallback callback) {
-    if (!_offlineListeners.contains(callback)) {
-      _offlineListeners.add(callback);
-      print('📡 [SOCKET] Added offline listener. Total: ${_offlineListeners.length}');
-    }
-  }
-
-  void removeDeviceOfflineListener(SocketCallback callback) {
-    _offlineListeners.remove(callback);
-    print('📡 [SOCKET] Removed offline listener. Total: ${_offlineListeners.length}');
-  }
+  void addDeviceOnlineListener(SocketCallback callback) => _onlineListeners.add(callback);
+  void removeDeviceOnlineListener(SocketCallback callback) => _onlineListeners.remove(callback);
+  void addDeviceOfflineListener(SocketCallback callback) => _offlineListeners.add(callback);
+  void removeDeviceOfflineListener(SocketCallback callback) => _offlineListeners.remove(callback);
 
   bool get isConnected => _socket?.connected ?? false;
 
   // ── Initialization ───────────────────────────────────────────────────
 
   void _ensureSocket() {
-    if (_socket != null) {
-      print('🚀 [SOCKET] Socket already exists (connected: ${_socket!.connected})');
-      return;
-    }
+    if (_socket != null) return;
 
-    print('🚀 [SOCKET] Initializing new socket for: ${ApiConstants.baseUrl}');
+    print('🚀 [SOCKET] Initializing for: ${ApiConstants.baseUrl}');
     
     try {
-      // Config cực kỳ bền bỉ cho Railway/Proxy
       _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
-        .setTransports(['polling', 'websocket']) // Polling trước để handshake chắc chắn
-        .setExtraHeaders({'origin': 'mobile-app'})
+        .setTransports(['websocket', 'polling']) 
         .enableAutoConnect() 
         .enableReconnection()
         .setReconnectionAttempts(99999)
         .setReconnectionDelay(2000)
-        .setReconnectionDelayMax(5000)
         .build()
       );
 
@@ -86,41 +62,34 @@ class SocketService {
         _rejoinRooms();
       });
 
-      _socket!.onConnecting((_) => print('🟡 [SOCKET] Connecting...'));
-
-      _socket!.onDisconnect((reason) {
-        print('🔴🔴🔴 [SOCKET] DISCONNECTED: $reason');
-      });
-
-      _socket!.onConnectError((err) {
-        print('❌ [SOCKET] CONNECTION ERROR ($role): $err');
-      });
-
-      _socket!.onReconnect((_) => print('🔄🟢 [SOCKET] RECONNECTED'));
-      _socket!.onReconnectAttempt((_) => print('🔄 [SOCKET] Reconnecting...'));
+      _socket!.onDisconnect((reason) => print('🔴🔴🔴 [SOCKET] DISCONNECTED: $reason'));
+      _socket!.onConnectError((err) => print('❌ [SOCKET] CONNECTION ERROR: $err'));
 
       // ── Event Handlers ────────────────────────────────────────────────
       
+      _socket!.on('deviceLinked', (data) {
+        print('🔗 [SOCKET] RECEIVED deviceLinked: $data');
+        onDeviceLinkedCallback?.call(Map<String, dynamic>.from(data));
+      });
+
       _socket!.on('deviceOnline', (data) {
-        print('📱 [SOCKET] RECEIVED deviceOnline: $data');
+        print('🟢 [SOCKET] RECEIVED deviceOnline: $data');
         final mapData = Map<String, dynamic>.from(data);
-        // Dispatch to all listeners
+        onDeviceOnlineCallback?.call(mapData);
         for (final listener in List.from(_onlineListeners)) {
           listener(mapData);
         }
       });
 
       _socket!.on('deviceOffline', (data) {
-        print('📱 [SOCKET] RECEIVED deviceOffline: $data');
+        print('🔴 [SOCKET] RECEIVED deviceOffline: $data');
         final mapData = Map<String, dynamic>.from(data);
+        onDeviceOfflineCallback?.call(mapData);
         for (final listener in List.from(_offlineListeners)) {
           listener(mapData);
         }
       });
       
-      // Heartbeat from server
-      _socket!.on('pong', (data) => print('💓 [SOCKET] Heartbeat (pong)'));
-
     } catch (e) {
       print('❌ [SOCKET] CRITICAL ERROR during initialization: $e');
     }
@@ -128,28 +97,13 @@ class SocketService {
 
   void _rejoinRooms() {
     if (_userId != null) {
-      print('👨‍👩‍👧 [SOCKET] Emitting joinFamily: userId=$_userId, role=$_role');
-      _socket?.emit('joinFamily', {
-        'userId': _userId,
-        'role': _role ?? 'parent',
-      });
+      print('👨‍👩‍👧 [SOCKET] Re-joining family room: $_userId');
+      _socket?.emit('joinFamily', {'userId': _userId, 'role': _role});
     }
-    
     if (_deviceCode != null) {
-      print('📱 [SOCKET] Emitting joinDevice: deviceCode=$_deviceCode');
-      _socket?.emit('joinDevice', {
-        'deviceCode': _deviceCode,
-      });
+       print('📱 [SOCKET] Re-joining device room: $_deviceCode');
+      _socket?.emit('joinDevice', {'deviceCode': _deviceCode});
     }
-  }
-
-  void _startHeartbeat() {
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
-      if (isConnected) {
-        _socket?.emit('ping', {'role': _role, 'timestamp': DateTime.now().toIso8601String()});
-      }
-    });
   }
 
   // ── Public API ───────────────────────────────────────────────────────
@@ -157,65 +111,55 @@ class SocketService {
   String get role => _role ?? 'unknown';
 
   void connectAsParent(int userId) {
-    if (userId == 0) {
-      print('⚠️ [SOCKET] connectAsParent called with userId 0. Ignoring.');
-      return;
-    }
-    print('👨‍👩‍👧 [SOCKET] connectAsParent: $userId');
+    if (userId == 0) return;
     _userId = userId;
     _role = 'parent';
-    _deviceCode = null;
     _ensureSocket();
-    if (_socket != null && !_socket!.connected) {
-      print('📡 [SOCKET] Triggering manual connect()...');
-      _socket!.connect();
-    } else {
-      _rejoinRooms();
-    }
+    if (!_socket!.connected) _socket!.connect();
+    _rejoinRooms();
   }
 
   void connectAsChild(String deviceCode) {
-    if (deviceCode.isEmpty) {
-       print('⚠️ [SOCKET] connectAsChild called with empty deviceCode. Ignoring.');
-       return;
-    }
-    print('📱 [SOCKET] connectAsChild: $deviceCode');
+    if (deviceCode.isEmpty) return;
     _deviceCode = deviceCode;
     _role = 'child';
-    _userId = null;
     _ensureSocket();
-    if (_socket != null && !_socket!.connected) {
-      print('📡 [SOCKET] Triggering manual connect()...');
-      _socket!.connect();
-    } else {
-      _rejoinRooms();
+    if (!_socket!.connected) _socket!.connect();
+    _rejoinRooms();
+  }
+
+  /// ★ Handle App Lifecycle (Bug 3)
+  void onAppPaused() {
+    if (_role == 'child') {
+      print('⏸️ [SOCKET] App Paused: Disconnecting Child to show Offline');
+      _socket?.disconnect();
     }
   }
 
-  void reconnect() {
-    print('🔄 [SOCKET] Force reconnecting...');
-    if (_socket != null) {
-      _socket!.disconnect();
-      // Ta không set _socket = null ở đây để giữ instance và listeners
-      _socket!.connect();
-    } else {
-      if (_role == 'parent' && _userId != null) {
-        connectAsParent(_userId!);
-      } else if (_role == 'child' && _deviceCode != null) {
-        connectAsChild(_deviceCode!);
+  void onAppResumed() {
+    if (_role == 'child' && _deviceCode != null) {
+      print('▶️ [SOCKET] App Resumed: Reconnecting Child');
+      _socket?.connect();
+    } else if (_role == 'parent' && _userId != null) {
+      if (!isConnected) {
+        print('▶️ [SOCKET] App Resumed: Reconnecting Parent');
+        _socket?.connect();
       }
     }
   }
 
+  void reconnect() {
+    _socket?.disconnect();
+    _socket?.connect();
+  }
+
   void disconnect() {
-    print('🔌 [SOCKET] Manual disconnect triggered');
+    print('🔌 [SOCKET] Full disconnect');
     _userId = null;
     _deviceCode = null;
     _role = null;
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
-    // CRITICAL: We DO NOT set _instance = null anymore.
-    // This allows Riverpod providers to keep their listeners registered.
   }
 }

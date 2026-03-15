@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const prisma = new PrismaClient();
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const socketService = require('../services/socketService');
 
 // Tạo mã device ngẫu nhiên
 const generateDeviceCode = () => {
@@ -246,6 +247,14 @@ const linkDevice = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '365d' }
     );
+
+    // Notify Parent via Socket.IO
+    socketService.notifyFamily(linkedDevice.userId, 'deviceLinked', {
+      deviceId: linkedDevice.id,
+      deviceCode: linkedDevice.deviceCode,
+      deviceName: linkedDevice.deviceName,
+      profileId: linkedDevice.profileId
+    });
 
     sendSuccess(res, { message: 'Device linked successfully', token, device: linkedDevice });
   } catch (error) {
