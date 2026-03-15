@@ -62,7 +62,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Connect Socket.IO (idempotent — won't duplicate if already connected)
     if (deviceCode != null && deviceCode.isNotEmpty) {
-      SocketService.instance.connectAsChild(deviceCode);
+      SocketService.instance.joinDevice(deviceCode);
+      print('📡 Child Dashboard: called joinDevice for code $deviceCode');
     }
 
     // Poll socket connection status every 3 seconds
