@@ -28,56 +28,66 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   }
 
   void _setupSocketListeners() {
-    print('🔌 DeviceProvider: Setting up Socket.IO listeners...');
+    print('🔌 [DeviceProvider] Initializing Socket listeners');
     
-    SocketService.instance.addDeviceOnlineListener((data) {
-      print('📱 Socket Event: deviceOnline -> $data');
-      final rawId = data['deviceId'];
-      final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-      print('📱 Parsed deviceId: $deviceId');
-      if (deviceId != null) _updateDeviceStatus(deviceId, true);
-    });
+    // Use the multi-listener support in SocketService
+    SocketService.instance.addDeviceOnlineListener(_handleDeviceOnline);
+    SocketService.instance.addDeviceOfflineListener(_handleDeviceOffline);
+  }
 
-    SocketService.instance.addDeviceOfflineListener((data) {
-      print('📱 Socket Event: deviceOffline -> $data');
-      final rawId = data['deviceId'];
-      final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-      print('📱 Parsed deviceId: $deviceId');
-      if (deviceId != null) _updateDeviceStatus(deviceId, false);
-    });
+  void _handleDeviceOnline(Map<String, dynamic> data) {
+    print('📱 [DeviceProvider] RECEIVED deviceOnline: $data');
+    final rawId = data['deviceId'];
+    final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (deviceId != null) {
+      _updateDeviceStatus(deviceId, true);
+    }
+  }
+
+  void _handleDeviceOffline(Map<String, dynamic> data) {
+    print('📱 [DeviceProvider] RECEIVED deviceOffline: $data');
+    final rawId = data['deviceId'];
+    final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (deviceId != null) {
+      _updateDeviceStatus(deviceId, false);
+    }
   }
 
   void _updateDeviceStatus(int deviceId, bool isOnline) {
-    print('🔄 _updateDeviceStatus: deviceId=$deviceId, isOnline=$isOnline');
-    print('🔄 Current UI state: ${state.runtimeType}');
-    
     if (state is DeviceLoaded) {
       final devices = (state as DeviceLoaded).devices;
-      print('🔄 Devices in list: ${devices.map((d) => d.id).toList()}');
       
+      bool found = false;
       final updated = devices.map((d) {
         if (d.id == deviceId) {
-          print('✅ MATCH FOUND for device $deviceId. Updating to $isOnline');
+          found = true;
+          if (d.isOnline == isOnline) return d; // No change
+          print('✨ [DeviceProvider] Updating device $deviceId to ${isOnline ? 'ONLINE' : 'OFFLINE'}');
           return d.copyWith(isOnline: isOnline, lastSeen: DateTime.now());
         }
         return d;
       }).toList();
-      
-      // Only update state if something actually changed
-      final changed = updated.any((d) => d.id == deviceId && d.isOnline == isOnline);
-      print('🔄 State changed: $changed');
-      if (changed) {
+
+      if (found) {
         state = DeviceLoaded(updated);
-        print('✨ State updated with new device list');
+      } else {
+        print('⚠️ [DeviceProvider] Received status for device $deviceId but it is not in the current list');
       }
+    } else {
+      print('⏳ [DeviceProvider] Received status update but state is not Loaded (${state.runtimeType})');
     }
   }
 
   Future<void> fetchDevices() async {
-    state = DeviceLoading();
+    // Only show loading if we don't have data yet
+    if (state is! DeviceLoaded) {
+      state = DeviceLoading();
+    }
+    
     try {
       final devices = await _repo.getDevices();
       state = DeviceLoaded(devices);
+      print('✅ [DeviceProvider] Fetched ${devices.length} devices');
     } catch (e) {
       state = DeviceError(e.toString().replaceAll('Exception: ', ''));
     }
@@ -86,7 +96,7 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   Future<void> createDevice(String name, {int? profileId}) async {
     try {
       await _repo.createDevice(name, profileId: profileId);
-      await fetchDevices(); // Refresh list
+      await fetchDevices();
     } catch (e) {
       throw Exception(e.toString().replaceAll('Exception: ', ''));
     }

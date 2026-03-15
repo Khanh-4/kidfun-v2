@@ -23,12 +23,13 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   @override
   void initState() {
     super.initState();
-    // Listen for deviceOnline Socket event — na navigate back when child successfully links
+    // Listen for deviceOnline Socket event
     SocketService.instance.addDeviceOnlineListener(_onDeviceOnline);
   }
 
   void _onDeviceOnline(Map<String, dynamic> data) {
     if (mounted && _pairingCode != null) {
+      print('📱 [AddDeviceScreen] Device became online! Popping back.');
       // Refresh device list and go back
       ref.read(deviceProvider.notifier).fetchDevices();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -43,7 +44,6 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
 
   @override
   void dispose() {
-    // Remove the callback so we don't leak or trigger unexpectedly
     SocketService.instance.removeDeviceOnlineListener(_onDeviceOnline);
     super.dispose();
   }
@@ -163,6 +163,16 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
                     color: Colors.blue,
                   ),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                OutlinedButton.icon(
+                  onPressed: () => context.pop(),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Quay lại danh sách'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
               ],
             ],
