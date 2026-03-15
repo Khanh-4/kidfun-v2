@@ -64,7 +64,6 @@ class SocketService {
     // Use OptionBuilder for more reliable configuration
     _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
       .setTransports(['polling', 'websocket']) 
-      .setForceNew() // Ensure fresh connection
       .enableAutoConnect() 
       .enableReconnection()
       .setReconnectionAttempts(99999)
