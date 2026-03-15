@@ -7,24 +7,20 @@ typedef SocketCallback = void Function(Map<String, dynamic> data);
 class SocketService {
   static SocketService? _instance;
   IO.Socket? _socket;
-  
+
   // Connection credentials for auto-rejoin
   int? _lastUserId;
   String? _lastDeviceCode;
   String? _currentRole; // 'parent' or 'child'
-  
+
   // Guard flags to prevent duplicate joins
   bool _hasJoinedFamily = false;
   bool _hasJoinedDevice = false;
 
-  // Specific callbacks as requested in BUGFIX Round 2
-  SocketCallback? onDeviceLinkedCallback;
-  SocketCallback? onDeviceOnlineCallback;
-  SocketCallback? onDeviceOfflineCallback;
-
-  // Multiple listeners support (for providers)
-  final List<SocketCallback> _onlineListeners = [];
-  final List<SocketCallback> _offlineListeners = [];
+  // ★★★ FIXED: Use list-based listeners for ALL events to support multiple subscribers
+  final List<SocketCallback> _deviceLinkedListeners = [];
+  final List<SocketCallback> _deviceOnlineListeners = [];
+  final List<SocketCallback> _deviceOfflineListeners = [];
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -37,10 +33,29 @@ class SocketService {
 
   // ── Listener Management ──────────────────────────────────────────────
 
-  void addDeviceOnlineListener(SocketCallback callback) => _onlineListeners.add(callback);
-  void removeDeviceOnlineListener(SocketCallback callback) => _onlineListeners.remove(callback);
-  void addDeviceOfflineListener(SocketCallback callback) => _offlineListeners.add(callback);
-  void removeDeviceOfflineListener(SocketCallback callback) => _offlineListeners.remove(callback);
+  // deviceLinked listeners
+  void addDeviceLinkedListener(SocketCallback callback) {
+    _deviceLinkedListeners.add(callback);
+    print('🔗 [SOCKET] deviceLinked listener added. Total: ${_deviceLinkedListeners.length}');
+  }
+  void removeDeviceLinkedListener(SocketCallback callback) {
+    _deviceLinkedListeners.remove(callback);
+    print('🔗 [SOCKET] deviceLinked listener removed. Total: ${_deviceLinkedListeners.length}');
+  }
+
+  // deviceOnline listeners
+  void addDeviceOnlineListener(SocketCallback callback) => _deviceOnlineListeners.add(callback);
+  void removeDeviceOnlineListener(SocketCallback callback) => _deviceOnlineListeners.remove(callback);
+
+  // deviceOffline listeners
+  void addDeviceOfflineListener(SocketCallback callback) => _deviceOfflineListeners.add(callback);
+  void removeDeviceOfflineListener(SocketCallback callback) => _deviceOfflineListeners.remove(callback);
+
+  // ★★★ DEPRECATED: kept for backward compat but now just proxy to list-based listeners
+  // These are no-op setters; do NOT use them for new code.
+  set onDeviceLinkedCallback(SocketCallback? _) {}
+  set onDeviceOnlineCallback(SocketCallback? _) {}
+  set onDeviceOfflineCallback(SocketCallback? _) {}
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -48,8 +63,8 @@ class SocketService {
     if (_socket == null) {
       print('🚀 [SOCKET] Creating new IO.socket instance for ${ApiConstants.baseUrl}');
       _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
-        .setTransports(['websocket', 'polling']) 
-        .enableAutoConnect() 
+        .setTransports(['websocket', 'polling'])
+        .enableAutoConnect()
         .enableReconnection()
         .setReconnectionAttempts(99999)
         .setReconnectionDelay(2000)
@@ -58,7 +73,6 @@ class SocketService {
 
       _socket!.onConnect((_) {
         print('🟢🟢🟢 [SOCKET] CONNECTED: ${_socket!.id} (Role: $_currentRole)');
-        // Khi reconnect, ta cần emit lại lệnh join
         if (_currentRole == 'parent' && _lastUserId != null) {
           _emitJoinFamily(_lastUserId!);
         } else if (_currentRole == 'child' && _lastDeviceCode != null) {
@@ -74,64 +88,61 @@ class SocketService {
 
       _socket!.onConnectError((err) => print('❌ [SOCKET] CONNECTION ERROR: $err'));
 
-      // ── Event Handlers ────────────────────────────────────────────────
-      
+      // ── Event Handlers (dispatch to ALL registered listeners) ─────────
+
       _socket!.on('deviceLinked', (data) {
-        print('🔗 [SOCKET] RECEIVED deviceLinked: $data');
-        onDeviceLinkedCallback?.call(Map<String, dynamic>.from(data));
+        print('🔗 [SOCKET] RECEIVED deviceLinked: $data (listeners: ${_deviceLinkedListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_deviceLinkedListeners)) {
+          cb(mapData);
+        }
       });
 
       _socket!.on('deviceOnline', (data) {
-        print('🟢 [SOCKET] RECEIVED deviceOnline: $data');
-        final mapData = Map<String, dynamic>.from(data);
-        onDeviceOnlineCallback?.call(mapData);
-        for (final listener in List.from(_onlineListeners)) {
-          listener(mapData);
+        print('🟢 [SOCKET] RECEIVED deviceOnline: $data (listeners: ${_deviceOnlineListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_deviceOnlineListeners)) {
+          cb(mapData);
         }
       });
 
       _socket!.on('deviceOffline', (data) {
-        print('🔴 [SOCKET] RECEIVED deviceOffline: $data');
-        final mapData = Map<String, dynamic>.from(data);
-        onDeviceOfflineCallback?.call(mapData);
-        for (final listener in List.from(_offlineListeners)) {
-          listener(mapData);
+        print('🔴 [SOCKET] RECEIVED deviceOffline: $data (listeners: ${_deviceOfflineListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_deviceOfflineListeners)) {
+          cb(mapData);
         }
       });
     }
     return _socket!;
   }
 
-  // ── Room Join Logic (Robust with connection check) ───────────────────
+  // ── Room Join Logic ────────────────────────────────────────────────────
 
-  /// Parent: join family room
   void joinFamily(int userId) {
     if (userId == 0) return;
-    
+
     print('📡 [SOCKET] joinFamily called for userId=$userId');
     _lastUserId = userId;
     _currentRole = 'parent';
     _lastDeviceCode = null;
     _hasJoinedFamily = false;
 
-    // Đảm bảo socket đang mở
     socket.connect();
 
-    // Nếu đã connect rồi -> emit ngay
     if (socket.connected) {
       _emitJoinFamily(userId);
-    } 
-    // Nếu chưa, nó sẽ được gọi trong onConnect listener ở trên
+    }
+    // If not connected yet, onConnect will call _emitJoinFamily
   }
 
   void _emitJoinFamily(int userId) {
-    if (_hasJoinedFamily) return; // Tránh emit trùng lặp nếu onConnect và manual call cả hai cùng chạy
+    if (_hasJoinedFamily) return;
     print('👨‍👩‍👧 [SOCKET] Emitting joinFamily: userId=$userId');
     socket.emit('joinFamily', {'userId': userId, 'role': 'parent'});
     _hasJoinedFamily = true;
   }
 
-  /// Child: join device room
   void joinDevice(String deviceCode) {
     if (deviceCode.isEmpty) return;
 
@@ -155,7 +166,7 @@ class SocketService {
     _hasJoinedDevice = true;
   }
 
-  // Backward compatibility alias (if any)
+  // Backward compatibility aliases
   void connectAsParent(int userId) => joinFamily(userId);
   void connectAsChild(String deviceCode) => joinDevice(deviceCode);
 
