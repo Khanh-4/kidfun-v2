@@ -58,17 +58,17 @@ class DeviceRepository {
         throw Exception(response.data['message']);
       }
 
-      // Extract token from response and save it
+      // Build 15: Fix loop root cause - save device_code even if token is null
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('device_code', deviceCode);
+
+      // Extract token if exists (optional during link)
       final data = response.data['data'];
-      String? token;
       if (data != null) {
-        token = data['token'] ?? data['accessToken'];
-      }
-      
-      if (token != null && token.isNotEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('device_token', token);
-        await prefs.setString('device_code', deviceCode);
+        final token = data['token'] ?? data['accessToken'];
+        if (token != null && token.toString().isNotEmpty) {
+          await prefs.setString('device_token', token.toString());
+        }
       }
     } on DioException catch (e) {
       if (e.response != null && e.response?.data['message'] != null) {
