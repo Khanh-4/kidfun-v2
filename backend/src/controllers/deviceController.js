@@ -109,16 +109,19 @@ const updateDevice = async (req, res) => {
 // DELETE /api/devices/:id
 const deleteDevice = async (req, res) => {
   try {
-    const device = await prisma.device.deleteMany({
-      where: {
-        id: parseInt(req.params.id),
-        userId: req.user.userId
-      }
+    const id = parseInt(req.params.id);
+
+    const device = await prisma.device.findFirst({
+      where: { id, userId: req.user.userId }
     });
 
-    if (device.count === 0) {
+    if (!device) {
       return sendError(res, 'Device not found', 404, 'NOT_FOUND');
     }
+
+    await prisma.session.deleteMany({ where: { deviceId: id } });
+    await prisma.fCMToken.deleteMany({ where: { deviceId: id } });
+    await prisma.device.delete({ where: { id } });
 
     sendSuccess(res, { message: 'Device deleted successfully' });
   } catch (error) {
