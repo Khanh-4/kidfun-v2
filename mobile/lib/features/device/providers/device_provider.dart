@@ -29,29 +29,33 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   }
 
   void _setupSocketListeners() {
-    print('🔌 [DeviceProvider] Initializing Socket listeners');
+    print('🔌 [DeviceProvider] Setting up Socket listeners');
     
-    // Use the multi-listener support in SocketService
-    SocketService.instance.addDeviceOnlineListener(_handleDeviceOnline);
-    SocketService.instance.addDeviceOfflineListener(_handleDeviceOffline);
-  }
+    // Listen for Online event
+    SocketService.instance.onDeviceOnlineCallback = (data) {
+      print('📱 [DeviceProvider] RECEIVED deviceOnline: $data');
+      final rawId = data['deviceId'];
+      final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      if (deviceId != null) {
+        _updateDeviceStatus(deviceId, true);
+      }
+    };
 
-  void _handleDeviceOnline(Map<String, dynamic> data) {
-    print('📱 [DeviceProvider] RECEIVED deviceOnline: $data');
-    final rawId = data['deviceId'];
-    final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-    if (deviceId != null) {
-      _updateDeviceStatus(deviceId, true);
-    }
-  }
+    // Listen for Offline event
+    SocketService.instance.onDeviceOfflineCallback = (data) {
+      print('📱 [DeviceProvider] RECEIVED deviceOffline: $data');
+      final rawId = data['deviceId'];
+      final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      if (deviceId != null) {
+        _updateDeviceStatus(deviceId, false);
+      }
+    };
 
-  void _handleDeviceOffline(Map<String, dynamic> data) {
-    print('📱 [DeviceProvider] RECEIVED deviceOffline: $data');
-    final rawId = data['deviceId'];
-    final deviceId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-    if (deviceId != null) {
-      _updateDeviceStatus(deviceId, false);
-    }
+    // Listen for Linked event - refresh list
+    SocketService.instance.onDeviceLinkedCallback = (data) {
+      print('📱 [DeviceProvider] RECEIVED deviceLinked: $data. Refreshing list...');
+      fetchDevices();
+    };
   }
 
   void _updateDeviceStatus(int deviceId, bool isOnline) {
@@ -62,7 +66,6 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       final updated = devices.map((d) {
         if (d.id == deviceId) {
           found = true;
-          print('✨ [DeviceProvider] Updating device $deviceId to ${isOnline ? 'ONLINE' : 'OFFLINE'}');
           return d.copyWith(isOnline: isOnline, lastSeen: DateTime.now());
         }
         return d;
@@ -70,11 +73,13 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
 
       if (found) {
         state = DeviceLoaded(updated);
+        print('✅ [DeviceProvider] Updated device $deviceId to ${isOnline ? "Online" : "Offline"}');
       } else {
-        print('⚠️ [DeviceProvider] Received status for device $deviceId but it is not in the current list');
+        print('⚠️ [DeviceProvider] Device $deviceId not found in current list. Will refresh.');
+        fetchDevices();
       }
     } else {
-      print('⏳ [DeviceProvider] State is ${state.runtimeType}. Queuing update for device $deviceId as ${isOnline ? 'ONLINE' : 'OFFLINE'}');
+      // If still loading, queue the update
       _pendingUpdates.add({'deviceId': deviceId, 'isOnline': isOnline});
     }
   }
@@ -82,20 +87,13 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   void _applyPendingUpdates() {
     if (_pendingUpdates.isEmpty || state is! DeviceLoaded) return;
     
-    print('🔄 [DeviceProvider] Applying ${_pendingUpdates.length} pending socket updates');
     final devices = (state as DeviceLoaded).devices;
     var updatedDevices = List<DeviceModel>.from(devices);
     
     for (var update in _pendingUpdates) {
       final id = update['deviceId'] as int;
       final online = update['isOnline'] as bool;
-      
-      updatedDevices = updatedDevices.map((d) {
-        if (d.id == id) {
-          return d.copyWith(isOnline: online, lastSeen: DateTime.now());
-        }
-        return d;
-      }).toList();
+      updatedDevices = updatedDevices.map((d) => d.id == id ? d.copyWith(isOnline: online, lastSeen: DateTime.now()) : d).toList();
     }
     
     _pendingUpdates.clear();
@@ -103,34 +101,27 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   }
 
   Future<void> fetchDevices() async {
-    // Chỉ hiện loading nếu chưa có dữ liệu. Nếu đã có thì refresh ngầm.
+    // Silent loading if we already have data
     final bool isSilent = state is DeviceLoaded;
-    if (!isSilent) {
-      state = DeviceLoading();
-    }
+    if (!isSilent) state = DeviceLoading();
     
     try {
-      print('📡 [DeviceProvider] Fetching devices from API...');
       final devices = await _repo.getDevices();
       state = DeviceLoaded(devices);
-      print('✅ [DeviceProvider] Fetched ${devices.length} devices');
-      
-      // Áp dụng các cập nhật socket nhận được trong lúc đang loading
       _applyPendingUpdates();
     } catch (e) {
-      print('❌ [DeviceProvider] fetchDevices error: $e');
-      if (!isSilent) {
-        state = DeviceError(e.toString().replaceAll('Exception: ', ''));
-      }
+      if (!isSilent) state = DeviceError(e.toString());
     }
   }
+
+  // --- Wrapper methods for UI ---
 
   Future<void> createDevice(String name, {int? profileId}) async {
     try {
       await _repo.createDevice(name, profileId: profileId);
       await fetchDevices();
     } catch (e) {
-      throw Exception(e.toString().replaceAll('Exception: ', ''));
+      throw Exception(e.toString());
     }
   }
 
@@ -139,7 +130,7 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       await _repo.assignProfile(deviceId, profileId);
       await fetchDevices();
     } catch (e) {
-      throw Exception(e.toString().replaceAll('Exception: ', ''));
+      throw Exception(e.toString());
     }
   }
 
@@ -148,7 +139,7 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       await _repo.deleteDevice(id);
       await fetchDevices();
     } catch (e) {
-      throw Exception(e.toString().replaceAll('Exception: ', ''));
+      throw Exception(e.toString());
     }
   }
 
@@ -157,7 +148,7 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
       await _repo.linkDevice(pairingCode);
       await fetchDevices();
     } catch (e) {
-      throw Exception((e as Exception).toString().replaceAll('Exception: ', ''));
+      throw Exception(e.toString());
     }
   }
 
@@ -165,7 +156,15 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     try {
       return await _repo.generatePairingCode(profileId);
     } catch (e) {
-      throw Exception((e as Exception).toString().replaceAll('Exception: ', ''));
+      throw Exception(e.toString());
     }
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.onDeviceOnlineCallback = null;
+    SocketService.instance.onDeviceOfflineCallback = null;
+    SocketService.instance.onDeviceLinkedCallback = null;
+    super.dispose();
   }
 }

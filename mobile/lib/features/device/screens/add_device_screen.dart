@@ -20,57 +20,63 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isSocketConnected = false;
+  bool _isLinked = false;
 
   @override
   void initState() {
     super.initState();
-    // Listen for deviceOnline Socket event
-    SocketService.instance.addDeviceOnlineListener(_onDeviceOnline);
-    _checkSocketStatus();
+    _setupSocketListeners();
   }
 
-  void _checkSocketStatus() {
-    setState(() {
-      _isSocketConnected = SocketService.instance.isConnected;
-    });
-    
+  void _setupSocketListeners() {
+    // Check connection
+    _isSocketConnected = SocketService.instance.isConnected;
     if (!_isSocketConnected) {
-      print('📡 [AddDeviceScreen] Socket disconnected. Reconnecting...');
       SocketService.instance.reconnect();
     }
+
+    // ★ Listen for deviceLinked event as per Sprint document
+    SocketService.instance.onDeviceLinkedCallback = (data) {
+      _handleSuccessfulLink(data);
+    };
+
+    // Fallback: also listen for deviceOnline just in case
+    SocketService.instance.addDeviceOnlineListener(_handleSuccessfulLink);
   }
 
-  void _onDeviceOnline(Map<String, dynamic> data) {
-    if (!mounted) return;
+  void _handleSuccessfulLink(Map<String, dynamic> data) {
+    if (!mounted || _isLinked) return;
     
-    print('📱 [AddDeviceScreen] TRIGGERED!! Nhận deviceOnline: $data');
+    print('🚀 [AddDeviceScreen] Success! Device linked/online: $data');
 
-    // Chấp nhận bất kỳ thiết bị nào mới online lúc này
     if (_pairingCode != null) {
-      print('🚀 [AddDeviceScreen] Kích hoạt thành công mang tên: ${data['deviceName']}');
+      setState(() => _isLinked = true);
       
-      // Refresh danh sách thiết bị
+      // Refresh device list
       ref.read(deviceProvider.notifier).fetchDevices();
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Đã kết nối thiết bị "${data['deviceName']}"'),
+          content: Text('✅ Thiết bị "${data['deviceName']}" đã kết nối thành công!'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 2),
         ),
       );
       
-      // Chuyển về màn hình danh sách sau 500ms để người dùng kịp thấy SnackBar thành công
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) context.pop();
+      // Auto-navigate to Device List after 1.5 seconds
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          context.pop();
+        }
       });
     }
   }
 
   @override
   void dispose() {
-    print('📡 [AddDeviceScreen] Disposing screen and removing listener');
-    SocketService.instance.removeDeviceOnlineListener(_onDeviceOnline);
+    print('📡 [AddDeviceScreen] Cleaning up listeners');
+    SocketService.instance.onDeviceLinkedCallback = null;
+    SocketService.instance.removeDeviceOnlineListener(_handleSuccessfulLink);
     super.dispose();
   }
 
@@ -91,7 +97,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
           _pairingCode = code;
           _isLoading = false;
         });
-        print('📶 [AddDeviceScreen] Pairing code: $code. Chờ sự kiện deviceOnline...');
+        print('📶 [AddDeviceScreen] Pairing code generated: $code');
       }
     } catch (e) {
       if (mounted) {
@@ -110,39 +116,9 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kích hoạt máy con'),
+        title: const Text('Thêm thiết bị con'),
         actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: _isSocketConnected ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _isSocketConnected ? Colors.green : Colors.red),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _isSocketConnected ? Colors.green : Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _isSocketConnected ? 'Connected' : 'Disconnected',
-                  style: TextStyle(
-                    color: _isSocketConnected ? Colors.green : Colors.red,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildConnectionIndicator(),
         ],
       ),
       body: SafeArea(
@@ -151,97 +127,109 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Quét mã này bằng ứng dụng KidFun trên máy của trẻ để bắt đầu quản lý.',
-                style: TextStyle(fontSize: 16, color: Colors.blueGrey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              
-              if (profileState is ProfileLoaded)
-                DropdownButtonFormField<ProfileModel>(
-                  decoration: const InputDecoration(
-                    labelText: 'Chọn hồ sơ của trẻ',
-                    border: OutlineInputBorder(),
-                  ),
-                  value: _selectedProfile,
-                  items: profileState.profiles.map((p) {
-                    return DropdownMenuItem(
-                      value: p,
-                      child: Text(p.profileName),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedProfile = val;
-                      _pairingCode = null;
-                    });
-                  },
-                )
-              else if (profileState is ProfileLoading)
-                const Center(child: CircularProgressIndicator())
-              else
-                const Text('Lỗi tải hồ sơ hoặc chưa có hồ sơ nào.', textAlign: TextAlign.center),
-
-              const SizedBox(height: 48),
-              if (_pairingCode == null)
-                ElevatedButton(
-                  onPressed: (_selectedProfile == null || _isLoading) ? null : _generateCode,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blue.shade700,
-                  ),
-                  child: _isLoading 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
-                    : const Text('TẠO MÃ KẾT NỐI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-              ],
-
-              if (_pairingCode != null) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'ĐANG ĐỢI TRẺ QUÉT MÃ...',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, spreadRadius: 5),
-                      ],
-                    ),
-                    child: QrImageView(
-                      data: _pairingCode!,
-                      version: QrVersions.auto,
-                      size: 220.0,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  _pairingCode!,
-                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 8, color: Colors.blue),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 48),
-                OutlinedButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Hủy bỏ'),
-                ),
-              ],
+              if (_isLinked) _buildSuccessState() else _buildInputState(profileState),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildConnectionIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: _isSocketConnected ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _isSocketConnected ? Colors.green : Colors.red),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: _isSocketConnected ? Colors.green : Colors.red, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(_isSocketConnected ? 'Sẵn sàng' : 'Mất kết nối', style: TextStyle(color: _isSocketConnected ? Colors.green : Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessState() {
+    return Column(
+      children: [
+        const SizedBox(height: 60),
+        const Icon(Icons.check_circle, color: Colors.green, size: 100),
+        const SizedBox(height: 24),
+        const Text('KÍCH HOẠT THÀNH CÔNG!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green)),
+        const SizedBox(height: 16),
+        const Text('Đang quay lại danh sách thiết bị...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+        const SizedBox(height: 60),
+      ],
+    );
+  }
+
+  Widget _buildInputState(ProfileState profileState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          '1. Chọn hồ sơ của trẻ\n2. Dùng máy trẻ quét mã QR bên dưới',
+          style: TextStyle(fontSize: 16, height: 1.5),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        
+        if (profileState is ProfileLoaded)
+          DropdownButtonFormField<ProfileModel>(
+            decoration: const InputDecoration(labelText: 'Hồ sơ trẻ em', border: OutlineInputBorder()),
+            value: _selectedProfile,
+            items: profileState.profiles.map((p) => DropdownMenuItem(value: p, child: Text(p.profileName))).toList(),
+            onChanged: (val) => setState(() { _selectedProfile = val; _pairingCode = null; }),
+          )
+        else if (profileState is ProfileLoading)
+          const Center(child: CircularProgressIndicator())
+        else
+          const Text('Vui lòng tạo hồ sơ cho trẻ trước.', textAlign: TextAlign.center),
+
+        const SizedBox(height: 40),
+        
+        if (_pairingCode == null)
+          ElevatedButton(
+            onPressed: (_selectedProfile == null || _isLoading) ? null : _generateCode,
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+            child: _isLoading 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
+              : const Text('TẠO MÃ KẾT NỐI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 16),
+          Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+        ],
+
+        if (_pairingCode != null) ...[
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 24),
+          const Text('ĐANG CHỜ KẾT NỐI...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue), textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)]),
+              child: QrImageView(data: _pairingCode!, version: QrVersions.auto, size: 200.0),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(_pairingCode!, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 8, color: Colors.blue), textAlign: TextAlign.center),
+          const SizedBox(height: 40),
+          OutlinedButton(onPressed: () => context.pop(), child: const Text('Quay lại')),
+        ],
+      ],
     );
   }
 }

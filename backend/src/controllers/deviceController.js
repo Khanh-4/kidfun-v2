@@ -265,6 +265,14 @@ const linkDevice = async (req, res) => {
       { expiresIn: '365d' }
     );
 
+    // Notify Parent via Socket.IO
+    socketService.notifyFamily(linkedDevice.userId, 'deviceLinked', {
+      deviceId: linkedDevice.id,
+      deviceCode: linkedDevice.deviceCode,
+      deviceName: linkedDevice.deviceName,
+      profileId: linkedDevice.profileId
+    });
+
     sendSuccess(res, { message: 'Device linked successfully', token, device: linkedDevice });
   } catch (error) {
     console.error('Link device error:', error);
