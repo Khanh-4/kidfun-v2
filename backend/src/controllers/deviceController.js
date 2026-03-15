@@ -236,6 +236,13 @@ const linkDevice = async (req, res) => {
       });
     }
 
+    if (socketService.io) {
+      socketService.io.to('family_' + linkedDevice.userId).emit('device_linked_success', {
+        deviceId: linkedDevice.id,
+        deviceName: linkedDevice.deviceName
+      });
+    }
+
     // Notify Parent via Socket.IO
     let profileName = null;
     if (linkedDevice.profileId) {
