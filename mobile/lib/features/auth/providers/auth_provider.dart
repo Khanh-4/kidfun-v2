@@ -39,8 +39,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         // Reconnect socket for returning users
         if (userId != null && userId > 0) {
-          print('📡 [Auth] Auto-login SUCCESS. Connecting Socket for user $userId');
-          SocketService.instance.connectAsParent(userId);
+          SocketService.instance.joinFamily(userId);
+          print('📡 Auto-login: called joinFamily for user $userId');
         }
       } else {
         state = AuthUnauthenticated();
@@ -58,8 +58,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
-      print('📡 [Auth] Login SUCCESS. Connecting Socket for user ${user.id}');
-      SocketService.instance.connectAsParent(user.id);
+      SocketService.instance.joinFamily(user.id);
+      print('📡 Login success: called joinFamily for user ${user.id}');
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
@@ -72,8 +72,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
       _sendFcmTokenIfAvailable();
-      print('📡 [Auth] Register SUCCESS. Connecting Socket for user ${user.id}');
-      SocketService.instance.connectAsParent(user.id);
+      SocketService.instance.joinFamily(user.id);
+      print('📡 Register success: called joinFamily for user ${user.id}');
     } catch (e) {
       state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
     }
