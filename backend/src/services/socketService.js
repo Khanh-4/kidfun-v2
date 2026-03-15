@@ -15,9 +15,8 @@ const socketService = {
         socket.emit('pong', data);
       });
 
-      // Child hoặc Parent tham gia "phòng" của gia đình
+      // ── joinFamily: Parent hoặc Child tham gia phòng gia đình ──────────────
       socket.on('joinFamily', ({ userId, role }) => {
-        // Tránh lỗi với userId = 0 hoặc null
         if (userId === undefined || userId === null || userId === 0) {
           console.warn(`⚠️ [SOCKET] joinFamily: Invalid userId received: ${userId}`);
           return;
@@ -27,62 +26,62 @@ const socketService = {
         socket.join(room);
         socket.role = role || 'parent';
         socket.userId = userId;
-        
-        // Kiểm tra room size
+
         const clients = io.sockets.adapter.rooms.get(room);
         console.log(`👨‍👩‍👧 [SOCKET] ${socket.role} (${socket.id}) JOINED ${room}. Total in room: ${clients ? clients.size : 0}`);
-        
-        // Notify socket that join was successful
+
         socket.emit('roomJoined', { room, size: clients ? clients.size : 0 });
       });
 
-      // Child join device room
+      // ── joinDevice: Child tham gia phòng thiết bị ─────────────────────────
       socket.on('joinDevice', async ({ deviceCode }) => {
         if (!deviceCode) {
           console.warn('⚠️ [SOCKET] joinDevice: No deviceCode provided');
           return;
         }
-        
+
         socket.deviceCode = deviceCode;
         socket.role = 'child';
         socket.join(`device_${deviceCode}`);
         console.log(`📱 [SOCKET] Child Device ${deviceCode} JOINED room device_${deviceCode}`);
 
         try {
-          const device = await prisma.device.findFirst({ 
+          const device = await prisma.device.findFirst({
             where: { deviceCode },
             include: { profile: true }
           });
-          
+
           if (device) {
-            // Update status online trong DB
             await prisma.device.update({
               where: { id: device.id },
               data: { isOnline: true, lastSeen: new Date() }
             });
 
-            // Cache device info vào socket để dùng khi disconnect (tránh query DB lại)
+            // Cache device info để dùng khi disconnect (tránh query DB lại)
             socket.deviceId = device.id;
             socket.deviceUserId = device.userId;
             socket.userId = device.userId;
 
-            // Notify Parent
             const familyRoom = `family_${device.userId}`;
             const parentClients = io.sockets.adapter.rooms.get(familyRoom);
 
             console.log(`🟢 [SOCKET] Device ${device.deviceName} (ID: ${device.id}) is ONLINE.`);
             console.log(`📣 [SOCKET] Notifying ${familyRoom}. Active parents in room: ${parentClients ? parentClients.size : 0}`);
 
-            // Emit to family room
+            // Notify Parent: device is online
             io.to(familyRoom).emit('deviceOnline', {
               deviceId: device.id,
               profileId: device.profileId,
               deviceName: device.deviceName,
               profileName: device.profile?.profileName || null,
             });
-            
-            // Broadcast to the specifically joined device room too (if any other part of app listens)
-            io.to(`device_${deviceCode}`).emit('statusUpdated', { isOnline: true });
+
+            // Also emit device_status_changed for real-time status update
+            io.to(familyRoom).emit('device_status_changed', {
+              deviceId: device.id,
+              isOnline: true,
+              deviceName: device.deviceName,
+            });
 
           } else {
             console.warn(`⚠️ [SOCKET] joinDevice: No device found in DB for code ${deviceCode}`);
@@ -92,7 +91,7 @@ const socketService = {
         }
       });
 
-      // Child gửi heartbeat để cập nhật lastSeen
+      // ── Heartbeat: cập nhật lastSeen ──────────────────────────────────────
       socket.on('heartbeat', async ({ deviceCode }) => {
         const code = deviceCode || socket.deviceCode;
         if (!code) return;
@@ -104,7 +103,7 @@ const socketService = {
         } catch (err) { /* silent fail */ }
       });
 
-      // Child gửi yêu cầu thêm thời gian
+      // ── Time Extension ─────────────────────────────────────────────────────
       socket.on('requestTimeExtension', (data) => {
         const uId = data.userId || socket.userId;
         const room = `family_${uId}`;
@@ -119,7 +118,6 @@ const socketService = {
         });
       });
 
-      // Parent phản hồi yêu cầu
       socket.on('respondTimeExtension', (data) => {
         const uId = data.userId || socket.userId;
         const room = `family_${uId}`;
@@ -131,7 +129,7 @@ const socketService = {
         });
       });
 
-      // Parent xóa thiết bị
+      // ── Remove Device ──────────────────────────────────────────────────────
       socket.on('removeDevice', (data) => {
         const uId = data.userId || socket.userId;
         const room = `family_${uId}`;
@@ -142,17 +140,18 @@ const socketService = {
         });
       });
 
+      // ── Disconnect ─────────────────────────────────────────────────────────
       socket.on('disconnect', async (reason) => {
         console.log(`❌ [SOCKET] Client disconnected: ${socket.id} (Role: ${socket.role || 'unknown'}, Family: ${socket.userId || '?'}). Reason: ${reason}`);
 
         if (socket.deviceCode) {
           try {
-            // Ưu tiên dùng deviceId đã cache (nhanh hơn, tránh query DB)
+            // Use cached deviceId (fast path)
             let deviceId = socket.deviceId;
             let deviceUserId = socket.deviceUserId;
 
             if (!deviceId) {
-              // Fallback: query DB nếu chưa có cache (joinDevice thất bại hoặc reconnect cũ)
+              // Fallback: query DB
               const device = await prisma.device.findFirst({
                 where: { deviceCode: socket.deviceCode }
               });
@@ -170,7 +169,14 @@ const socketService = {
 
               const familyRoom = `family_${deviceUserId}`;
               console.log(`🔴 [SOCKET] Device ID ${deviceId} is OFFLINE. Notifying ${familyRoom}`);
+
               io.to(familyRoom).emit('deviceOffline', { deviceId });
+
+              // Also emit device_status_changed
+              io.to(familyRoom).emit('device_status_changed', {
+                deviceId,
+                isOnline: false,
+              });
             }
           } catch (err) {
             console.error('❌ [SOCKET] disconnect error:', err);

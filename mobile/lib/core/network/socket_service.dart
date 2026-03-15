@@ -98,6 +98,15 @@ class SocketService {
         }
       });
 
+      // Alias: device_linked_success (same payload, same listeners)
+      _socket!.on('device_linked_success', (data) {
+        print('🔗 [SOCKET] RECEIVED device_linked_success: $data (listeners: ${_deviceLinkedListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_deviceLinkedListeners)) {
+          cb(mapData);
+        }
+      });
+
       _socket!.on('deviceOnline', (data) {
         print('🟢 [SOCKET] RECEIVED deviceOnline: $data (listeners: ${_deviceOnlineListeners.length})');
         final mapData = Map<String, dynamic>.from(data as Map);
@@ -111,6 +120,22 @@ class SocketService {
         final mapData = Map<String, dynamic>.from(data as Map);
         for (final cb in List.from(_deviceOfflineListeners)) {
           cb(mapData);
+        }
+      });
+
+      // device_status_changed: { deviceId, isOnline } — routes to online or offline listeners
+      _socket!.on('device_status_changed', (data) {
+        print('📶 [SOCKET] RECEIVED device_status_changed: $data');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        final isOnline = mapData['isOnline'] as bool? ?? false;
+        if (isOnline) {
+          for (final cb in List.from(_deviceOnlineListeners)) {
+            cb(mapData);
+          }
+        } else {
+          for (final cb in List.from(_deviceOfflineListeners)) {
+            cb(mapData);
+          }
         }
       });
     }

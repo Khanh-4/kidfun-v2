@@ -236,6 +236,7 @@ const linkDevice = async (req, res) => {
       });
     }
 
+    // Generate long-lived JWT for the child device (before emitting socket event)
     if (socketService.io) {
       socketService.io.to('family_' + linkedDevice.userId).emit('device_linked_success', {
         deviceId: linkedDevice.id,
@@ -262,7 +263,7 @@ const linkDevice = async (req, res) => {
 
     // Generate long-lived JWT for the child device
     const token = jwt.sign(
-      { 
+      {
         deviceId: linkedDevice.id,
         role: 'child',
         profileId: linkedDevice.profileId,
@@ -272,13 +273,27 @@ const linkDevice = async (req, res) => {
       { expiresIn: '365d' }
     );
 
-    // Notify Parent via Socket.IO
-    socketService.notifyFamily(linkedDevice.userId, 'deviceLinked', {
+    // Fetch profile name for notification payload
+    let profileName = null;
+    if (linkedDevice.profileId) {
+      try {
+        const profile = await prisma.profile.findUnique({ where: { id: linkedDevice.profileId } });
+        profileName = profile?.profileName || null;
+      } catch (e) { /* non-critical */ }
+    }
+
+    // Notify Parent via Socket.IO — emit ONCE with full payload
+    const linkedPayload = {
       deviceId: linkedDevice.id,
       deviceCode: linkedDevice.deviceCode,
       deviceName: linkedDevice.deviceName,
-      profileId: linkedDevice.profileId
-    });
+      profileId: linkedDevice.profileId,
+      profileName,
+    };
+    socketService.notifyFamily(linkedDevice.userId, 'deviceLinked', linkedPayload);
+    // Also emit device_linked_success as alias (matches Flutter task requirement)
+    socketService.notifyFamily(linkedDevice.userId, 'device_linked_success', linkedPayload);
+    console.log(`📱 Device "${linkedDevice.deviceName}" linked → notified family_${linkedDevice.userId}`);
 
     sendSuccess(res, { message: 'Device linked successfully', token, device: linkedDevice });
   } catch (error) {
