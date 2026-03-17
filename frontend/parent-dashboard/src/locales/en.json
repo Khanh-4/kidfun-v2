@@ -39,10 +39,13 @@
     },
     "forgotPassword": {
       "title": "Forgot Password",
-      "description": "Enter your email address. We'll send you a link to reset your password.",
+      "description": "Enter your email address. We'll send you an OTP code to reset your password.",
       "email": "Email",
-      "submit": "Send Reset Link",
-      "success": "Password reset email sent. Please check your inbox.",
+      "submit": "Send OTP",
+      "otpSent": "OTP code has been sent to {{email}}. Please check your inbox (valid for 15 minutes).",
+      "otpLabel": "OTP Code (6 digits)",
+      "resendOtp": "Resend OTP",
+      "changeEmail": "Change email",
       "backToLogin": "Back to login",
       "failed": "An error occurred. Please try again."
     },
