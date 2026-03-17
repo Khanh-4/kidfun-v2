@@ -21,6 +21,7 @@ class SocketService {
   final List<SocketCallback> _deviceLinkedListeners = [];
   final List<SocketCallback> _deviceOnlineListeners = [];
   final List<SocketCallback> _deviceOfflineListeners = [];
+  final List<SocketCallback> _timeExtensionRequestListeners = [];
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -50,6 +51,10 @@ class SocketService {
   // deviceOffline listeners
   void addDeviceOfflineListener(SocketCallback callback) => _deviceOfflineListeners.add(callback);
   void removeDeviceOfflineListener(SocketCallback callback) => _deviceOfflineListeners.remove(callback);
+
+  // timeExtensionRequest listeners
+  void addTimeExtensionRequestListener(SocketCallback callback) => _timeExtensionRequestListeners.add(callback);
+  void removeTimeExtensionRequestListener(SocketCallback callback) => _timeExtensionRequestListeners.remove(callback);
 
   // ★★★ DEPRECATED: kept for backward compat but now just proxy to list-based listeners
   // These are no-op setters; do NOT use them for new code.
@@ -136,6 +141,14 @@ class SocketService {
           for (final cb in List.from(_deviceOfflineListeners)) {
             cb(mapData);
           }
+        }
+      });
+
+      _socket!.on('timeExtensionRequest', (data) {
+        print('⏰ [SOCKET] RECEIVED timeExtensionRequest: $data (listeners: ${_timeExtensionRequestListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_timeExtensionRequestListeners)) {
+          cb(mapData);
         }
       });
     }
