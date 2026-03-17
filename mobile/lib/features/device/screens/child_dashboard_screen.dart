@@ -166,11 +166,86 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   }
 
   void _checkSoftWarning() {
-    // Task 3 will implement this
+    final remainingMinutes = _remainingSeconds ~/ 60;
+
+    // Mốc 30 phút
+    if (remainingMinutes == 30 && !_triggeredWarnings.contains(30)) {
+      _triggeredWarnings.add(30);
+      _showWarningDialog('SOFT_30', 'Còn 30 phút', 'Con còn 30 phút sử dụng thiết bị hôm nay.');
+    }
+
+    // Mốc 15 phút
+    if (remainingMinutes == 15 && !_triggeredWarnings.contains(15)) {
+      _triggeredWarnings.add(15);
+      _showWarningDialog('SOFT_15', 'Còn 15 phút', 'Con còn 15 phút. Hãy hoàn thành việc đang làm nhé!');
+    }
+
+    // Mốc 5 phút
+    if (remainingMinutes == 5 && !_triggeredWarnings.contains(5)) {
+      _triggeredWarnings.add(5);
+      _showWarningDialog('SOFT_5', 'Còn 5 phút!', 'Con còn 5 phút. Sắp hết giờ rồi!');
+    }
+  }
+
+  void _showWarningDialog(String type, String title, String message) {
+    // Ghi log warning lên server
+    if (_deviceCode != null) {
+      _childRepo.logWarning(deviceCode: _deviceCode!, type: type);
+    }
+
+    // Hiển thị dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber, color: Colors.orange, size: 32),
+            const SizedBox(width: 8),
+            Text(title, style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, style: GoogleFonts.nunito(fontSize: 16)),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Đã hiểu', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onTimeUp() {
-    // Task 3 will implement this
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    if (_sessionId != null) {
+      _childRepo.endSession(_sessionId!);
+      _sessionId = null;
+    }
+
+    // Log warning
+    if (_deviceCode != null) {
+      _childRepo.logWarning(deviceCode: _deviceCode!, type: 'TIME_UP');
+    }
+
+    // Hiện màn hình khóa (fullscreen, không thoát được)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false, // Chặn nút back
+        child: AlertDialog(
+          title: Text('⏰ Hết giờ!', 
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: Text(
+            'Thời gian sử dụng thiết bị hôm nay đã hết.\nHãy nghỉ ngơi nhé!',
+            style: GoogleFonts.nunito(fontSize: 16),
+          ),
+          actions: const [], // Không có nút dismiss
+        ),
+      ),
+    );
   }
 
   void _setupSocketListeners() {
