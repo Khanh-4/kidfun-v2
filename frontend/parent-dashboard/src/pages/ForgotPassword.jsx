@@ -32,7 +32,7 @@ function ForgotPassword() {
       await api.post('/auth/forgot-password', { email });
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.error || t('auth.forgotPassword.failed'));
+      setError(err.response?.data?.message || t('auth.forgotPassword.failed'));
     } finally {
       setLoading(false);
     }

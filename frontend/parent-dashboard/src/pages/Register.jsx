@@ -62,7 +62,7 @@ function Register() {
       });
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || t('auth.register.failed'));
+      setError(err.response?.data?.message || t('auth.register.failed'));
     } finally {
       setLoading(false);
     }

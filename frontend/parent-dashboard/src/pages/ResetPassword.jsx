@@ -53,7 +53,7 @@ function ResetPassword() {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || t('auth.resetPassword.failed'));
+      setError(err.response?.data?.message || t('auth.resetPassword.failed'));
     } finally {
       setLoading(false);
     }

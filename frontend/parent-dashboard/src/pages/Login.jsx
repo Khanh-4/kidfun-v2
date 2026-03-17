@@ -39,7 +39,7 @@ function Login() {
       await authService.login(formData.email, formData.password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || t('auth.login.failed'));
+      setError(err.response?.data?.message || t('auth.login.failed'));
     } finally {
       setLoading(false);
     }

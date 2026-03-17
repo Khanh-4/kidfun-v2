@@ -93,7 +93,7 @@ function Profiles() {
       handleCloseDialog();
       loadProfiles();
     } catch (error) {
-      setError(error.response?.data?.error || t('common.error'));
+      setError(error.response?.data?.message || t('common.error'));
     }
   };
 
