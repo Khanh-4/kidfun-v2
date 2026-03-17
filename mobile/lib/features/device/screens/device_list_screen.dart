@@ -74,6 +74,21 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
                   },
                   hint: const Text('Chọn một hồ sơ'),
                 ),
+                if (device.profileId != null) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      final profileName = profiles.firstWhere((p) => p.id == device.profileId).profileName;
+                      context.push(
+                        '/profiles/${device.profileId}/time-limit?name=${Uri.encodeComponent(profileName)}',
+                      );
+                    },
+                    icon: const Icon(Icons.timer_outlined),
+                    label: const Text('Giới hạn thời gian của máy'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 16),
