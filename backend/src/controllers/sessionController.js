@@ -1,0 +1,105 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
+
+exports.startSession = async (req, res) => {
+  try {
+    const { deviceCode } = req.body;
+
+    const device = await prisma.device.findFirst({
+      where: { deviceCode },
+      include: { profile: true },
+    });
+
+    if (!device || !device.profile) {
+      return sendError(res, 'Device not linked', 404);
+    }
+
+    // Đóng session cũ nếu còn active (phòng trường hợp app crash)
+    await prisma.usageSession.updateMany({
+      where: { deviceId: device.id, isActive: true },
+      data: { isActive: false, endTime: new Date() },
+    });
+
+    // Tạo session mới
+    const session = await prisma.usageSession.create({
+      data: {
+        profileId: device.profile.id,
+        deviceId: device.id,
+      },
+    });
+
+    return sendSuccess(res, { sessionId: session.id }, 201);
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+};
+
+exports.heartbeat = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    const session = await prisma.usageSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        profile: { include: { timeLimits: true } },
+      },
+    });
+
+    if (!session || !session.isActive) {
+      return sendError(res, 'Session not found or inactive', 404);
+    }
+
+    // Cập nhật updatedAt (chứng minh session vẫn active)
+    await prisma.usageSession.update({
+      where: { id: sessionId },
+      data: { updatedAt: new Date() },
+    });
+
+    // Tính remaining time
+    const today = new Date().getDay();
+    const todayLimit = session.profile.timeLimits.find(tl => tl.dayOfWeek === today);
+    const limitMinutes = todayLimit?.limitMinutes || todayLimit?.dailyLimitMinutes || 0;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const sessions = await prisma.usageSession.findMany({
+      where: {
+        profileId: session.profileId,
+        startTime: { gte: startOfDay },
+      },
+    });
+
+    const usedMinutes = sessions.reduce((total, s) => {
+      const end = s.endTime || new Date();
+      return total + (end - s.startTime) / 60000;
+    }, 0);
+
+    const remainingMinutes = Math.max(0, limitMinutes - Math.round(usedMinutes));
+
+    return sendSuccess(res, {
+      sessionId,
+      remainingMinutes,
+      limitMinutes,
+      usedMinutes: Math.round(usedMinutes),
+    });
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+};
+
+exports.endSession = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    await prisma.usageSession.update({
+      where: { id: sessionId },
+      data: { isActive: false, endTime: new Date() },
+    });
+
+    return sendSuccess(res, { message: 'Session ended' });
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+};
