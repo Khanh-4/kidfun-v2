@@ -43,6 +43,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const blockedSiteRoutes = require('./routes/blockedSites');
 const childRoutes = require('./routes/child');
 const fcmRoutes = require('./routes/fcm');
+const extensionRequestRoutes = require('./routes/extensionRequests');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -52,6 +53,7 @@ app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/blocked-sites', blockedSiteRoutes);
 app.use('/api/child', childRoutes);
 app.use('/api/fcm-tokens', fcmRoutes);
+app.use('/api/extension-requests', extensionRequestRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

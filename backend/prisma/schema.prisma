@@ -43,6 +43,7 @@ model Profile {
   usageLogs     UsageLog[]
   warnings      Warning[]
   usageSessions UsageSession[]
+  timeExtensionRequests TimeExtensionRequest[]
 }
 
 model Device {
@@ -64,6 +65,7 @@ model Device {
   sessions      Session[]
   fcmTokens     FCMToken[]
   usageSessions UsageSession[]
+  timeExtensionRequests TimeExtensionRequest[]
 }
 
 model TimeLimit {
@@ -97,6 +99,21 @@ model UsageSession {
 
   profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
   device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model TimeExtensionRequest {
+  id             Int       @id @default(autoincrement())
+  profileId      Int
+  deviceId       Int
+  requestMinutes Int       // Số phút xin thêm
+  reason         String?   // Lý do
+  status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  responseMinutes Int?     // Số phút Parent cho (có thể khác requestMinutes)
+  respondedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  profile        Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device         Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 }
 
 model BlockedWebsite {

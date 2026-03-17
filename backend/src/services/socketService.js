@@ -104,29 +104,85 @@ const socketService = {
       });
 
       // ── Time Extension ─────────────────────────────────────────────────────
-      socket.on('requestTimeExtension', (data) => {
-        const uId = data.userId || socket.userId;
-        const room = `family_${uId}`;
-        console.log(`⏰ [SOCKET] Time extension request for family: ${room}`);
-        io.to(room).emit('timeExtensionRequest', {
-          id: Date.now(),
-          deviceName: data.deviceName,
-          profileName: data.profileName,
-          reason: data.reason,
-          requestedMinutes: data.requestedMinutes || 30,
-          timestamp: new Date().toISOString(),
-        });
+      // Child xin thêm giờ
+      socket.on('requestTimeExtension', async ({ deviceCode, requestMinutes, reason }) => {
+        try {
+          const device = await prisma.device.findFirst({
+            where: { deviceCode },
+            include: { profile: true },
+          });
+
+          if (!device || !device.profile) return;
+
+          // Tạo request trong DB
+          const request = await prisma.timeExtensionRequest.create({
+            data: {
+              profileId: device.profile.id,
+              deviceId: device.id,
+              requestMinutes,
+              reason: reason || '',
+            },
+          });
+
+          // Notify Parent qua Socket.IO
+          io.to(`family_${device.userId}`).emit('timeExtensionRequest', {
+            requestId: request.id,
+            profileId: device.profile.id,
+            profileName: device.profile.profileName,
+            deviceName: device.deviceName,
+            requestMinutes,
+            reason: reason || '',
+            createdAt: request.createdAt,
+          });
+
+          // Push notification cho Parent
+          const { sendPushToUser } = require('./firebaseService');
+          await sendPushToUser(device.userId, {
+            title: `⏳ ${device.profile.profileName} xin thêm giờ`,
+            body: `Xin thêm ${requestMinutes} phút${reason ? ': ' + reason : ''}`,
+            data: {
+              type: 'time_extension',
+              requestId: String(request.id),
+              profileId: String(device.profile.id),
+            },
+          });
+
+          console.log(`⏳ Time extension request: ${device.profile.profileName} xin ${requestMinutes} phút`);
+
+        } catch (err) {
+          console.error('requestTimeExtension error:', err.message);
+        }
       });
 
-      socket.on('respondTimeExtension', (data) => {
-        const uId = data.userId || socket.userId;
-        const room = `family_${uId}`;
-        console.log(`✅ [SOCKET] Time extension response for family: ${room}`);
-        io.to(room).emit('timeExtensionResponse', {
-          approved: data.approved,
-          additionalMinutes: data.additionalMinutes || 0,
-          message: data.message,
-        });
+      // Parent phản hồi (approve/reject)
+      socket.on('respondTimeExtension', async ({ requestId, approved, responseMinutes }) => {
+        try {
+          const request = await prisma.timeExtensionRequest.update({
+            where: { id: parseInt(requestId) },
+            data: {
+              status: approved ? 'APPROVED' : 'REJECTED',
+              responseMinutes: approved ? (responseMinutes || null) : null,
+              respondedAt: new Date(),
+            },
+            include: {
+              device: true,
+              profile: true,
+            },
+          });
+
+          // Notify Child qua Socket.IO
+          io.to(`device_${request.device.deviceCode}`).emit('timeExtensionResponse', {
+            requestId: request.id,
+            approved,
+            responseMinutes: approved ? (responseMinutes || request.requestMinutes) : 0,
+            status: request.status,
+          });
+
+          console.log(`⏳ Time extension ${approved ? 'APPROVED' : 'REJECTED'}: ${request.profile.profileName} → ${responseMinutes || request.requestMinutes} phút`);
+
+        } catch (err) {
+          console.error('respondTimeExtension error:', err.message);
+        }
       });
 
       // ── Remove Device ──────────────────────────────────────────────────────
