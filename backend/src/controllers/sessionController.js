@@ -71,18 +71,20 @@ exports.heartbeat = async (req, res) => {
       },
     });
 
-    const usedMinutes = sessions.reduce((total, s) => {
+    const usedSeconds = sessions.reduce((total, s) => {
       const end = s.endTime || new Date();
-      return total + (end - s.startTime) / 60000;
+      return total + (end - s.startTime) / 1000;
     }, 0);
 
-    const remainingMinutes = Math.max(0, limitMinutes - Math.round(usedMinutes));
+    const limitSeconds = limitMinutes * 60;
+    const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
 
     return sendSuccess(res, {
       sessionId,
-      remainingMinutes,
+      remainingMinutes: Math.round(remainingSeconds / 60),
+      remainingSeconds,
       limitMinutes,
-      usedMinutes: Math.round(usedMinutes),
+      usedMinutes: Math.round(usedSeconds / 60),
     });
   } catch (err) {
     return sendError(res, err.message, 500);

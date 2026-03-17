@@ -529,23 +529,23 @@ const getTodayLimit = async (req, res) => {
       },
     });
 
-    const usedMinutes = sessions.reduce((total, s) => {
+    const usedSeconds = sessions.reduce((total, s) => {
       const end = s.endTime || new Date();
-      const diff = (end - s.startTime) / 60000;
-      return total + diff;
+      return total + (end - s.startTime) / 1000;
     }, 0);
 
     // fallback to dailyLimitMinutes if limitMinutes is null
-    const limitMinutes = todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0;
-    const remainingMinutes = Math.max(0, limitMinutes - Math.round(usedMinutes));
+    const limitSeconds = (todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0) * 60;
+    const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
 
     return sendSuccess(res, {
       profileId: device.profile.id,
       profileName: device.profile.profileName,
       dayOfWeek: today,
-      limitMinutes,
-      usedMinutes: Math.round(usedMinutes),
-      remainingMinutes,
+      limitMinutes: todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0,
+      usedMinutes: Math.round(usedSeconds / 60),
+      remainingMinutes: Math.round(remainingSeconds / 60),
+      remainingSeconds,
       isActive: todayLimit?.isActive ?? false,
     });
   } catch (err) {
