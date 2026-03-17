@@ -497,6 +497,62 @@ const getBlockedSites = async (req, res) => {
   }
 };
 
+// GET /api/child/today-limit
+const getTodayLimit = async (req, res) => {
+  try {
+    const deviceCode = req.query.deviceCode || req.headers['x-device-code'];
+
+    const device = await prisma.device.findFirst({
+      where: { deviceCode },
+      include: {
+        profile: {
+          include: { timeLimits: true }
+        }
+      }
+    });
+
+    if (!device || !device.profile) {
+      return sendError(res, 'Device not found or not linked to profile', 404);
+    }
+
+    const today = new Date().getDay(); // 0 = Sunday
+    const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
+
+    // Tính thời gian đã dùng hôm nay (từ UsageSession)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const sessions = await prisma.usageSession.findMany({
+      where: {
+        profileId: device.profile.id,
+        startTime: { gte: startOfDay },
+      },
+    });
+
+    const usedMinutes = sessions.reduce((total, s) => {
+      const end = s.endTime || new Date();
+      const diff = (end - s.startTime) / 60000;
+      return total + diff;
+    }, 0);
+
+    // fallback to dailyLimitMinutes if limitMinutes is null
+    const limitMinutes = todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0;
+    const remainingMinutes = Math.max(0, limitMinutes - Math.round(usedMinutes));
+
+    return sendSuccess(res, {
+      profileId: device.profile.id,
+      profileName: device.profile.profileName,
+      dayOfWeek: today,
+      limitMinutes,
+      usedMinutes: Math.round(usedMinutes),
+      remainingMinutes,
+      isActive: todayLimit?.isActive ?? false,
+    });
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+};
+
 module.exports = {
   getStatus,
   startSession,
@@ -504,5 +560,6 @@ module.exports = {
   endSession,
   addBonus,
   createWarning,
-  getBlockedSites
+  getBlockedSites,
+  getTodayLimit
 };

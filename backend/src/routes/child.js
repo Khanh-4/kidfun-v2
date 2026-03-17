@@ -8,6 +8,9 @@ const childController = require('../controllers/childController');
 // GET /api/child/status - Lấy thông tin thời gian, profile, session
 router.get('/status', childController.getStatus);
 
+// GET /api/child/today-limit - Lấy time limit hôm nay
+router.get('/today-limit', childController.getTodayLimit);
+
 // POST /api/child/session/start - Bắt đầu session mới
 router.post('/session/start', childController.startSession);
 
