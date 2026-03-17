@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const childController = require('../controllers/childController');
 const sessionController = require('../controllers/sessionController');
+const warningController = require('../controllers/warningController');
 
 // Tất cả routes PUBLIC - Child không cần authentication
 // Dùng deviceCode từ X-Device-Code header để identify
@@ -25,7 +26,7 @@ router.post('/session/end', sessionController.endSession);
 router.post('/bonus', childController.addBonus);
 
 // POST /api/child/warnings - Ghi log warning
-router.post('/warnings', childController.createWarning);
+router.post('/warning', warningController.logWarning);
 
 // GET /api/child/blocked-sites - Lấy danh sách blocked sites (dùng deviceCode)
 router.get('/blocked-sites', childController.getBlockedSites);
