@@ -28,4 +28,8 @@ const warningController = require('../controllers/warningController');
 // GET /api/profiles/:id/warnings - Xem lịch sử cảnh báo
 router.get('/:id/warnings', warningController.getWarnings);
 
+const extensionController = require('../controllers/extensionController');
+// GET /api/profiles/:id/extension-requests - Xem lịch sử xin thêm giờ
+router.get('/:id/extension-requests', extensionController.getExtensionRequests);
+
 module.exports = router;
