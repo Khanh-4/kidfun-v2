@@ -16,6 +16,7 @@ import 'features/device/screens/scan_qr_screen.dart';
 import 'features/device/screens/child_dashboard_screen.dart';
 import 'features/time_limit/screens/time_limit_screen.dart';
 import 'shared/models/profile_model.dart';
+import 'shared/widgets/time_extension_listener.dart';
 import 'core/theme/app_theme.dart';
 
 class SplashLoader extends ConsumerWidget {
@@ -198,11 +199,13 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    return MaterialApp.router(
-      title: 'KidFun',
-      theme: AppTheme.lightTheme,
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
+    return TimeExtensionListener(
+      child: MaterialApp.router(
+        title: 'KidFun',
+        theme: AppTheme.lightTheme,
+        routerConfig: router,
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 }
