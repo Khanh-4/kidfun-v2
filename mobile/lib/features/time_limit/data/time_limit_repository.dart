@@ -8,8 +8,10 @@ class TimeLimitRepository {
     final response = await _dio.get('/api/profiles/$profileId');
     // Cấu trúc response dự kiến: data: { profile: { timeLimits: [...] } }
     final data = response.data['data'];
-    final profile = data['profile'];
-    final timeLimitsRaw = profile['timeLimits'] as List;
+
+    // API trả data trực tiếp, KHÔNG có tầng 'profile'
+    // data = { id, profileName, timeLimits: [...] }
+    final timeLimitsRaw = data['timeLimits'] as List? ?? [];
     
     return timeLimitsRaw.map((tl) => TimeLimitModel.fromJson(tl)).toList();
   }
