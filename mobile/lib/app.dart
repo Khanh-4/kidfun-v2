@@ -18,6 +18,7 @@ import 'features/time_limit/screens/time_limit_screen.dart';
 import 'shared/models/profile_model.dart';
 import 'shared/widgets/time_extension_listener.dart';
 import 'core/theme/app_theme.dart';
+import 'core/network/socket_service.dart';
 
 class SplashLoader extends ConsumerWidget {
   const SplashLoader({super.key});
@@ -31,10 +32,87 @@ class SplashLoader extends ConsumerWidget {
   }
 }
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Register listener xin thêm giờ
+    SocketService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequest);
+  }
+
+  void _onTimeExtensionRequest(Map<String, dynamic> data) {
+    if (!mounted) return;
+
+    final requestId = data['requestId'] as int?;
+    final profileName = data['profileName'] as String? ?? 'Con';
+    final requestMinutes = data['requestMinutes'] as int? ?? 15;
+    final reason = data['reason'] as String? ?? '';
+
+    print('⏳ [PARENT] Time extension request received: $data');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('⏳ $profileName xin thêm giờ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Xin thêm: $requestMinutes phút'),
+            if (reason.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Lý do: $reason', style: const TextStyle(fontStyle: FontStyle.italic)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _respondExtension(requestId!, false, 0);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Từ chối'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _respondExtension(requestId!, true, requestMinutes);
+            },
+            child: Text('Duyệt ($requestMinutes phút)'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _respondExtension(int requestId, bool approved, int minutes) {
+    SocketService.instance.socket.emit('respondTimeExtension', {
+      'requestId': requestId,
+      'approved': approved,
+      'responseMinutes': minutes,
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(approved ? '✅ Đã duyệt thêm $minutes phút' : '❌ Đã từ chối')),
+    );
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequest);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Trang chủ')),
       body: Center(
