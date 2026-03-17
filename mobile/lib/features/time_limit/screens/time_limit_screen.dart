@@ -52,14 +52,40 @@ class TimeLimitScreen extends ConsumerWidget {
   }
 
   Widget _buildLimitList(BuildContext context, TimeLimitLoaded state, TimeLimitNotifier notifier) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: state.limits.length,
-      separatorBuilder: (_, __) => const Divider(height: 32),
-      itemBuilder: (context, index) {
-        final limit = state.limits[index];
-        return _buildDayRow(limit, notifier);
-      },
+    return Column(
+      children: [
+        if (state.limits.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final value = state.limits[0].limitMinutes;
+                  for (int i = 0; i < 7; i++) {
+                    notifier.updateDayLimit(state.limits[i].dayOfWeek, value, state.limits[i].isActive);
+                  }
+                },
+                icon: const Icon(Icons.copy_all, size: 18),
+                label: const Text('Áp dụng cho tất cả'),
+                style: ElevatedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: state.limits.length,
+            separatorBuilder: (_, __) => const Divider(height: 32),
+            itemBuilder: (context, index) {
+              final limit = state.limits[index];
+              return _buildDayRow(limit, notifier);
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -102,8 +128,8 @@ class TimeLimitScreen extends ConsumerWidget {
                 child: Slider(
                   value: limit.limitMinutes.toDouble(),
                   min: 0,
-                  max: 300,
-                  divisions: 300 ~/ 15, // Step 15 minutes
+                  max: 720,
+                  divisions: 720 ~/ 5, // Step 5 minutes
                   onChanged: (val) {
                     notifier.updateDayLimit(limit.dayOfWeek, val.toInt(), true);
                   },
@@ -111,11 +137,15 @@ class TimeLimitScreen extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                width: 45,
-                child: Text(
-                  '${limit.limitMinutes}m',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.end,
+                width: 70,
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  controller: TextEditingController(text: '${limit.limitMinutes}'),
+                  onSubmitted: (v) {
+                    final mins = int.tryParse(v) ?? 0;
+                    notifier.updateDayLimit(limit.dayOfWeek, mins.clamp(0, 720), true);
+                  },
+                  decoration: const InputDecoration(suffixText: 'ph'),
                 ),
               ),
             ],

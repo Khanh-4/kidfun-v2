@@ -8,7 +8,9 @@ class ChildRepository {
     final response = await _dio.get('/api/child/today-limit', queryParameters: {
       'deviceCode': deviceCode,
     });
-    return TodayLimitModel.fromJson(response.data['data']);
+    final data = response.data['data'];
+    print('📊 [DEBUG] getTodayLimit raw data: $data');
+    return TodayLimitModel.fromJson(data);
   }
 
   Future<int> startSession(String deviceCode) async {
