@@ -24,8 +24,8 @@ const io = new Server(httpServer, {
     credentials: true
   },
   allowEIO3: true, // Support older socket.io-client versions (v2/v3)
-  pingInterval: 10000, // Ping mỗi 10 giây
-  pingTimeout: 5000,   // Timeout sau 5 giây không phản hồi → ~15s phát hiện disconnect
+  pingInterval: 5000,   // Ping mỗi 5 giây (thay vì 10)
+  pingTimeout: 3000,    // Timeout 3 giây
 });
 
 // Middleware
