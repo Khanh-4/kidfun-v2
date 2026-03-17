@@ -57,11 +57,12 @@ exports.heartbeat = async (req, res) => {
     });
 
     // Tính remaining time
-    const today = new Date().getDay();
+    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const today = vnNow.getDay();
     const todayLimit = session.profile.timeLimits.find(tl => tl.dayOfWeek === today);
     const limitMinutes = todayLimit?.limitMinutes || todayLimit?.dailyLimitMinutes || 0;
 
-    const startOfDay = new Date();
+    const startOfDay = new Date(vnNow);
     startOfDay.setHours(0, 0, 0, 0);
 
     const sessions = await prisma.usageSession.findMany({

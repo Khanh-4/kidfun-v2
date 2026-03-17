@@ -4,8 +4,8 @@ const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 // Helper: calculate remaining minutes for a profile today, including bonus
 const calcRemaining = async (profileId, deviceId) => {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
+  const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const dayOfWeek = vnNow.getDay();
 
   const timeLimit = await prisma.timeLimit.findUnique({
     where: {
@@ -15,9 +15,9 @@ const calcRemaining = async (profileId, deviceId) => {
 
   const dailyLimitMinutes = timeLimit?.dailyLimitMinutes || 120;
 
-  const startOfDay = new Date();
+  const startOfDay = new Date(vnNow);
   startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date();
+  const endOfDay = new Date(vnNow);
   endOfDay.setHours(23, 59, 59, 999);
 
   // Auto-close stale ACTIVE sessions from previous days
@@ -95,7 +95,8 @@ const getStatus = async (req, res) => {
     const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
 
-    const dayOfWeek = new Date().getDay();
+    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const dayOfWeek = vnNow.getDay();
 
     sendSuccess(res, {
       device: {
@@ -515,11 +516,12 @@ const getTodayLimit = async (req, res) => {
       return sendError(res, 'Device not found or not linked to profile', 404);
     }
 
-    const today = new Date().getDay(); // 0 = Sunday
+    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const today = vnNow.getDay(); // 0 = Sunday
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
     // Tính thời gian đã dùng hôm nay (từ UsageSession)
-    const startOfDay = new Date();
+    const startOfDay = new Date(vnNow);
     startOfDay.setHours(0, 0, 0, 0);
 
     const sessions = await prisma.usageSession.findMany({
@@ -535,8 +537,12 @@ const getTodayLimit = async (req, res) => {
     }, 0);
 
     // fallback to dailyLimitMinutes if limitMinutes is null
-    const limitSeconds = (todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0) * 60;
+    const limitMinutes = todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0;
+    const limitSeconds = limitMinutes * 60;
     const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
+    const remainingMinutes = Math.round(remainingSeconds / 60);
+
+    console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, limitMinutes=${limitMinutes}, remainingMinutes=${remainingMinutes}`);
 
     return sendSuccess(res, {
       profileId: device.profile.id,
