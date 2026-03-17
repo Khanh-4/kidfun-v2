@@ -536,8 +536,8 @@ const getTodayLimit = async (req, res) => {
       return total + (end - s.startTime) / 1000;
     }, 0);
 
-    // fallback to dailyLimitMinutes if limitMinutes is null
-    const limitMinutes = todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0;
+    // fallback to limitMinutes if dailyLimitMinutes is null
+    const limitMinutes = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
     const limitSeconds = limitMinutes * 60;
     const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
     const remainingMinutes = Math.round(remainingSeconds / 60);
@@ -548,7 +548,7 @@ const getTodayLimit = async (req, res) => {
       profileId: device.profile.id,
       profileName: device.profile.profileName,
       dayOfWeek: today,
-      limitMinutes: todayLimit?.limitMinutes ?? todayLimit?.dailyLimitMinutes ?? 0,
+      limitMinutes: todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0,
       usedMinutes: Math.round(usedSeconds / 60),
       remainingMinutes: Math.round(remainingSeconds / 60),
       remainingSeconds,
