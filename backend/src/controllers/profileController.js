@@ -175,11 +175,28 @@ const updateTimeLimits = async (req, res) => {
       orderBy: { dayOfWeek: 'asc' }
     });
 
-    // Notify child devices in real-time via Socket.IO
+    // Tìm tất cả devices thuộc profile này
+    const devices = await prisma.device.findMany({
+      where: { profileId }
+    });
+
+    if (socketService.io) {
+      // Emit cho từng device room
+      devices.forEach(device => {
+        socketService.io.to(`device_${device.deviceCode}`).emit('timeLimitUpdated', {
+          profileId,
+          timeLimits: updated
+        });
+      });
+    }
+
+    // Cũng emit cho Parent room
     socketService.notifyFamily(req.user.userId, 'timeLimitUpdated', {
       profileId,
       timeLimits: updated
     });
+
+    console.log(`⏰ Time limits updated for profile ${profileId} → notified devices`);
 
     sendSuccess(res, { timeLimits: updated });
   } catch (error) {
