@@ -138,7 +138,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
         if (_sessionId != null) {
           try {
-            final result = await _childRepo.heartbeat(_sessionId!);
+            final result = await _childRepo.heartbeat(
+              sessionId: _sessionId!,
+            );
             if (mounted) {
               setState(() => _remainingSeconds = result.remainingMinutes * 60);
             }
@@ -191,7 +193,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   void _showWarningDialog(String type, String title, String message) {
     // Ghi log warning lên server
     if (_deviceCode != null) {
-      _childRepo.logWarning(deviceCode: _deviceCode!, type: type);
+      _childRepo.logWarning(
+        deviceCode: _deviceCode!, 
+        type: type, 
+        remainingMinutes: _remainingSeconds ~/ 60,
+      );
     }
 
     // Hiển thị dialog
@@ -227,7 +233,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Log warning
     if (_deviceCode != null) {
-      _childRepo.logWarning(deviceCode: _deviceCode!, type: 'TIME_UP');
+      _childRepo.logWarning(deviceCode: _deviceCode!, type: 'TIME_UP', remainingMinutes: 0);
     }
 
     // Hiện màn hình khóa (fullscreen, không thoát được)

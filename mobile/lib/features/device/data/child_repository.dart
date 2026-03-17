@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 
 class ChildRepository {
@@ -11,42 +12,54 @@ class ChildRepository {
   }
 
   Future<int> startSession(String deviceCode) async {
-    final response = await _dio.post('/api/child/session/start', data: {
-      'deviceCode': deviceCode,
-    });
+    final response = await _dio.post('/api/child/session/start', 
+      data: { 'deviceCode': deviceCode }
+    );
+    // Backend returns { success: true, data: { sessionId: ... } }
     return response.data['data']['sessionId'] as int;
   }
 
-  Future<HeartbeatResult> heartbeat(int sessionId) async {
-    final response = await _dio.post('/api/child/session/heartbeat', data: {
-      'sessionId': sessionId,
-    });
+  Future<HeartbeatResult> heartbeat({
+    required int sessionId,
+  }) async {
+    final response = await _dio.post('/api/child/session/heartbeat', 
+      data: { 'sessionId': sessionId },
+    );
     return HeartbeatResult.fromJson(response.data['data']);
   }
 
   Future<void> endSession(int sessionId) async {
-    await _dio.post('/api/child/session/end', data: {
-      'sessionId': sessionId,
-    });
+    await _dio.post('/api/child/session/end', 
+      data: { 'sessionId': sessionId },
+    );
   }
 
-  Future<void> logWarning({required String deviceCode, required String type}) async {
-    await _dio.post('/api/child/warning', data: {
-      'deviceCode': deviceCode,
-      'type': type,
-    });
+  Future<void> logWarning({
+    required String deviceCode, 
+    required String type, 
+    int remainingMinutes = 0,
+  }) async {
+    // ChildController uses header X-Device-Code and body warningType, message, remainingMinutes
+    await _dio.post('/api/child/warnings', 
+      data: {
+        'warningType': type,
+        'remainingMinutes': remainingMinutes,
+        'message': 'Cảnh báo: $type - Còn $remainingMinutes phút'
+      },
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
   }
 }
 
 class TodayLimitModel {
-  final int totalMinutes;
+  final int limitMinutes;
   final int remainingMinutes;
 
-  TodayLimitModel({required this.totalMinutes, required this.remainingMinutes});
+  TodayLimitModel({required this.limitMinutes, required this.remainingMinutes});
 
   factory TodayLimitModel.fromJson(Map<String, dynamic> json) {
     return TodayLimitModel(
-      totalMinutes: json['totalMinutes'] as int? ?? 0,
+      limitMinutes: json['limitMinutes'] as int? ?? 0,
       remainingMinutes: json['remainingMinutes'] as int? ?? 0,
     );
   }
