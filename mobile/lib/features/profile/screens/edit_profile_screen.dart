@@ -155,6 +155,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                OutlinedButton.icon(
+                  onPressed: () => context.push(
+                    '/profiles/${widget.profile.id}/time-limit?name=${Uri.encodeComponent(widget.profile.profileName)}',
+                  ),
+                  icon: const Icon(Icons.timer_outlined),
+                  label: const Text('Thiết lập giới hạn thời gian'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _isLoading || _isDeleting ? null : _saveChanges,
                   style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),

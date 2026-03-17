@@ -14,6 +14,7 @@ import 'features/device/screens/device_list_screen.dart';
 import 'features/device/screens/add_device_screen.dart';
 import 'features/device/screens/scan_qr_screen.dart';
 import 'features/device/screens/child_dashboard_screen.dart';
+import 'features/time_limit/screens/time_limit_screen.dart';
 import 'shared/models/profile_model.dart';
 import 'core/theme/app_theme.dart';
 
@@ -108,6 +109,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final profile = state.extra as ProfileModel;
               return EditProfileScreen(profile: profile);
+            },
+          ),
+          GoRoute(
+            path: ':id/time-limit',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return TimeLimitScreen(profileId: id, profileName: name);
             },
           ),
         ],
