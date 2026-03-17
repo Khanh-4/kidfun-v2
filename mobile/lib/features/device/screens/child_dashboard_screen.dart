@@ -122,7 +122,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
       if (mounted) {
         setState(() {
-          _remainingSeconds = todayLimit.remainingMinutes * 60;
+          _remainingSeconds = todayLimit.remainingSeconds;
         });
       }
 
@@ -142,7 +142,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               sessionId: _sessionId!,
             );
             if (mounted) {
-              setState(() => _remainingSeconds = result.remainingMinutes * 60);
+              setState(() => _remainingSeconds = result.remainingSeconds);
             }
           } catch (e) {
             print('❌ Heartbeat error: $e');

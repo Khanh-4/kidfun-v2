@@ -19,6 +19,8 @@ import 'shared/models/profile_model.dart';
 import 'shared/widgets/time_extension_listener.dart';
 import 'core/theme/app_theme.dart';
 import 'core/network/socket_service.dart';
+import 'features/profile/providers/profile_provider.dart';
+import 'features/device/providers/device_provider.dart';
 
 class SplashLoader extends ConsumerWidget {
   const SplashLoader({super.key});
@@ -44,6 +46,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     // Register listener xin thêm giờ
     SocketService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequest);
+
+    // Preload data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  Future<void> _loadData() async {
+    try {
+      await ref.read(profileProvider.notifier).fetchProfiles();
+      await ref.read(deviceProvider.notifier).fetchDevices();
+    } catch (e) {
+      // Nếu 401, đợi 1 giây rồi thử lại (token có thể chưa lưu xong)
+      if (e.toString().contains('401')) {
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          await ref.read(profileProvider.notifier).fetchProfiles();
+          await ref.read(deviceProvider.notifier).fetchDevices();
+        }
+      }
+    }
   }
 
   void _onTimeExtensionRequest(Map<String, dynamic> data) {
