@@ -24,4 +24,8 @@ router.delete('/:id', profileController.deleteProfile);
 // PUT /api/profiles/:id/time-limits - Cập nhật giới hạn thời gian
 router.put('/:id/time-limits', profileController.updateTimeLimits);
 
+const warningController = require('../controllers/warningController');
+// GET /api/profiles/:id/warnings - Xem lịch sử cảnh báo
+router.get('/:id/warnings', warningController.getWarnings);
+
 module.exports = router;

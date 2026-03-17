@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import '../data/child_repository.dart';
 
 class ChildDashboardScreen extends ConsumerStatefulWidget {
   const ChildDashboardScreen({super.key});
@@ -23,6 +24,16 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
+  // Task 2: Countdown & Session
+  final _childRepo = ChildRepository();
+  int _remainingSeconds = 0;
+  int? _sessionId;
+  Timer? _countdownTimer;
+  Timer? _heartbeatTimer;
+  final Set<int> _triggeredWarnings = {};
+  late final AppLifecycleListener _lifecycleListener;
+  bool _waitingForResponse = false;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +47,26 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
+    _lifecycleListener = AppLifecycleListener(
+      onPause: _onAppPaused,
+      onResume: _onAppResumed,
+    );
+
+    _initializeDashboard();
+  }
+
+  void _onAppPaused() {
+    print('📦 App paused: ending session');
+    if (_sessionId != null) {
+      _childRepo.endSession(_sessionId!);
+      _sessionId = null;
+    }
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+  }
+
+  void _onAppResumed() {
+    print('📦 App resumed: re-initializing session');
     _initializeDashboard();
   }
 
@@ -77,12 +108,296 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Initial check
     setState(() => _isSocketConnected = SocketService.instance.isConnected);
+
+    // Sprint 4: Task 2 - Session & Countdown
+    _initSession();
+    _setupSocketListeners();
+  }
+
+  Future<void> _initSession() async {
+    if (_deviceCode == null) return;
+
+    try {
+      // 1. Get remaining time
+      final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      if (mounted) {
+        setState(() {
+          _remainingSeconds = todayLimit.remainingMinutes * 60;
+        });
+      }
+
+      // 2. Start session
+      final sid = await _childRepo.startSession(_deviceCode!);
+      _sessionId = sid;
+
+      // 3. Start countdown
+      _startCountdown();
+
+      // 4. Heartbeat every 60s
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+        if (_sessionId != null) {
+          try {
+            final result = await _childRepo.heartbeat(_sessionId!);
+            if (mounted) {
+              setState(() => _remainingSeconds = result.remainingMinutes * 60);
+            }
+          } catch (e) {
+            print('❌ Heartbeat error: $e');
+          }
+        }
+      });
+    } catch (e) {
+      print('❌ Init session error: $e');
+    }
+  }
+
+  void _startCountdown() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_remainingSeconds > 0) {
+        if (mounted) {
+          setState(() => _remainingSeconds--);
+        }
+        _checkSoftWarning();
+      } else {
+        _onTimeUp();
+      }
+    });
+  }
+
+  void _checkSoftWarning() {
+    final remainingMinutes = _remainingSeconds ~/ 60;
+
+    // Mốc 30 phút
+    if (remainingMinutes == 30 && !_triggeredWarnings.contains(30)) {
+      _triggeredWarnings.add(30);
+      _showWarningDialog('SOFT_30', 'Còn 30 phút', 'Con còn 30 phút sử dụng thiết bị hôm nay.');
+    }
+
+    // Mốc 15 phút
+    if (remainingMinutes == 15 && !_triggeredWarnings.contains(15)) {
+      _triggeredWarnings.add(15);
+      _showWarningDialog('SOFT_15', 'Còn 15 phút', 'Con còn 15 phút. Hãy hoàn thành việc đang làm nhé!');
+    }
+
+    // Mốc 5 phút
+    if (remainingMinutes == 5 && !_triggeredWarnings.contains(5)) {
+      _triggeredWarnings.add(5);
+      _showWarningDialog('SOFT_5', 'Còn 5 phút!', 'Con còn 5 phút. Sắp hết giờ rồi!');
+    }
+  }
+
+  void _showWarningDialog(String type, String title, String message) {
+    // Ghi log warning lên server
+    if (_deviceCode != null) {
+      _childRepo.logWarning(deviceCode: _deviceCode!, type: type);
+    }
+
+    // Hiển thị dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber, color: Colors.orange, size: 32),
+            const SizedBox(width: 8),
+            Text(title, style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, style: GoogleFonts.nunito(fontSize: 16)),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Đã hiểu', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onTimeUp() {
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    if (_sessionId != null) {
+      _childRepo.endSession(_sessionId!);
+      _sessionId = null;
+    }
+
+    // Log warning
+    if (_deviceCode != null) {
+      _childRepo.logWarning(deviceCode: _deviceCode!, type: 'TIME_UP');
+    }
+
+    // Hiện màn hình khóa (fullscreen, không thoát được)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false, // Chặn nút back
+        child: AlertDialog(
+          title: Text('⏰ Hết giờ!', 
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: Text(
+            'Thời gian sử dụng thiết bị hôm nay đã hết.\nHãy nghỉ ngơi nhé!',
+            style: GoogleFonts.nunito(fontSize: 16),
+          ),
+          actions: const [], // Không có nút dismiss
+        ),
+      ),
+    );
+  }
+
+  void _setupSocketListeners() {
+    SocketService.instance.socket.on('timeLimitUpdated', (data) {
+      print('🔔 [SOCKET] timeLimitUpdated received. Re-syncing time.');
+      _initSession(); // Re-fetch limit and restart session
+    });
+
+    SocketService.instance.socket.on('timeExtensionResponse', (data) {
+      print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
+      final approved = data['approved'] as bool;
+      final responseMinutes = data['responseMinutes'] as int? ?? 0;
+
+      if (mounted) {
+        setState(() => _waitingForResponse = false);
+        _showResultDialog(approved, responseMinutes);
+        if (approved) {
+          setState(() {
+            _remainingSeconds += responseMinutes * 60;
+          });
+        }
+      }
+    });
+  }
+
+  void _showResultDialog(bool approved, int minutes) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(approved ? '✅ Được duyệt!' : '❌ Bị từ chối', 
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+        content: Text(
+          approved
+              ? 'Phụ huynh đã cho thêm $minutes phút!'
+              : 'Phụ huynh đã từ chối yêu cầu.',
+          style: GoogleFonts.nunito(fontSize: 16),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('OK', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRequestDialog() {
+    int requestMinutes = 15;
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Xin thêm giờ', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Con muốn xin thêm bao nhiêu phút?', style: GoogleFonts.nunito()),
+              const SizedBox(height: 16),
+              // Chọn số phút
+              Wrap(
+                spacing: 8,
+                children: [15, 30, 45, 60].map((min) {
+                  return ChoiceChip(
+                    label: Text('$min phút', style: GoogleFonts.nunito()),
+                    selected: requestMinutes == min,
+                    onSelected: (selected) {
+                      if (selected) setDialogState(() => requestMinutes = min);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              // Lý do
+              TextField(
+                controller: reasonController,
+                decoration: InputDecoration(
+                  labelText: 'Lý do (không bắt buộc)',
+                  hintText: 'VD: Con đang làm bài tập...',
+                  hintStyle: GoogleFonts.nunito(color: Colors.grey),
+                  labelStyle: GoogleFonts.nunito(),
+                  border: const OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Hủy', style: GoogleFonts.nunito(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _sendTimeExtensionRequest(requestMinutes, reasonController.text);
+              },
+              child: Text('Gửi yêu cầu', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sendTimeExtensionRequest(int minutes, String reason) {
+    if (_deviceCode == null) return;
+
+    SocketService.instance.socket.emit('requestTimeExtension', {
+      'deviceCode': _deviceCode,
+      'requestMinutes': minutes,
+      'reason': reason,
+    });
+
+    setState(() => _waitingForResponse = true);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã gửi yêu cầu cho phụ huynh. Đang chờ phản hồi...', 
+          style: GoogleFonts.nunito()),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  String get _formattedTime {
+    if (_remainingSeconds <= 0) return "00:00:00";
+    final h = _remainingSeconds ~/ 3600;
+    final m = (_remainingSeconds % 3600) ~/ 60;
+    final s = _remainingSeconds % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _connectionCheckTimer?.cancel();
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    _lifecycleListener.dispose();
+    
+    if (_sessionId != null) {
+      _childRepo.endSession(_sessionId!);
+    }
+    
+    // Remove socket listeners
+    SocketService.instance.socket.off('timeLimitUpdated');
+    SocketService.instance.socket.off('timeExtensionResponse');
+    
     super.dispose();
   }
 
@@ -311,7 +626,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            '2:30:00',
+            _formattedTime,
             style: GoogleFonts.nunito(
               fontSize: 72,
               fontWeight: FontWeight.w900,
@@ -321,7 +636,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            '(Cập nhật ở Sprint 4)',
+            'Thời gian hôm nay có hạn. Hãy sử dụng thông minh!',
             style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey.shade400),
           ),
         ],
@@ -394,41 +709,36 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   Widget _buildRequestMoreTimeButton() {
     return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '⏳ Tính năng xin thêm giờ sẽ có ở Sprint 4!',
-              style: GoogleFonts.nunito(fontSize: 15),
-            ),
-            backgroundColor: const Color(0xFF667EEA),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      },
+      onTap: _waitingForResponse ? null : _showRequestDialog,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF9966), Color(0xFFFF5E62)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
+          gradient: _waitingForResponse
+              ? const LinearGradient(colors: [Colors.grey, Colors.blueGrey])
+              : const LinearGradient(
+                  colors: [Color(0xFFFF9966), Color(0xFFFF5E62)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: const Color(0xFFFF5E62).withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 8)),
+            BoxShadow(
+              color: (_waitingForResponse ? Colors.grey : const Color(0xFFFF5E62))
+                  .withValues(alpha: 0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
           ],
         ),
         child: Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🙋', style: TextStyle(fontSize: 28)),
+              Text(_waitingForResponse ? '⏳' : '🙋', style: const TextStyle(fontSize: 28)),
               const SizedBox(width: 12),
               Text(
-                'Xin thêm giờ',
+                _waitingForResponse ? 'Đang chờ duyệt...' : 'Xin thêm giờ',
                 style: GoogleFonts.nunito(
                   color: Colors.white,
                   fontSize: 22,
