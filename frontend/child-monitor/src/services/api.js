@@ -20,4 +20,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Interceptor để unwrap response format { success, data } từ backend
+api.interceptors.response.use(
+  (response) => {
+    if (response.data && response.data.success !== undefined && response.data.data !== undefined) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
+  (error) => Promise.reject(error)
+);
+
 export default api;

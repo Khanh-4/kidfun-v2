@@ -43,10 +43,11 @@ function Devices() {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openProfileDialog, setOpenProfileDialog] = useState(false);
-  const [formData, setFormData] = useState({ deviceName: '', osVersion: '' });
   const [selectedProfileId, setSelectedProfileId] = useState('');
+  const [pairingProfileId, setPairingProfileId] = useState('');
   const [error, setError] = useState('');
-  const [newDevice, setNewDevice] = useState(null);
+  const [pairingCode, setPairingCode] = useState(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [deviceForProfile, setDeviceForProfile] = useState(null);
@@ -66,7 +67,11 @@ function Devices() {
   const loadDevices = async () => {
     try {
       const response = await api.get('/devices');
-      setDevices(response.data);
+      // Lọc bỏ device đang chờ ghép nối (pending)
+      const linkedDevices = (response.data || []).filter(
+        (d) => d.deviceName !== 'Pending Device'
+      );
+      setDevices(linkedDevices);
     } catch (error) {
       console.error('Error loading devices:', error);
     } finally {
@@ -84,29 +89,35 @@ function Devices() {
   };
 
   const handleOpenDialog = () => {
-    setFormData({ deviceName: '', osVersion: '' });
+    setPairingProfileId('');
     setError('');
-    setNewDevice(null);
+    setPairingCode(null);
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setNewDevice(null);
+    setPairingCode(null);
+    if (pairingCode) loadDevices();
   };
 
-  const handleSubmit = async () => {
-    if (!formData.deviceName.trim()) {
-      setError(t('devices.nameRequired'));
+  const handleGeneratePairingCode = async () => {
+    if (!pairingProfileId) {
+      setError(t('devices.selectProfileFirst') || 'Vui lòng chọn hồ sơ con');
       return;
     }
 
+    setGeneratingCode(true);
+    setError('');
     try {
-      const response = await api.post('/devices', formData);
-      setNewDevice(response.data.device);
-      loadDevices();
+      const response = await api.post('/devices/generate-pairing-code', {
+        profileId: parseInt(pairingProfileId),
+      });
+      setPairingCode(response.data.pairingCode);
     } catch (error) {
       setError(error.response?.data?.message || t('common.error'));
+    } finally {
+      setGeneratingCode(false);
     }
   };
 
@@ -324,9 +335,9 @@ function Devices() {
         </DialogActions>
       </Dialog>
 
-      {/* Add Device Dialog */}
+      {/* Generate Pairing Code Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('devices.addNew')}</DialogTitle>
+        <DialogTitle>{t('devices.addNew') || 'Thêm thiết bị mới'}</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
@@ -334,54 +345,58 @@ function Devices() {
             </Alert>
           )}
 
-          {newDevice ? (
+          {pairingCode ? (
             <Box sx={{ textAlign: 'center', py: 2 }}>
               <Alert severity="success" sx={{ mb: 3 }}>
-                {t('devices.deviceCreated')}
+                Mã ghép nối đã được tạo!
               </Alert>
               <Typography variant="body1" gutterBottom>
-                {t('devices.useCode')}
+                Nhập mã này trên thiết bị của bé để kết nối:
               </Typography>
               <Box sx={{ bgcolor: 'primary.light', p: 3, borderRadius: 2, my: 2 }}>
-                <Typography variant="h3" fontFamily="monospace" color="white">
-                  {newDevice.deviceCode}
+                <Typography variant="h3" fontFamily="monospace" color="white" letterSpacing="0.3em">
+                  {pairingCode}
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary">
-                {t('devices.enterCode')}
+                Mã có hiệu lực trong 10 phút
               </Typography>
             </Box>
           ) : (
             <>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                Chọn hồ sơ con để tạo mã ghép nối cho thiết bị mới
+              </Typography>
               <TextField
+                select
                 fullWidth
-                label={t('devices.deviceName')}
-                placeholder={t('devices.deviceNamePlaceholder')}
-                value={formData.deviceName}
-                onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
-                sx={{ mt: 2, mb: 2 }}
-                autoFocus
-              />
-              <TextField
-                fullWidth
-                label={t('devices.osVersion')}
-                placeholder={t('devices.osPlaceholder')}
-                value={formData.osVersion}
-                onChange={(e) => setFormData({ ...formData, osVersion: e.target.value })}
-              />
+                label={t('devices.selectProfile') || 'Chọn hồ sơ'}
+                value={pairingProfileId}
+                onChange={(e) => setPairingProfileId(e.target.value)}
+              >
+                {profiles.map((profile) => (
+                  <MenuItem key={profile.id} value={profile.id.toString()}>
+                    {profile.profileName}
+                  </MenuItem>
+                ))}
+              </TextField>
             </>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          {newDevice ? (
+          {pairingCode ? (
             <Button variant="contained" onClick={handleCloseDialog}>
-              {t('devices.done')}
+              {t('devices.done') || 'Xong'}
             </Button>
           ) : (
             <>
               <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
-              <Button variant="contained" onClick={handleSubmit}>
-                {t('devices.addDevice')}
+              <Button
+                variant="contained"
+                onClick={handleGeneratePairingCode}
+                disabled={generatingCode || !pairingProfileId}
+              >
+                {generatingCode ? 'Đang tạo...' : 'Tạo mã ghép nối'}
               </Button>
             </>
           )}
