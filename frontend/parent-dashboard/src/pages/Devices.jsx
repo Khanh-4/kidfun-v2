@@ -106,7 +106,7 @@ function Devices() {
       setNewDevice(response.data.device);
       loadDevices();
     } catch (error) {
-      setError(error.response?.data?.error || t('common.error'));
+      setError(error.response?.data?.message || t('common.error'));
     }
   };
 
@@ -170,7 +170,7 @@ function Devices() {
       setSnackbar({ open: true, message: t('devices.assignSuccess'), severity: 'success' });
       loadDevices();
     } catch (error) {
-      const errorMsg = error.response?.data?.error || t('devices.assignFailed');
+      const errorMsg = error.response?.data?.message || t('devices.assignFailed');
       setError(errorMsg);
       setSnackbar({ open: true, message: errorMsg, severity: 'error' });
     }

@@ -71,7 +71,7 @@ function Account() {
     } catch (err) {
       setError({
         ...error,
-        profile: err.response?.data?.error || t('account.profileUpdateFailed'),
+        profile: err.response?.data?.message || t('account.profileUpdateFailed'),
       });
     } finally {
       setLoading({ ...loading, profile: false });
@@ -105,7 +105,7 @@ function Account() {
     } catch (err) {
       setError({
         ...error,
-        password: err.response?.data?.error || t('account.passwordChangeFailed'),
+        password: err.response?.data?.message || t('account.passwordChangeFailed'),
       });
     } finally {
       setLoading({ ...loading, password: false });
