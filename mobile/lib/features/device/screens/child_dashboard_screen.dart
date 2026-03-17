@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import '../data/child_repository.dart';
 
 class ChildDashboardScreen extends ConsumerStatefulWidget {
   const ChildDashboardScreen({super.key});
@@ -23,6 +24,15 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
+  // Task 2: Countdown & Session
+  final _childRepo = ChildRepository();
+  int _remainingSeconds = 0;
+  int? _sessionId;
+  Timer? _countdownTimer;
+  Timer? _heartbeatTimer;
+  final Set<int> _triggeredWarnings = {};
+  late final AppLifecycleListener _lifecycleListener;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +46,26 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
+    _lifecycleListener = AppLifecycleListener(
+      onPause: _onAppPaused,
+      onResume: _onAppResumed,
+    );
+
+    _initializeDashboard();
+  }
+
+  void _onAppPaused() {
+    print('📦 App paused: ending session');
+    if (_sessionId != null) {
+      _childRepo.endSession(_sessionId!);
+      _sessionId = null;
+    }
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+  }
+
+  void _onAppResumed() {
+    print('📦 App resumed: re-initializing session');
     _initializeDashboard();
   }
 
@@ -77,12 +107,102 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Initial check
     setState(() => _isSocketConnected = SocketService.instance.isConnected);
+
+    // Sprint 4: Task 2 - Session & Countdown
+    _initSession();
+    _setupSocketListeners();
+  }
+
+  Future<void> _initSession() async {
+    if (_deviceCode == null) return;
+
+    try {
+      // 1. Get remaining time
+      final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      if (mounted) {
+        setState(() {
+          _remainingSeconds = todayLimit.remainingMinutes * 60;
+        });
+      }
+
+      // 2. Start session
+      final sid = await _childRepo.startSession(_deviceCode!);
+      _sessionId = sid;
+
+      // 3. Start countdown
+      _startCountdown();
+
+      // 4. Heartbeat every 60s
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+        if (_sessionId != null) {
+          try {
+            final result = await _childRepo.heartbeat(_sessionId!);
+            if (mounted) {
+              setState(() => _remainingSeconds = result.remainingMinutes * 60);
+            }
+          } catch (e) {
+            print('❌ Heartbeat error: $e');
+          }
+        }
+      });
+    } catch (e) {
+      print('❌ Init session error: $e');
+    }
+  }
+
+  void _startCountdown() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_remainingSeconds > 0) {
+        if (mounted) {
+          setState(() => _remainingSeconds--);
+        }
+        _checkSoftWarning();
+      } else {
+        _onTimeUp();
+      }
+    });
+  }
+
+  void _checkSoftWarning() {
+    // Task 3 will implement this
+  }
+
+  void _onTimeUp() {
+    // Task 3 will implement this
+  }
+
+  void _setupSocketListeners() {
+    SocketService.instance.socket.on('timeLimitUpdated', (data) {
+      print('🔔 [SOCKET] timeLimitUpdated received. Re-syncing time.');
+      _initSession(); // Re-fetch limit and restart session
+    });
+  }
+
+  String get _formattedTime {
+    if (_remainingSeconds <= 0) return "00:00:00";
+    final h = _remainingSeconds ~/ 3600;
+    final m = (_remainingSeconds % 3600) ~/ 60;
+    final s = _remainingSeconds % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _connectionCheckTimer?.cancel();
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    _lifecycleListener.dispose();
+    
+    if (_sessionId != null) {
+      _childRepo.endSession(_sessionId!);
+    }
+    
+    // Remove socket listeners
+    SocketService.instance.socket.off('timeLimitUpdated');
+    
     super.dispose();
   }
 
@@ -311,7 +431,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            '2:30:00',
+            _formattedTime,
             style: GoogleFonts.nunito(
               fontSize: 72,
               fontWeight: FontWeight.w900,
@@ -321,7 +441,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            '(Cập nhật ở Sprint 4)',
+            'Thời gian hôm nay có hạn. Hãy sử dụng thông minh!',
             style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey.shade400),
           ),
         ],
