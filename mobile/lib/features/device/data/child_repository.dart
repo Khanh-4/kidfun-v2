@@ -54,26 +54,30 @@ class ChildRepository {
 class TodayLimitModel {
   final int limitMinutes;
   final int remainingMinutes;
+  final int remainingSeconds;
 
-  TodayLimitModel({required this.limitMinutes, required this.remainingMinutes});
+  TodayLimitModel({required this.limitMinutes, required this.remainingMinutes, required this.remainingSeconds});
 
   factory TodayLimitModel.fromJson(Map<String, dynamic> json) {
     return TodayLimitModel(
       limitMinutes: json['limitMinutes'] as int? ?? 0,
       remainingMinutes: json['remainingMinutes'] as int? ?? 0,
+      remainingSeconds: json['remainingSeconds'] as int? ?? (json['remainingMinutes'] as int? ?? 0) * 60,
     );
   }
 }
 
 class HeartbeatResult {
   final int remainingMinutes;
+  final int remainingSeconds;
   final bool isBlocked;
 
-  HeartbeatResult({required this.remainingMinutes, required this.isBlocked});
+  HeartbeatResult({required this.remainingMinutes, required this.remainingSeconds, required this.isBlocked});
 
   factory HeartbeatResult.fromJson(Map<String, dynamic> json) {
     return HeartbeatResult(
       remainingMinutes: json['remainingMinutes'] as int? ?? 0,
+      remainingSeconds: json['remainingSeconds'] as int? ?? (json['remainingMinutes'] as int? ?? 0) * 60,
       isBlocked: json['isBlocked'] as bool? ?? false,
     );
   }

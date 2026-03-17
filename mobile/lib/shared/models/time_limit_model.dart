@@ -11,9 +11,9 @@ class TimeLimitModel {
 
   factory TimeLimitModel.fromJson(Map<String, dynamic> json) {
     return TimeLimitModel(
-      dayOfWeek: json['dayOfWeek'] as int,
-      limitMinutes: json['limitMinutes'] as int,
-      isActive: json['isActive'] as bool? ?? true,
+      dayOfWeek: (json['dayOfWeek'] as int?) ?? 0,
+      limitMinutes: (json['limitMinutes'] as int?) ?? 0,
+      isActive: (json['isActive'] as bool?) ?? true,
     );
   }
 

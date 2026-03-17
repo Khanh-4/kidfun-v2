@@ -69,7 +69,7 @@ class SocketService {
       print('🚀 [SOCKET] Creating new IO.socket instance for ${ApiConstants.baseUrl}');
       _socket = IO.io(ApiConstants.baseUrl, IO.OptionBuilder()
         .setTransports(['websocket'])
-        .enableAutoConnect()
+        .disableAutoConnect()
         .enableReconnection()
         .setReconnectionAttempts(99999)
         .setReconnectionDelay(2000)

@@ -13,6 +13,15 @@ class TimeLimitRepository {
     // data = { id, profileName, timeLimits: [...] }
     final timeLimitsRaw = data['timeLimits'] as List? ?? [];
     
+    if (timeLimitsRaw.isEmpty) {
+      // Tạo default 7 ngày, mỗi ngày 120 phút (2 tiếng)
+      return List.generate(7, (i) => TimeLimitModel(
+        dayOfWeek: i,
+        limitMinutes: 120,
+        isActive: true,
+      ));
+    }
+
     return timeLimitsRaw.map((tl) => TimeLimitModel.fromJson(tl)).toList();
   }
 
