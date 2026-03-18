@@ -207,15 +207,33 @@ const socketService = {
             },
           });
 
+          const actualMinutes = responseMinutes || request.requestMinutes;
+
+          // BUG 1 FIX: Write bonus minutes to active Session BEFORE emitting socket event
+          // so next heartbeat → calcRemaining() sees updated bonusMinutes immediately
+          if (approved && actualMinutes > 0) {
+            const activeSession = await prisma.session.findFirst({
+              where: { deviceId: request.deviceId, status: 'ACTIVE' },
+              orderBy: { startTime: 'desc' },
+            });
+            if (activeSession) {
+              await prisma.session.update({
+                where: { id: activeSession.id },
+                data: { bonusMinutes: activeSession.bonusMinutes + actualMinutes },
+              });
+              console.log(`✅ [SESSION] Bonus +${actualMinutes}min written to session ${activeSession.id} for device ${request.deviceId}`);
+            }
+          }
+
           // Notify Child qua Socket.IO
           io.to(`device_${request.device.deviceCode}`).emit('timeExtensionResponse', {
             requestId: request.id,
             approved,
-            responseMinutes: approved ? (responseMinutes || request.requestMinutes) : 0,
+            responseMinutes: approved ? actualMinutes : 0,
             status: request.status,
           });
 
-          console.log(`⏳ Time extension ${approved ? 'APPROVED' : 'REJECTED'}: ${request.profile.profileName} → ${responseMinutes || request.requestMinutes} phút`);
+          console.log(`⏳ Time extension ${approved ? 'APPROVED' : 'REJECTED'}: ${request.profile.profileName} → ${actualMinutes} phút`);
 
         } catch (err) {
           console.error('respondTimeExtension error:', err.message);

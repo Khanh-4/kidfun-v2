@@ -276,7 +276,14 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   }
 
   void _setupSocketListeners() {
-    SocketService.instance.socket.on('timeLimitUpdated', (data) async {
+    final socket = SocketService.instance.socket;
+
+    // Always call off() before on() to ensure idempotent listener registration.
+    // Without this, every _onAppResumed → _initializeDashboard → _setupSocketListeners cycle
+    // stacks an additional listener, causing N dialogs per event after N resume cycles.
+
+    socket.off('timeLimitUpdated');
+    socket.on('timeLimitUpdated', (data) async {
       // Bug B fix: don't restart session (would reset usedMinutes accumulation).
       // Instead, fetch new limit and compute delta to adjust running countdown.
       print('🔔 [SOCKET] timeLimitUpdated received. Applying delta to countdown.');
@@ -300,7 +307,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
     });
 
-    SocketService.instance.socket.on('timeExtensionResponse', (data) {
+    socket.off('timeExtensionResponse');
+    socket.on('timeExtensionResponse', (data) {
       print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
       final approved = data['approved'] as bool;
       final responseMinutes = data['responseMinutes'] as int? ?? 0;
