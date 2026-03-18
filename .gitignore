@@ -168,3 +168,4 @@ Thumbs.db
 .metadata
 pubspec.lock
 **/android/app/google-services.json
+.gitnexus
