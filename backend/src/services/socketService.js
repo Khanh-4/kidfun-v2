@@ -16,7 +16,7 @@ const socketService = {
       });
 
       // ── joinFamily: Parent hoặc Child tham gia phòng gia đình ──────────────
-      socket.on('joinFamily', ({ userId, role }) => {
+      socket.on('joinFamily', async ({ userId, role }) => {
         if (userId === undefined || userId === null || userId === 0) {
           console.warn(`⚠️ [SOCKET] joinFamily: Invalid userId received: ${userId}`);
           return;
@@ -31,6 +31,43 @@ const socketService = {
         console.log(`👨‍👩‍👧 [SOCKET] ${socket.role} (${socket.id}) JOINED ${room}. Total in room: ${clients ? clients.size : 0}`);
 
         socket.emit('roomJoined', { room, size: clients ? clients.size : 0 });
+
+        if (socket.role === 'parent') {
+          try {
+            const profiles = await prisma.profile.findMany({
+              where: { userId },
+              select: { id: true }
+            });
+            const profileIds = profiles.map(p => p.id);
+
+            if (profileIds.length > 0) {
+              const pendingRequests = await prisma.timeExtensionRequest.findMany({
+                where: {
+                  profileId: { in: profileIds },
+                  status: 'PENDING'
+                },
+                include: {
+                  profile: true,
+                  device: true
+                }
+              });
+
+              pendingRequests.forEach(request => {
+                socket.emit('timeExtensionRequest', {
+                  requestId: request.id,
+                  profileId: request.profile.id,
+                  profileName: request.profile.profileName,
+                  deviceName: request.device.deviceName,
+                  requestMinutes: request.requestMinutes,
+                  reason: request.reason || '',
+                  createdAt: request.createdAt,
+                });
+              });
+            }
+          } catch (err) {
+            console.error('❌ [SOCKET] joinFamily pending requests fetch error:', err.message);
+          }
+        }
       });
 
       // ── joinDevice: Child tham gia phòng thiết bị ─────────────────────────
