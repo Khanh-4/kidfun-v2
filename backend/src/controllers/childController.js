@@ -547,31 +547,35 @@ const getTodayLimit = async (req, res) => {
     });
     const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
 
-    const usageLogs = await prisma.usageLog.findMany({
+    const sessions = await prisma.usageSession.findMany({
       where: {
         profileId: device.profile.id,
         startTime: { gte: startOfDay },
       },
     });
 
-    const usedSeconds = usageLogs.reduce((total, log) => total + (log.durationSeconds || 0), 0);
+    const usedSeconds = sessions.reduce((total, s) => {
+      const end = s.endTime || new Date();
+      return total + (end.getTime() - new Date(s.startTime).getTime()) / 1000;
+    }, 0);
 
     // fallback to limitMinutes if dailyLimitMinutes is null
     const baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
     const limitMinutes = baseLimit + extensionBonus;
     const limitSeconds = limitMinutes * 60;
     const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
-    const remainingMinutes = Math.round(remainingSeconds / 60);
+    const remainingMinutes = Math.ceil(remainingSeconds / 60);
+    const usedMinutes = Math.floor(usedSeconds / 60);
 
-    console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, extensionBonus=${extensionBonus}, limitMinutes=${limitMinutes}, remainingMinutes=${remainingMinutes}`);
+    console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, extensionBonus=${extensionBonus}, limitMinutes=${limitMinutes}, usedMinutes=${usedMinutes}, remainingMinutes=${remainingMinutes}, remainingSeconds=${remainingSeconds}`);
 
     return sendSuccess(res, {
       profileId: device.profile.id,
       profileName: device.profile.profileName,
       dayOfWeek: today,
       limitMinutes,
-      usedMinutes: Math.round(usedSeconds / 60),
-      remainingMinutes: Math.round(remainingSeconds / 60),
+      usedMinutes,
+      remainingMinutes,
       remainingSeconds,
       isActive: todayLimit?.isActive ?? false,
     });
