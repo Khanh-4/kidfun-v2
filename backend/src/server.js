@@ -24,8 +24,9 @@ const io = new Server(httpServer, {
     credentials: true
   },
   allowEIO3: true, // Support older socket.io-client versions (v2/v3)
-  pingInterval: 5000,   // Ping mỗi 5 giây (thay vì 10)
-  pingTimeout: 3000,    // Timeout 3 giây
+  pingInterval: 25000,  // Tăng lên 25s (default) cho ngrok/railway
+  pingTimeout: 20000,   // Timeout 20s
+  perMessageDeflate: false // Tắt để tránh conflict proxy
 });
 
 // Middleware
