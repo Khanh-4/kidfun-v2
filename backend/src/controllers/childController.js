@@ -534,7 +534,9 @@ const getTodayLimit = async (req, res) => {
     const today = vnNow.getDay(); // 0 = Sunday
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
-    // Tính thời gian đã dùng hôm nay (từ UsageSession)
+    const startOfDay = new Date(vnNow);
+    startOfDay.setHours(0, 0, 0, 0);
+
     // Tính tổng thời gian được cộng (extensions)
     const extensions = await prisma.timeExtensionRequest.findMany({
       where: {
@@ -545,17 +547,14 @@ const getTodayLimit = async (req, res) => {
     });
     const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
 
-    const sessions = await prisma.usageSession.findMany({
+    const usageLogs = await prisma.usageLog.findMany({
       where: {
         profileId: device.profile.id,
         startTime: { gte: startOfDay },
       },
     });
 
-    const usedSeconds = sessions.reduce((total, s) => {
-      const end = s.endTime || new Date();
-      return total + (end - s.startTime) / 1000;
-    }, 0);
+    const usedSeconds = usageLogs.reduce((total, log) => total + (log.durationSeconds || 0), 0);
 
     // fallback to limitMinutes if dailyLimitMinutes is null
     const baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
@@ -577,6 +576,7 @@ const getTodayLimit = async (req, res) => {
       isActive: todayLimit?.isActive ?? false,
     });
   } catch (err) {
+    console.error('❌ getTodayLimit ERROR:', err.message, err.stack);
     return sendError(res, err.message, 500);
   }
 };
