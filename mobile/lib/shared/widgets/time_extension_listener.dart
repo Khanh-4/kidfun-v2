@@ -27,7 +27,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     _checkPendingRequests();
 
     // Re-check pending requests when socket reconnects
-    SocketService.instance.socket.onConnect((_) {
+    SocketService.instance.socket.on('connect', (_) {
       print('🔄 [SOCKET] Reconnected. Checking pending extension requests...');
       _checkPendingRequests();
     });
