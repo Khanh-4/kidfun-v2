@@ -42,7 +42,8 @@ const createProfile = async (req, res) => {
       defaultTimeLimits.push({
         profileId: profile.id,
         dayOfWeek: day,
-        dailyLimitMinutes: day === 0 || day === 6 ? 180 : 120 // Weekend: 3h, Weekday: 2h
+        dailyLimitMinutes: day === 0 || day === 6 ? 180 : 120, // Weekend: 3h, Weekday: 2h
+        limitMinutes: day === 0 || day === 6 ? 180 : 120
       });
     }
 
@@ -150,22 +151,27 @@ const updateTimeLimits = async (req, res) => {
     }
 
     // Upsert each day's time limit
-    const updates = timeLimits.map((tl) =>
-      prisma.timeLimit.upsert({
+    const updates = timeLimits.map((tl) => {
+      const dailyLimit = tl.limitMinutes !== undefined ? tl.limitMinutes : tl.dailyLimitMinutes;
+      return prisma.timeLimit.upsert({
         where: {
           profileId_dayOfWeek: {
             profileId,
             dayOfWeek: tl.dayOfWeek
           }
         },
-        update: { dailyLimitMinutes: tl.dailyLimitMinutes },
+        update: { 
+          dailyLimitMinutes: dailyLimit,
+          limitMinutes: dailyLimit
+        },
         create: {
           profileId,
           dayOfWeek: tl.dayOfWeek,
-          dailyLimitMinutes: tl.dailyLimitMinutes
+          dailyLimitMinutes: dailyLimit,
+          limitMinutes: dailyLimit
         }
-      })
-    );
+      });
+    });
 
     await prisma.$transaction(updates);
 
