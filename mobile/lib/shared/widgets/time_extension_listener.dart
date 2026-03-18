@@ -112,10 +112,18 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
           ),
         ],
       ),
-    ).then((_) => _activeRequestIds.remove(requestId));
+    ).then((_) {
+      // Bug C fix: do NOT remove from _activeRequestIds here (on dismiss).
+      // The ID is only cleared after the Parent explicitly responds (approve/reject).
+      // This prevents duplicate dialogs from socket + REST + reconnect paths.
+      // _activeRequestIds.remove(requestId);  ← intentionally omitted
+    });
   }
 
   void _respondExtension(int requestId, bool approved, int minutes) {
+    // Remove from Set now that Parent has responded — future polls won't re-show this dialog
+    _activeRequestIds.remove(requestId);
+
     SocketService.instance.socket.emit('respondTimeExtension', {
       'requestId': requestId,
       'approved': approved,
