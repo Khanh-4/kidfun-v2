@@ -65,9 +65,11 @@ const calcRemaining = async (profileId, deviceId) => {
   });
   const bonusMinutes = activeSession?.bonusMinutes || 0;
 
-  const remainingMinutes = Math.max(0, dailyLimitMinutes + bonusMinutes - usedMinutes);
+  const limitSeconds = (dailyLimitMinutes + bonusMinutes) * 60;
+  const remainingSeconds = Math.max(0, limitSeconds - totalSeconds);
+  const remainingMinutes = Math.round(remainingSeconds / 60);
 
-  return { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, timeLimit, activeSession };
+  return { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession };
 };
 
 // GET /api/child/status
@@ -92,7 +94,7 @@ const getStatus = async (req, res) => {
       return sendError(res, 'Thiết bị chưa được gán cho hồ sơ nào. Vui lòng yêu cầu bố mẹ gán trong Parent Dashboard.', 400, 'DEVICE_NOT_ASSIGNED');
     }
 
-    const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, timeLimit, activeSession } =
+    const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
 
     const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
@@ -126,7 +128,8 @@ const getStatus = async (req, res) => {
         totalMinutes: activeSession.totalMinutes || 0,
         bonusMinutes: activeSession.bonusMinutes || 0
       } : null,
-      remainingMinutes
+      remainingMinutes,
+      remainingSeconds
     });
   } catch (error) {
     console.error('Get child status error:', error);
