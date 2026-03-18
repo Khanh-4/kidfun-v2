@@ -152,12 +152,15 @@ const updateTimeLimits = async (req, res) => {
 
     // Upsert each day's time limit
     const updates = timeLimits.map((tl) => {
-      const dailyLimit = tl.limitMinutes !== undefined ? tl.limitMinutes : tl.dailyLimitMinutes;
+      const dayOfWeek = parseInt(tl.dayOfWeek, 10);
+      const rawLimit = tl.limitMinutes !== undefined ? tl.limitMinutes : tl.dailyLimitMinutes;
+      const dailyLimit = parseInt(rawLimit, 10);
+
       return prisma.timeLimit.upsert({
         where: {
           profileId_dayOfWeek: {
             profileId,
-            dayOfWeek: tl.dayOfWeek
+            dayOfWeek
           }
         },
         update: { 
@@ -166,7 +169,7 @@ const updateTimeLimits = async (req, res) => {
         },
         create: {
           profileId,
-          dayOfWeek: tl.dayOfWeek,
+          dayOfWeek,
           dailyLimitMinutes: dailyLimit,
           limitMinutes: dailyLimit
         }
