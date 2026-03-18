@@ -1,38 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/socket_service.dart';
+import '../../core/network/dio_client.dart';
 
 class TimeExtensionListener extends ConsumerStatefulWidget {
   final Widget child;
-  const TimeExtensionListener({super.key, required this.child});
+  final GlobalKey<NavigatorState>? navigatorKey;
+
+  const TimeExtensionListener({
+    super.key,
+    required this.child,
+    this.navigatorKey,
+  });
 
   @override
   ConsumerState<TimeExtensionListener> createState() => _TimeExtensionListenerState();
 }
 
 class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
+  final Set<int> _activeRequestIds = {};
+
   @override
   void initState() {
     super.initState();
     _setupSocketListener();
+    _checkPendingRequests();
+
+    // Re-check pending requests when socket reconnects
+    SocketService.instance.socket.onConnect((_) {
+      print('🔄 [SOCKET] Reconnected. Checking pending extension requests...');
+      _checkPendingRequests();
+    });
   }
 
   void _setupSocketListener() {
     SocketService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequest);
   }
 
+  Future<void> _checkPendingRequests() async {
+    try {
+      final response = await DioClient.instance.get('/api/extension-requests/pending');
+      final requests = response.data['data']['requests'] as List?;
+      
+      if (requests != null && requests.isNotEmpty) {
+        print('⏳ [REST] Found ${requests.length} pending extension requests');
+        for (var request in requests) {
+          final mappedData = {
+            'requestId': request['id'],
+            'profileName': request['profile']?['profileName'],
+            'deviceName': request['device']?['deviceName'],
+            'requestMinutes': request['requestMinutes'],
+            'reason': request['reason'],
+          };
+          _onTimeExtensionRequest(mappedData);
+        }
+      }
+    } catch (e) {
+      print('❌ [REST] Error checking pending requests: $e');
+    }
+  }
+
   void _onTimeExtensionRequest(Map<String, dynamic> data) {
     if (!mounted) return;
 
-    final requestId = data['id']; // Server uses id from Date.now() or similar
+    final requestId = data['requestId'] as int?;
+    if (requestId == null || _activeRequestIds.contains(requestId)) return;
+
+    _activeRequestIds.add(requestId);
+
     final profileName = data['profileName'] ?? 'Bé';
     final deviceName = data['deviceName'] ?? 'Thiết bị';
-    final requestMinutes = data['requestedMinutes'] as int? ?? 15;
+    final requestMinutes = data['requestMinutes'] as int? ?? 15;
     final reason = data['reason'] ?? '';
 
-    // Lấy context global nhất có thể nếu được, hoặc dùng context hiện tại
+    // Use navigatorKey if provided, otherwise fallback to widget's context
+    final dialogContext = widget.navigatorKey?.currentContext ?? context;
+
     showDialog(
-      context: context,
+      context: dialogContext,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text('⏳ $profileName xin thêm giờ'),
@@ -67,17 +112,18 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
           ),
         ],
       ),
-    );
+    ).then((_) => _activeRequestIds.remove(requestId));
   }
 
-  void _respondExtension(dynamic requestId, bool approved, int minutes) {
+  void _respondExtension(int requestId, bool approved, int minutes) {
     SocketService.instance.socket.emit('respondTimeExtension', {
       'requestId': requestId,
       'approved': approved,
       'responseMinutes': minutes,
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    final dialogContext = widget.navigatorKey?.currentContext ?? context;
+    ScaffoldMessenger.of(dialogContext).showSnackBar(
       SnackBar(
         content: Text(approved ? '✅ Đã duyệt thêm $minutes phút' : '❌ Đã từ chối yêu cầu'),
         backgroundColor: approved ? Colors.green : Colors.red,
@@ -96,3 +142,4 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     return widget.child;
   }
 }
+
