@@ -84,18 +84,20 @@ exports.heartbeat = async (req, res) => {
 
     const usedSeconds = sessions.reduce((total, s) => {
       const end = s.endTime || new Date();
-      return total + (end - s.startTime) / 1000;
+      return total + (end.getTime() - new Date(s.startTime).getTime()) / 1000;
     }, 0);
 
     const limitSeconds = limitMinutes * 60;
     const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
+    const remainingMinutes = Math.ceil(remainingSeconds / 60);
+    const usedMinutes = Math.floor(usedSeconds / 60);
 
     return sendSuccess(res, {
       sessionId,
-      remainingMinutes: Math.round(remainingSeconds / 60),
+      remainingMinutes,
       remainingSeconds,
       limitMinutes,
-      usedMinutes: Math.round(usedSeconds / 60),
+      usedMinutes,
     });
   } catch (err) {
     return sendError(res, err.message, 500);
