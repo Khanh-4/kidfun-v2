@@ -85,7 +85,11 @@ npm run db:setup         # Initialize database with migrations
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
+<<<<<<< fix/mobile/sprint4-countdown-bugs
+This project is indexed by GitNexus as **kidfun-v2** (641 symbols, 1065 relationships, 22 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+=======
 This project is indexed by GitNexus as **kidfun-v2** (634 symbols, 1053 relationships, 22 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+>>>>>>> develop
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
