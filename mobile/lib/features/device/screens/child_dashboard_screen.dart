@@ -120,6 +120,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     try {
       // 1. Get remaining time
       final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      // Bug D fix: debug log to verify API returns correct value
+      print('📊 [DEBUG] _initSession: limitMinutes=${todayLimit.limitMinutes}, remainingMinutes=${todayLimit.remainingMinutes}, remainingSeconds=${todayLimit.remainingSeconds}');
+
       if (mounted) {
         setState(() {
           _remainingSeconds = todayLimit.remainingSeconds;
@@ -130,7 +133,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final sid = await _childRepo.startSession(_deviceCode!);
       _sessionId = sid;
 
-      // 3. Start countdown or trigger time up immediately
+      // 3. Start countdown or trigger time up immediately (Bug D fix: check seconds not minutes)
       if (_remainingSeconds <= 0) {
         _onTimeUp();
       } else {
@@ -138,6 +141,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
 
       // 4. Heartbeat every 60s
+      // Bug B fix: heartbeat result is used only to detect drift > 10s, not to override countdown
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
         if (_sessionId != null) {
@@ -146,7 +150,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               sessionId: _sessionId!,
             );
             if (mounted) {
-              setState(() => _remainingSeconds = result.remainingSeconds);
+              // Only sync if server time drifts more than 10 seconds from local countdown
+              final serverSeconds = result.remainingSeconds;
+              final drift = (_remainingSeconds - serverSeconds).abs();
+              print('💓 [HEARTBEAT] server=$serverSeconds local=$_remainingSeconds drift=$drift');
+              if (drift > 10) {
+                print('⚠️ [HEARTBEAT] Drift too large ($drift s), syncing to server value');
+                setState(() => _remainingSeconds = serverSeconds);
+              }
+              // If server says blocked, trigger time up
+              if (result.isBlocked && _remainingSeconds > 0) {
+                _onTimeUp();
+              }
             }
           } catch (e) {
             print('❌ Heartbeat error: $e');
@@ -173,22 +188,23 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   }
 
   void _checkSoftWarning() {
-    final remainingMinutes = _remainingSeconds ~/ 60;
+    // Bug A fix: compare exact seconds (e.g. 30*60 = 1800) instead of integer-divided minutes
+    // Old: remainingMinutes == 30 would trigger at 1859s (30:59) instead of 1800s (30:00)
 
-    // Mốc 30 phút
-    if (remainingMinutes == 30 && !_triggeredWarnings.contains(30)) {
+    // Mốc 30 phút — chính xác tại 1800 giây
+    if (_remainingSeconds == 30 * 60 && !_triggeredWarnings.contains(30)) {
       _triggeredWarnings.add(30);
       _showWarningDialog('SOFT_30', 'Còn 30 phút', 'Con còn 30 phút sử dụng thiết bị hôm nay.');
     }
 
-    // Mốc 15 phút
-    if (remainingMinutes == 15 && !_triggeredWarnings.contains(15)) {
+    // Mốc 15 phút — chính xác tại 900 giây
+    if (_remainingSeconds == 15 * 60 && !_triggeredWarnings.contains(15)) {
       _triggeredWarnings.add(15);
       _showWarningDialog('SOFT_15', 'Còn 15 phút', 'Con còn 15 phút. Hãy hoàn thành việc đang làm nhé!');
     }
 
-    // Mốc 5 phút
-    if (remainingMinutes == 5 && !_triggeredWarnings.contains(5)) {
+    // Mốc 5 phút — chính xác tại 300 giây
+    if (_remainingSeconds == 5 * 60 && !_triggeredWarnings.contains(5)) {
       _triggeredWarnings.add(5);
       _showWarningDialog('SOFT_5', 'Còn 5 phút!', 'Con còn 5 phút. Sắp hết giờ rồi!');
     }
@@ -260,9 +276,28 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   }
 
   void _setupSocketListeners() {
-    SocketService.instance.socket.on('timeLimitUpdated', (data) {
-      print('🔔 [SOCKET] timeLimitUpdated received. Re-syncing time.');
-      _initSession(); // Re-fetch limit and restart session
+    SocketService.instance.socket.on('timeLimitUpdated', (data) async {
+      // Bug B fix: don't restart session (would reset usedMinutes accumulation).
+      // Instead, fetch new limit and compute delta to adjust running countdown.
+      print('🔔 [SOCKET] timeLimitUpdated received. Applying delta to countdown.');
+      if (_deviceCode == null) return;
+      try {
+        final nowLimit = await _childRepo.getTodayLimit(_deviceCode!);
+        final newRemainingSeconds = nowLimit.remainingSeconds;
+        print('📊 [timeLimitUpdated] newRemainingSeconds=$newRemainingSeconds local=$_remainingSeconds');
+        if (mounted && newRemainingSeconds > 0) {
+          setState(() => _remainingSeconds = newRemainingSeconds);
+          // Ensure countdown is running (in case we were at 0 and Parent added time)
+          if (_countdownTimer == null || !_countdownTimer!.isActive) {
+            _triggeredWarnings.clear();
+            _startCountdown();
+          }
+        } else if (mounted && newRemainingSeconds <= 0) {
+          _onTimeUp();
+        }
+      } catch (e) {
+        print('❌ [timeLimitUpdated] Error fetching new limit: $e');
+      }
     });
 
     SocketService.instance.socket.on('timeExtensionResponse', (data) {
