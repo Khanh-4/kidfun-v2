@@ -130,8 +130,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final sid = await _childRepo.startSession(_deviceCode!);
       _sessionId = sid;
 
-      // 3. Start countdown
-      _startCountdown();
+      // 3. Start countdown or trigger time up immediately
+      if (_remainingSeconds <= 0) {
+        _onTimeUp();
+      } else {
+        _startCountdown();
+      }
 
       // 4. Heartbeat every 60s
       _heartbeatTimer?.cancel();
