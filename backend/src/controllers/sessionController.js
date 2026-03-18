@@ -60,10 +60,20 @@ exports.heartbeat = async (req, res) => {
     const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
     const today = vnNow.getDay();
     const todayLimit = session.profile.timeLimits.find(tl => tl.dayOfWeek === today);
-    const limitMinutes = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
-
     const startOfDay = new Date(vnNow);
     startOfDay.setHours(0, 0, 0, 0);
+
+    const extensions = await prisma.timeExtensionRequest.findMany({
+      where: {
+        profileId: session.profileId,
+        status: 'APPROVED',
+        createdAt: { gte: startOfDay },
+      }
+    });
+    const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
+
+    const baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
+    const limitMinutes = baseLimit + extensionBonus;
 
     const sessions = await prisma.usageSession.findMany({
       where: {
