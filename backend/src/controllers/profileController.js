@@ -189,25 +189,29 @@ const updateTimeLimits = async (req, res) => {
       where: { profileId }
     });
 
+    // TEST 7 FIX: Send HTTP response FIRST so the parent's client fully receives
+    // the successful save confirmation before notifying devices via socket.
+    // Previously, socket emits fired before sendSuccess, creating a race where
+    // the child app fetched new limits before the parent had received its 200 OK.
+    sendSuccess(res, { timeLimits: updated });
+
+    // ── Notify devices & parent AFTER response is sent ──────────────────────
     if (socketService.io) {
-      // Emit cho từng device room
       devices.forEach(device => {
         socketService.io.to(`device_${device.deviceCode}`).emit('timeLimitUpdated', {
           profileId,
-          timeLimits: updated
+          timeLimits: updated,
         });
+        console.log(`📡 [SOCKET] Emitted timeLimitUpdated → device_${device.deviceCode}`);
       });
     }
 
-    // Cũng emit cho Parent room
     socketService.notifyFamily(req.user.userId, 'timeLimitUpdated', {
       profileId,
-      timeLimits: updated
+      timeLimits: updated,
     });
 
-    console.log(`⏰ Time limits updated for profile ${profileId} → notified devices`);
-
-    sendSuccess(res, { timeLimits: updated });
+    console.log(`⏰ Time limits saved for profile ${profileId} → notified ${devices.length} device(s) + parent room`);
   } catch (error) {
     console.error('Update time limits error:', error);
     sendError(res, 'Failed to update time limits', 500, 'INTERNAL_ERROR');
