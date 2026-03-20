@@ -567,6 +567,9 @@ const getTodayLimit = async (req, res) => {
     const remainingMinutes = Math.ceil(remainingSeconds / 60);
     const usedMinutes = Math.floor(usedSeconds / 60);
 
+    const dbIsActive = todayLimit?.isActive ?? true;
+    const isLimitEnabled = dbIsActive && baseLimit > 0;
+
     console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, extensionBonus=${extensionBonus}, limitMinutes=${limitMinutes}, usedMinutes=${usedMinutes}, remainingMinutes=${remainingMinutes}, remainingSeconds=${remainingSeconds}`);
 
     return sendSuccess(res, {
@@ -577,7 +580,8 @@ const getTodayLimit = async (req, res) => {
       usedMinutes,
       remainingMinutes,
       remainingSeconds,
-      isActive: todayLimit?.isActive ?? false,
+      isActive: dbIsActive,
+      isLimitEnabled,
     });
   } catch (err) {
     console.error('❌ getTodayLimit ERROR:', err.message, err.stack);
