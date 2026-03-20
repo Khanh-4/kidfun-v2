@@ -95,13 +95,17 @@ async function sendToMultipleTokens(tokens, title, body, data = {}) {
 
   try {
     const response = await admin.messaging().sendEachForMulticast(message);
-    console.log(`Push sent: ${response.successCount} success, ${response.failureCount} failure`);
+    console.log(`🔔 [FCM] sendEachForMulticast → successCount=${response.successCount} failureCount=${response.failureCount} (total tokens: ${tokens.length})`);
 
-    // Collect invalid tokens for cleanup
+    // Collect invalid tokens for cleanup + log each result for debugging
     const invalidTokens = [];
     response.responses.forEach((resp, idx) => {
-      if (!resp.success) {
+      if (resp.success) {
+        console.log(`✅ [FCM] Token[${idx}] sent OK — messageId: ${resp.messageId}`);
+      } else {
         const errCode = resp.error?.code;
+        const errMsg = resp.error?.message;
+        console.error(`❌ [FCM] Token[${idx}] FAILED — code: ${errCode} | message: ${errMsg}`);
         if (errCode === 'messaging/invalid-registration-token' ||
             errCode === 'messaging/registration-token-not-registered') {
           invalidTokens.push(tokens[idx]);
