@@ -56,23 +56,14 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      print('📦 App paused: ending session');
-      if (_sessionId != null) {
-        _childRepo.endSession(_sessionId!);
-        _sessionId = null;
-      }
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      print('📦 App paused/inactive: cancelling timer to prevent catch-up glitch');
       _countdownTimer?.cancel();
-      _heartbeatTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
-      print('📦 App resumed: re-initializing session');
-      if (_endTime != null) {
-        final secs = _endTime!.difference(DateTime.now()).inSeconds;
-        setState(() {
-          _remainingSeconds = secs > 0 ? secs : 0;
-        });
+      print('📦 App resumed: recreating timer fresh');
+      if (_isLimitEnabled && _remainingSeconds > 0) {
+        _startCountdown();
       }
-      _initializeDashboard();
     }
   }
 
