@@ -125,7 +125,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         final drift = _endTime == null ? 0 : (_remainingSeconds - serverSeconds).abs();
         setState(() {
           _isLimitEnabled = todayLimit.isLimitEnabled;
-          if (drift > 3 || _endTime == null) {
+          if (drift > 60 || _endTime == null) {
              _remainingSeconds = serverSeconds;
              // BUG 2 FIX: pin endTime anchor so countdown is wall-clock-based
              _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
@@ -152,7 +152,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
 
       // 4. Heartbeat every 60s
-      // Bug B fix: heartbeat result is used only to detect drift > 10s, not to override countdown
+      // Bug B fix: heartbeat result is used only to detect drift > 60s, not to override countdown
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
         if (_sessionId != null) {
@@ -161,11 +161,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               sessionId: _sessionId!,
             );
             if (mounted) {
-              // Only sync if server time drifts more than 10 seconds from local countdown
+              // Only sync if server time drifts more than 60 seconds from local countdown
               final serverSeconds = result.remainingSeconds;
               final drift = (_remainingSeconds - serverSeconds).abs();
               print('💓 [HEARTBEAT] server=$serverSeconds local=$_remainingSeconds drift=$drift');
-              if (drift > 3 && _isLimitEnabled) {
+              if (drift > 60 && _isLimitEnabled) {
                 print('⚠️ [HEARTBEAT] Drift too large ($drift s), syncing to server value');
                 // BUG 2 FIX: re-anchor endTime when syncing to server
                 setState(() {
