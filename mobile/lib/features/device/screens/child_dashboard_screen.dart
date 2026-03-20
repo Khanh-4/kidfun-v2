@@ -15,7 +15,7 @@ class ChildDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   bool _isLoading = true;
   bool _hasToken = false;
   bool _isSocketConnected = false;
@@ -32,7 +32,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   Timer? _countdownTimer;
   Timer? _heartbeatTimer;
   final Set<int> _triggeredWarnings = {};
-  late final AppLifecycleListener _lifecycleListener;
+  bool _isTimeUpDialogShowing = false;
   bool _waitingForResponse = false;
 
   @override
@@ -48,27 +48,31 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _lifecycleListener = AppLifecycleListener(
-      onPause: _onAppPaused,
-      onResume: _onAppResumed,
-    );
+    WidgetsBinding.instance.addObserver(this);
 
     _initializeDashboard();
   }
 
-  void _onAppPaused() {
-    print('📦 App paused: ending session');
-    if (_sessionId != null) {
-      _childRepo.endSession(_sessionId!);
-      _sessionId = null;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      print('📦 App paused: ending session');
+      if (_sessionId != null) {
+        _childRepo.endSession(_sessionId!);
+        _sessionId = null;
+      }
+      _countdownTimer?.cancel();
+      _heartbeatTimer?.cancel();
+    } else if (state == AppLifecycleState.resumed) {
+      print('📦 App resumed: re-initializing session');
+      if (_endTime != null) {
+        final secs = _endTime!.difference(DateTime.now()).inSeconds;
+        setState(() {
+          _remainingSeconds = secs > 0 ? secs : 0;
+        });
+      }
+      _initializeDashboard();
     }
-    _countdownTimer?.cancel();
-    _heartbeatTimer?.cancel();
-  }
-
-  void _onAppResumed() {
-    print('📦 App resumed: re-initializing session');
-    _initializeDashboard();
   }
 
   Future<void> _initializeDashboard() async {
@@ -270,6 +274,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     }
 
     // Hiện màn hình khóa (fullscreen, không thoát được)
+    _isTimeUpDialogShowing = true;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -285,7 +290,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           actions: const [], // Không có nút dismiss
         ),
       ),
-    );
+    ).then((_) {
+      _isTimeUpDialogShowing = false;
+    });
   }
 
   void _setupSocketListeners() {
@@ -306,14 +313,25 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         final newRemainingSeconds = nowLimit.remainingSeconds;
         print('📊 [timeLimitUpdated] newRemainingSeconds=$newRemainingSeconds local=$_remainingSeconds');
         if (mounted && newRemainingSeconds > 0) {
-          setState(() => _remainingSeconds = newRemainingSeconds);
+          setState(() {
+            _remainingSeconds = newRemainingSeconds;
+            _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+          });
+          
+          if (_isTimeUpDialogShowing) {
+            Navigator.of(context, rootNavigator: true).pop();
+            _isTimeUpDialogShowing = false;
+          }
+
           // Ensure countdown is running (in case we were at 0 and Parent added time)
           if (_countdownTimer == null || !_countdownTimer!.isActive) {
             _triggeredWarnings.clear();
             _startCountdown();
           }
         } else if (mounted && newRemainingSeconds <= 0) {
-          _onTimeUp();
+          if (!_isTimeUpDialogShowing) {
+            _onTimeUp();
+          }
         }
       } catch (e) {
         print('❌ [timeLimitUpdated] Error fetching new limit: $e');
@@ -457,7 +475,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _connectionCheckTimer?.cancel();
     _countdownTimer?.cancel();
     _heartbeatTimer?.cancel();
-    _lifecycleListener.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     
     if (_sessionId != null) {
       _childRepo.endSession(_sessionId!);

@@ -100,12 +100,16 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
           ],
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               _respondExtension(requestId, false, 0);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade100,
+              foregroundColor: Colors.red.shade900,
+              elevation: 0,
+            ),
             child: const Text('Từ chối'),
           ),
           ElevatedButton(

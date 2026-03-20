@@ -3,6 +3,7 @@ import '../data/auth_repository.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../core/network/socket_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Auth states
 sealed class AuthState {}
@@ -87,9 +88,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _sendFcmTokenIfAvailable() async {
-    final fcmToken = await SecureStorage.getFcmToken();
-    if (fcmToken != null) {
-      await _repo.registerFcmToken(fcmToken);
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await _repo.registerFcmToken(fcmToken);
+        await SecureStorage.saveFcmToken(fcmToken);
+      } else {
+        // Fallback
+        final storedToken = await SecureStorage.getFcmToken();
+        if (storedToken != null) {
+          await _repo.registerFcmToken(storedToken);
+        }
+      }
+    } catch (e) {
+      print('❌ [FCM] check/send token error: $e');
     }
   }
 }
