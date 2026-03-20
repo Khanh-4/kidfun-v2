@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();let firebaseInitialized = false;
+const prisma = new PrismaClient();
+let firebaseInitialized = false; // BUG 3 FIX: newline added (was concatenated on one line)
 
 /**
  * Initialize Firebase Admin SDK
@@ -119,6 +120,8 @@ async function sendToMultipleTokens(tokens, title, body, data = {}) {
  * Gửi push notification cho tất cả devices của 1 user
  */
 async function sendPushToUser(userId, { title, body, data = {} }) {
+  // BUG 3 FIX: auto-initialize Firebase defensively so FCM works even if startup call fails
+  try { initFirebase(); } catch (_) {}
   try {
     const tokens = await prisma.fCMToken.findMany({
       where: { userId },

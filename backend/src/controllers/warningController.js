@@ -6,7 +6,9 @@ const { sendPushToUser } = require('../services/firebaseService');
 
 exports.logWarning = async (req, res) => {
   try {
-    const { deviceCode, type, message } = req.body;
+    // Read deviceCode from header (primary) or body (fallback) — matches all other child endpoints
+    const deviceCode = req.headers['x-device-code'] || req.body.deviceCode;
+    const { type, message } = req.body;
     // type: SOFT_30 | SOFT_15 | SOFT_5 | TIME_UP
 
     const device = await prisma.device.findFirst({
@@ -21,7 +23,8 @@ exports.logWarning = async (req, res) => {
     const warning = await prisma.warning.create({
       data: {
         profileId: device.profile.id,
-        warningType: type, // Using warningType to match DB Schema
+        deviceId: device.id,                               // BUG 1 FIX: persist deviceId
+        warningType: type,                                 // matches DB schema
         message: message || `Cảnh báo ${type} cho ${device.profile.profileName}`,
       },
     });
