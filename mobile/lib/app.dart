@@ -66,6 +66,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       }
     }
+    
+    // FIX TEST 9: Initialize FCM on dashboard load for returning users
+    try {
+      if (mounted) {
+        await ref.read(authProvider.notifier).sendFcmTokenIfAvailable();
+      }
+    } catch (_) {}
   }
 
 
