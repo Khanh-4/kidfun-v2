@@ -298,9 +298,9 @@ const heartbeat = async (req, res) => {
     });
 
     // Calculate remaining time (includes bonus)
-    const { remainingMinutes } = await calcRemaining(session.profileId, device.id);
+    const { remainingMinutes, remainingSeconds } = await calcRemaining(session.profileId, device.id);
 
-    sendSuccess(res, { remainingMinutes });
+    sendSuccess(res, { remainingMinutes, remainingSeconds });
   } catch (error) {
     console.error('Heartbeat error:', error);
     sendError(res, 'Failed to update heartbeat', 500, 'INTERNAL_ERROR');

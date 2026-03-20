@@ -5,14 +5,18 @@ const { sendSuccess, sendError } = require('../middleware/responseHandler');
 // POST /api/fcm-tokens/register
 const registerToken = async (req, res) => {
   try {
-    const { token, platform, deviceId } = req.body;
+    const { token, deviceId } = req.body;
+    const { platform, deviceType } = req.body;
     const userId = req.user.userId;
 
-    if (!token || !platform) {
-      return sendError(res, 'token and platform are required', 400, 'INVALID_INPUT');
+    const resolvedPlatform = platform || deviceType;
+
+    if (!token || !resolvedPlatform) {
+      return sendError(res, 'token and platform/deviceType are required', 400, 'INVALID_INPUT');
     }
 
-    if (!['ANDROID', 'IOS'].includes(platform)) {
+    const platformUpper = resolvedPlatform.toUpperCase();
+    if (!['ANDROID', 'IOS'].includes(platformUpper)) {
       return sendError(res, 'platform must be ANDROID or IOS', 400, 'INVALID_INPUT');
     }
 
@@ -22,13 +26,13 @@ const registerToken = async (req, res) => {
       update: {
         userId,
         deviceId: deviceId ? parseInt(deviceId) : null,
-        platform
+        platform: platformUpper
       },
       create: {
         userId,
         deviceId: deviceId ? parseInt(deviceId) : null,
         token,
-        platform
+        platform: platformUpper
       }
     });
 
