@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/time_limit_provider.dart';
 import '../../../shared/models/time_limit_model.dart';
 
-class TimeLimitScreen extends ConsumerWidget {
+// BUG 1 FIX: Converted to ConsumerStatefulWidget so TextEditingControllers
+// persist across rebuilds. Previously, controllers were created inline in
+// build() — every Slider move triggered a rebuild + controller reset, which
+// discarded in-progress typing and caused the UI to appear glitchy.
+class TimeLimitScreen extends ConsumerStatefulWidget {
   final int profileId;
   final String profileName;
 
@@ -14,13 +18,56 @@ class TimeLimitScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(timeLimitProvider(profileId));
-    final notifier = ref.read(timeLimitProvider(profileId).notifier);
+  ConsumerState<TimeLimitScreen> createState() => _TimeLimitScreenState();
+}
+
+class _TimeLimitScreenState extends ConsumerState<TimeLimitScreen> {
+  // One persistent controller per day-of-week (0–6)
+  final Map<int, TextEditingController> _controllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    for (int i = 0; i < 7; i++) {
+      _controllers[i] = TextEditingController();
+    }
+  }
+
+  /// Keep controllers in sync when state changes externally (e.g. "Apply All")
+  /// but only update the text if the field doesn't currently have focus —
+  /// this preserves in-progress typing.
+  void _syncControllers(List<TimeLimitModel> limits) {
+    for (final limit in limits) {
+      final ctrl = _controllers[limit.dayOfWeek];
+      if (ctrl == null) continue;
+      final newText = '${limit.limitMinutes}';
+      if (ctrl.text != newText && !ctrl.selection.isValid) {
+        ctrl.text = newText;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final ctrl in _controllers.values) {
+      ctrl.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(timeLimitProvider(widget.profileId));
+    final notifier = ref.read(timeLimitProvider(widget.profileId).notifier);
+
+    // Sync text controllers whenever state changes
+    if (state is TimeLimitLoaded) {
+      _syncControllers(state.limits);
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Giới hạn thời gian — $profileName'),
+        title: Text('Giới hạn thời gian — ${widget.profileName}'),
       ),
       body: state is TimeLimitLoading || state is TimeLimitInitial
           ? const Center(child: CircularProgressIndicator())
@@ -90,6 +137,9 @@ class TimeLimitScreen extends ConsumerWidget {
   }
 
   Widget _buildDayRow(TimeLimitModel limit, TimeLimitNotifier notifier) {
+    // Retrieve the persistent controller for this day
+    final controller = _controllers[limit.dayOfWeek]!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -131,16 +181,20 @@ class TimeLimitScreen extends ConsumerWidget {
                   max: 720,
                   divisions: 720 ~/ 5, // Step 5 minutes
                   onChanged: (val) {
+                    // BUG 1 FIX: calls notifier.updateDayLimit (in-memory only).
+                    // Server save only happens when the "Lưu thay đổi" button is tapped.
                     notifier.updateDayLimit(limit.dayOfWeek, val.toInt(), true);
                   },
                 ),
               ),
               const SizedBox(width: 8),
+              // BUG 1 FIX: widened from 70 → 90 so "720 ph" fits without clipping.
+              // Also uses the persistent controller (not an inline-created one).
               SizedBox(
-                width: 70,
+                width: 90,
                 child: TextField(
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(text: '${limit.limitMinutes}'),
+                  controller: controller,
                   onSubmitted: (v) {
                     final mins = int.tryParse(v) ?? 0;
                     notifier.updateDayLimit(limit.dayOfWeek, mins.clamp(0, 720), true);
