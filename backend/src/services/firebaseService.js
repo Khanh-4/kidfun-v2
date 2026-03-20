@@ -47,12 +47,26 @@ async function sendPushNotification(token, title, body, data = {}) {
     return null;
   }
 
+  // TEST 9 FIX: `notification` must be explicitly present at the top level for Android
+  // to show a popup when the app is in the background. A data-only payload is silently
+  // dropped by Android unless delivered via a high-priority FCM message.
   const message = {
     token,
-    notification: { title, body },
+    notification: { title, body }, // REQUIRED FOR BACKGROUND POPUPS
     data: Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, String(v)])
-    )
+    ),
+    android: {
+      priority: 'high', // wake device from Doze mode
+      notification: {
+        channelId: 'default',
+        sound: 'default',
+      },
+    },
+    apns: {
+      headers: { 'apns-priority': '10' },
+      payload: { aps: { sound: 'default' } },
+    },
   };
 
   try {
@@ -85,12 +99,25 @@ async function sendToMultipleTokens(tokens, title, body, data = {}) {
 
   if (!tokens || tokens.length === 0) return null;
 
+  // TEST 9 FIX: same as sendPushNotification — `notification` + `android.priority: 'high'`
+  // required for multicast background delivery on Android.
   const message = {
     tokens,
-    notification: { title, body },
+    notification: { title, body }, // REQUIRED FOR BACKGROUND POPUPS
     data: Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, String(v)])
-    )
+    ),
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'default',
+        sound: 'default',
+      },
+    },
+    apns: {
+      headers: { 'apns-priority': '10' },
+      payload: { aps: { sound: 'default' } },
+    },
   };
 
   try {
