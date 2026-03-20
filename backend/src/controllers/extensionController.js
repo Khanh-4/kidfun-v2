@@ -121,3 +121,61 @@ exports.createExtensionRequest = async (req, res) => {
     return sendError(res, err.message, 500);
   }
 };
+
+// PUT /api/extension-requests/:id/approve  (BUG 2 FIX)
+// REST endpoint: Parent approves a time extension — DB write FIRST, socket event AFTER
+exports.approveExtension = async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+    const { responseMinutes } = req.body;
+
+    // ── Step 1: Update DB record so heartbeat sees the bonus immediately ────
+    const request = await prisma.timeExtensionRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'APPROVED',
+        responseMinutes: responseMinutes || null,
+        respondedAt: new Date(),
+      },
+      include: {
+        device: true,
+        profile: true,
+      },
+    });
+
+    const actualMinutes = responseMinutes || request.requestMinutes;
+
+    // ── Step 2: Verify caller is the owning parent ───────────────────────────
+    const profiles = await prisma.profile.findMany({
+      where: { userId: req.user.userId },
+      select: { id: true },
+    });
+    const profileIds = profiles.map(p => p.id);
+    if (!profileIds.includes(request.profileId)) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    // ── Step 3: Notify child device via Socket.IO AFTER DB write ────────────
+    if (socketService.io) {
+      socketService.io
+        .to(`device_${request.device.deviceCode}`)
+        .emit('timeExtensionResponse', {
+          requestId: request.id,
+          approved: true,
+          responseMinutes: actualMinutes,
+          status: 'APPROVED',
+        });
+    }
+
+    console.log(`✅ [REST] Extension APPROVED: ${request.profile.profileName} +${actualMinutes}min (req #${requestId})`);
+
+    return sendSuccess(res, {
+      requestId: request.id,
+      status: 'APPROVED',
+      responseMinutes: actualMinutes,
+    });
+  } catch (err) {
+    console.error('approveExtension error:', err.message);
+    return sendError(res, err.message, 500);
+  }
+};

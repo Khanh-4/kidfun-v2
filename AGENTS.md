@@ -1,11 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-<<<<<<< fix/mobile/sprint4-countdown-bugs
-This project is indexed by GitNexus as **kidfun-v2** (641 symbols, 1065 relationships, 22 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
-=======
-This project is indexed by GitNexus as **kidfun-v2** (634 symbols, 1053 relationships, 22 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
->>>>>>> develop
+This project is indexed by GitNexus as **kidfun-v2** (633 symbols, 1056 relationships, 22 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
