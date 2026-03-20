@@ -110,20 +110,23 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
                     Navigator.pop(ctx);
                     _respondExtension(requestId, true, requestMinutes);
                   },
-                  child: Text('Duyệt ($requestMinutes phút)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Duyệt ($requestMinutes phút)', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
                     _respondExtension(requestId, false, 0);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade100,
-                    foregroundColor: Colors.red.shade900,
-                    elevation: 0,
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
                   ),
-                  child: const Text('Từ chối'),
+                  child: const Text('Từ chối', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
