@@ -60,9 +60,17 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       print('📦 App paused/inactive: cancelling timer to prevent catch-up glitch');
       _countdownTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
-      print('📦 App resumed: recreating timer fresh');
-      if (_isLimitEnabled && _remainingSeconds > 0) {
-        _startCountdown();
+      print('📦 App resumed: recalculating drift natively');
+      if (_isLimitEnabled && _endTime != null) {
+        final secs = _endTime!.difference(DateTime.now()).inSeconds;
+        setState(() {
+          _remainingSeconds = secs > 0 ? secs : 0;
+        });
+        if (_remainingSeconds > 0) {
+          _startCountdown();
+        } else if (!_isTimeUpDialogShowing) {
+          _onTimeUp();
+        }
       }
     }
   }
@@ -152,7 +160,6 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
 
       // 4. Heartbeat every 60s
-      // Bug B fix: heartbeat result is used only to detect drift > 60s, not to override countdown
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
         if (_sessionId != null) {
@@ -161,18 +168,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               sessionId: _sessionId!,
             );
             if (mounted) {
-              // Only sync if server time drifts more than 60 seconds from local countdown
-              final serverSeconds = result.remainingSeconds;
-              final drift = (_remainingSeconds - serverSeconds).abs();
-              print('💓 [HEARTBEAT] server=$serverSeconds local=$_remainingSeconds drift=$drift');
-              if (drift > 60 && _isLimitEnabled) {
-                print('⚠️ [HEARTBEAT] Drift too large ($drift s), syncing to server value');
-                // BUG 2 FIX: re-anchor endTime when syncing to server
-                setState(() {
-                  _remainingSeconds = serverSeconds;
-                  _endTime = DateTime.now().add(Duration(seconds: serverSeconds));
-                });
-              }
+              // Completely decouple heartbeat API response from UI countdown
+              print('💓 [HEARTBEAT] ping successful. UI timer isolated from API latency.');
+              
               // If server says blocked, trigger time up
               if (result.isBlocked && !_isTimeUpDialogShowing) {
                 _onTimeUp();
