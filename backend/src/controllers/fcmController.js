@@ -5,19 +5,26 @@ const { sendSuccess, sendError } = require('../middleware/responseHandler');
 // POST /api/fcm-tokens/register
 const registerToken = async (req, res) => {
   try {
-    const { token, deviceId } = req.body;
-    const { platform, deviceType } = req.body;
+    const { token, deviceId, platform, deviceType } = req.body;
     const userId = req.user.userId;
 
-    const resolvedPlatform = platform || deviceType;
-
-    if (!token || !resolvedPlatform) {
-      return sendError(res, 'token and platform/deviceType are required', 400, 'INVALID_INPUT');
+    // Only strictly require token
+    if (!token) {
+      return sendError(res, 'token is required', 400, 'INVALID_INPUT');
     }
 
-    const platformUpper = resolvedPlatform.toUpperCase();
+    // Gracefully resolve platform and safe fallback
+    const resolvedPlatform = platform || deviceType || 'ANDROID';
+    let platformUpper = String(resolvedPlatform).toUpperCase();
     if (!['ANDROID', 'IOS'].includes(platformUpper)) {
-      return sendError(res, 'platform must be ANDROID or IOS', 400, 'INVALID_INPUT');
+      platformUpper = 'ANDROID';
+    }
+
+    // Safely parse deviceId
+    let parsedDeviceId = null;
+    if (deviceId) {
+      const parsed = parseInt(deviceId);
+      if (!isNaN(parsed)) parsedDeviceId = parsed;
     }
 
     // Upsert: nếu token đã tồn tại → update userId/deviceId
@@ -25,12 +32,12 @@ const registerToken = async (req, res) => {
       where: { token },
       update: {
         userId,
-        deviceId: deviceId ? parseInt(deviceId) : null,
+        deviceId: parsedDeviceId,
         platform: platformUpper
       },
       create: {
         userId,
-        deviceId: deviceId ? parseInt(deviceId) : null,
+        deviceId: parsedDeviceId,
         token,
         platform: platformUpper
       }
