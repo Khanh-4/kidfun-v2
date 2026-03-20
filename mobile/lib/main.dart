@@ -6,6 +6,12 @@ import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'app.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('[FCM] Received background message: ${message.messageId}');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -16,6 +22,7 @@ void main() async {
    //Uncomment khi đã có google-services.json trong mobile/android/app/
   
    await Firebase.initializeApp();
+   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
    await FirebaseMessaging.instance.requestPermission(
      alert: true,
      badge: true,
