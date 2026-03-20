@@ -28,6 +28,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   final _childRepo = ChildRepository();
   int _remainingSeconds = 0;
   bool _isLimitEnabled = true;
+  int _currentTotalLimitMinutes = 0; // Tracks baseLimit + extension minutes
   DateTime? _endTime; // BUG 2 FIX: anchor for drift-free countdown
   int? _sessionId;
   Timer? _countdownTimer;
@@ -62,7 +63,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     } else if (state == AppLifecycleState.resumed) {
       print('📦 App resumed: recalculating drift natively');
       if (_isLimitEnabled && _endTime != null) {
-        final secs = _endTime!.difference(DateTime.now()).inSeconds;
+        // BUG 8 FIX: precise millisecond rounding to avoid fraction truncation lag
+        final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
         setState(() {
           _remainingSeconds = secs > 0 ? secs : 0;
         });
@@ -127,6 +129,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
       // Bug D fix: debug log to verify API returns correct value
       print('📊 [DEBUG] _initSession: limitMinutes=${todayLimit.limitMinutes}, remainingMinutes=${todayLimit.remainingMinutes}, remainingSeconds=${todayLimit.remainingSeconds}');
+      
+      _currentTotalLimitMinutes = todayLimit.limitMinutes; // Initialize total limit tracking
 
       if (mounted) {
         final serverSeconds = todayLimit.remainingSeconds;
@@ -192,11 +196,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       if (!mounted) return;
       if (!_isLimitEnabled) return;
       
-      // BUG 2 FIX: compute from wall-clock endTime anchor instead of decrementing
       // This prevents 1-minute jumps caused by Timer.periodic jitter accumulation.
       final now = DateTime.now();
       final secs = _endTime != null
-          ? _endTime!.difference(now).inSeconds
+          ? (_endTime!.difference(now).inMilliseconds / 1000).round()
           : (_remainingSeconds - 1);
       if (secs > 0) {
         setState(() => _remainingSeconds = secs);
@@ -310,30 +313,40 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     socket.off('timeLimitUpdated');
     socket.on('timeLimitUpdated', (data) async {
-      // Bug B fix: don't restart session (would reset usedMinutes accumulation).
-      // Instead, fetch new limit and compute delta to adjust running countdown.
       print('🔔 [SOCKET] timeLimitUpdated received. Applying delta to countdown.');
       if (_deviceCode == null) return;
       try {
         final nowLimit = await _childRepo.getTodayLimit(_deviceCode!);
+        final newTotalLimitMinutes = nowLimit.limitMinutes;
         final newRemainingSeconds = nowLimit.remainingSeconds;
         final enabled = nowLimit.isLimitEnabled;
-        print('📊 [timeLimitUpdated] newRemainingSeconds=$newRemainingSeconds local=$_remainingSeconds enabled=$enabled');
         
+        final deltaMinutes = newTotalLimitMinutes - _currentTotalLimitMinutes;
+        _currentTotalLimitMinutes = newTotalLimitMinutes;
+
+        print('📊 [timeLimitUpdated] limitDelta=$deltaMinutes newLimit=$newTotalLimitMinutes enabled=$enabled');
+
         if (mounted) {
           setState(() {
             _isLimitEnabled = enabled;
-            _remainingSeconds = newRemainingSeconds;
-            _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+            // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
+            if (_endTime != null) {
+              _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
+            } else {
+              _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
+            }
+            
+            final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+            _remainingSeconds = secs > 0 ? secs : 0;
           });
           
-          if ((!enabled || newRemainingSeconds > 0) && _isTimeUpDialogShowing) {
+          if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
             Navigator.of(context, rootNavigator: true).pop();
             _isTimeUpDialogShowing = false;
           }
 
           if (enabled) {
-            if (newRemainingSeconds > 0) {
+            if (_remainingSeconds > 0) {
               if (_countdownTimer == null || !_countdownTimer!.isActive) {
                 _triggeredWarnings.clear();
                 _startCountdown();
