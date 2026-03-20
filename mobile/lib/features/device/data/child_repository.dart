@@ -57,14 +57,23 @@ class TodayLimitModel {
   final int limitMinutes;
   final int remainingMinutes;
   final int remainingSeconds;
+  final bool isLimitEnabled;
 
-  TodayLimitModel({required this.limitMinutes, required this.remainingMinutes, required this.remainingSeconds});
+  TodayLimitModel({required this.limitMinutes, required this.remainingMinutes, required this.remainingSeconds, this.isLimitEnabled = true});
 
   factory TodayLimitModel.fromJson(Map<String, dynamic> json) {
+    bool enabled = true;
+    if (json.containsKey('isLimitEnabled') && json['isLimitEnabled'] != null) {
+      enabled = json['isLimitEnabled'] as bool;
+    } else if (json['baseLimit'] == 0 || json['baseLimit'] == null) {
+      enabled = false;
+    }
+
     return TodayLimitModel(
       limitMinutes: json['limitMinutes'] as int? ?? 0,
       remainingMinutes: json['remainingMinutes'] as int? ?? 0,
       remainingSeconds: json['remainingSeconds'] as int? ?? (json['remainingMinutes'] as int? ?? 0) * 60,
+      isLimitEnabled: enabled,
     );
   }
 }

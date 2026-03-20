@@ -27,6 +27,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   // Task 2: Countdown & Session
   final _childRepo = ChildRepository();
   int _remainingSeconds = 0;
+  bool _isLimitEnabled = true;
   DateTime? _endTime; // BUG 2 FIX: anchor for drift-free countdown
   int? _sessionId;
   Timer? _countdownTimer;
@@ -129,10 +130,15 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       print('📊 [DEBUG] _initSession: limitMinutes=${todayLimit.limitMinutes}, remainingMinutes=${todayLimit.remainingMinutes}, remainingSeconds=${todayLimit.remainingSeconds}');
 
       if (mounted) {
+        final serverSeconds = todayLimit.remainingSeconds;
+        final drift = _endTime == null ? 0 : (_remainingSeconds - serverSeconds).abs();
         setState(() {
-          _remainingSeconds = todayLimit.remainingSeconds;
-          // BUG 2 FIX: pin endTime anchor so countdown is wall-clock-based
-          _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+          _isLimitEnabled = todayLimit.isLimitEnabled;
+          if (drift > 3 || _endTime == null) {
+             _remainingSeconds = serverSeconds;
+             // BUG 2 FIX: pin endTime anchor so countdown is wall-clock-based
+             _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+          }
         });
       }
 
@@ -140,11 +146,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final sid = await _childRepo.startSession(_deviceCode!);
       _sessionId = sid;
 
-      // 3. Start countdown or trigger time up immediately (Bug D fix: check seconds not minutes)
-      if (_remainingSeconds <= 0) {
-        _onTimeUp();
+      // 3. Start countdown or trigger time up immediately
+      if (!_isLimitEnabled) {
+         if (_isTimeUpDialogShowing) {
+            Navigator.of(context, rootNavigator: true).pop();
+            _isTimeUpDialogShowing = false;
+         }
+      } else if (_remainingSeconds <= 0) {
+         if (!_isTimeUpDialogShowing) {
+            _onTimeUp();
+         }
       } else {
-        _startCountdown();
+         _startCountdown();
       }
 
       // 4. Heartbeat every 60s
@@ -161,7 +174,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               final serverSeconds = result.remainingSeconds;
               final drift = (_remainingSeconds - serverSeconds).abs();
               print('💓 [HEARTBEAT] server=$serverSeconds local=$_remainingSeconds drift=$drift');
-              if (drift > 10) {
+              if (drift > 3 && _isLimitEnabled) {
                 print('⚠️ [HEARTBEAT] Drift too large ($drift s), syncing to server value');
                 // BUG 2 FIX: re-anchor endTime when syncing to server
                 setState(() {
@@ -170,7 +183,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                 });
               }
               // If server says blocked, trigger time up
-              if (result.isBlocked && _remainingSeconds > 0) {
+              if (result.isBlocked && !_isTimeUpDialogShowing) {
                 _onTimeUp();
               }
             }
@@ -188,6 +201,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
+      if (!_isLimitEnabled) return;
+      
       // BUG 2 FIX: compute from wall-clock endTime anchor instead of decrementing
       // This prevents 1-minute jumps caused by Timer.periodic jitter accumulation.
       final now = DateTime.now();
@@ -205,6 +220,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   }
 
   void _checkSoftWarning() {
+    if (!_isLimitEnabled) return;
+    
     // Bug A fix: compare exact seconds (e.g. 30*60 = 1800) instead of integer-divided minutes
     // Old: remainingMinutes == 30 would trigger at 1859s (30:59) instead of 1800s (30:00)
 
@@ -311,26 +328,30 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       try {
         final nowLimit = await _childRepo.getTodayLimit(_deviceCode!);
         final newRemainingSeconds = nowLimit.remainingSeconds;
-        print('📊 [timeLimitUpdated] newRemainingSeconds=$newRemainingSeconds local=$_remainingSeconds');
-        if (mounted && newRemainingSeconds > 0) {
+        final enabled = nowLimit.isLimitEnabled;
+        print('📊 [timeLimitUpdated] newRemainingSeconds=$newRemainingSeconds local=$_remainingSeconds enabled=$enabled');
+        
+        if (mounted) {
           setState(() {
+            _isLimitEnabled = enabled;
             _remainingSeconds = newRemainingSeconds;
             _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
           });
           
-          if (_isTimeUpDialogShowing) {
+          if ((!enabled || newRemainingSeconds > 0) && _isTimeUpDialogShowing) {
             Navigator.of(context, rootNavigator: true).pop();
             _isTimeUpDialogShowing = false;
           }
 
-          // Ensure countdown is running (in case we were at 0 and Parent added time)
-          if (_countdownTimer == null || !_countdownTimer!.isActive) {
-            _triggeredWarnings.clear();
-            _startCountdown();
-          }
-        } else if (mounted && newRemainingSeconds <= 0) {
-          if (!_isTimeUpDialogShowing) {
-            _onTimeUp();
+          if (enabled) {
+            if (newRemainingSeconds > 0) {
+              if (_countdownTimer == null || !_countdownTimer!.isActive) {
+                _triggeredWarnings.clear();
+                _startCountdown();
+              }
+            } else if (!_isTimeUpDialogShowing) {
+              _onTimeUp();
+            }
           }
         }
       } catch (e) {
@@ -703,29 +724,42 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       ),
       child: Column(
         children: [
-          Text(
-            '⏳ Thời gian còn lại',
-            style: GoogleFonts.nunito(
-              fontSize: 18,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w600,
+          if (!_isLimitEnabled) ...[
+            Text(
+              'Hôm nay con có thể thoải mái sử dụng thiết bị',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Colors.green.shade600,
+                height: 1.4,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _formattedTime,
-            style: GoogleFonts.nunito(
-              fontSize: 72,
-              fontWeight: FontWeight.w900,
-              color: const Color(0xFF667EEA),
-              height: 1.0,
+          ] else ...[
+            Text(
+              '⏳ Thời gian còn lại',
+              style: GoogleFonts.nunito(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Thời gian hôm nay có hạn. Hãy sử dụng thông minh!',
-            style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey.shade400),
-          ),
+            const SizedBox(height: 16),
+            Text(
+              _formattedTime,
+              style: GoogleFonts.nunito(
+                fontSize: 72,
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF667EEA),
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Thời gian hôm nay có hạn. Hãy sử dụng thông minh!',
+              style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey.shade400),
+            ),
+          ],
         ],
       ),
     );
