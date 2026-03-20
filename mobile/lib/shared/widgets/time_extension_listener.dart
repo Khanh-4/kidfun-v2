@@ -26,11 +26,16 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     _setupSocketListener();
     _checkPendingRequests();
 
-    // Re-check pending requests when socket reconnects
-    SocketService.instance.socket.on('connect', (_) {
-      print('🔄 [SOCKET] Reconnected. Checking pending extension requests...');
-      _checkPendingRequests();
-    });
+    // BUG 3 FIX: Store named reference so we can remove it in dispose().
+    // Previously the raw socket.on('connect', ...) was never cleaned up, causing
+    // N listeners to stack on every widget recreation → N dialogs per reconnect.
+    SocketService.instance.socket.on('connect', _onSocketReconnect);
+  }
+
+  // Named handler so it can be deregistered with off() in dispose()
+  void _onSocketReconnect(_) {
+    print('🔄 [SOCKET] Reconnected. Checking pending extension requests...');
+    _checkPendingRequests();
   }
 
   void _setupSocketListener() {
@@ -142,6 +147,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   @override
   void dispose() {
     SocketService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequest);
+    // BUG 3 FIX: Remove the named connect handler to prevent stacking
+    SocketService.instance.socket.off('connect', _onSocketReconnect);
     super.dispose();
   }
 

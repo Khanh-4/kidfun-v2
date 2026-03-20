@@ -27,6 +27,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   // Task 2: Countdown & Session
   final _childRepo = ChildRepository();
   int _remainingSeconds = 0;
+  DateTime? _endTime; // BUG 2 FIX: anchor for drift-free countdown
   int? _sessionId;
   Timer? _countdownTimer;
   Timer? _heartbeatTimer;
@@ -126,6 +127,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       if (mounted) {
         setState(() {
           _remainingSeconds = todayLimit.remainingSeconds;
+          // BUG 2 FIX: pin endTime anchor so countdown is wall-clock-based
+          _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
         });
       }
 
@@ -156,7 +159,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               print('💓 [HEARTBEAT] server=$serverSeconds local=$_remainingSeconds drift=$drift');
               if (drift > 10) {
                 print('⚠️ [HEARTBEAT] Drift too large ($drift s), syncing to server value');
-                setState(() => _remainingSeconds = serverSeconds);
+                // BUG 2 FIX: re-anchor endTime when syncing to server
+                setState(() {
+                  _remainingSeconds = serverSeconds;
+                  _endTime = DateTime.now().add(Duration(seconds: serverSeconds));
+                });
               }
               // If server says blocked, trigger time up
               if (result.isBlocked && _remainingSeconds > 0) {
@@ -176,12 +183,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   void _startCountdown() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_remainingSeconds > 0) {
-        if (mounted) {
-          setState(() => _remainingSeconds--);
-        }
+      if (!mounted) return;
+      // BUG 2 FIX: compute from wall-clock endTime anchor instead of decrementing
+      // This prevents 1-minute jumps caused by Timer.periodic jitter accumulation.
+      final now = DateTime.now();
+      final secs = _endTime != null
+          ? _endTime!.difference(now).inSeconds
+          : (_remainingSeconds - 1);
+      if (secs > 0) {
+        setState(() => _remainingSeconds = secs);
         _checkSoftWarning();
       } else {
+        setState(() => _remainingSeconds = 0);
         _onTimeUp();
       }
     });
@@ -317,8 +330,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         setState(() => _waitingForResponse = false);
         _showResultDialog(approved, responseMinutes);
         if (approved) {
+          final addedSeconds = responseMinutes * 60;
           setState(() {
-            _remainingSeconds += responseMinutes * 60;
+            _remainingSeconds += addedSeconds;
+            // BUG 2 FIX: shift endTime forward by the approved bonus
+            _endTime = (_endTime ?? DateTime.now()).add(Duration(seconds: addedSeconds));
           });
         }
       }
