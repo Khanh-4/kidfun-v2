@@ -156,6 +156,15 @@ const updateTimeLimits = async (req, res) => {
       const rawLimit = tl.limitMinutes !== undefined ? tl.limitMinutes : tl.dailyLimitMinutes;
       const dailyLimit = parseInt(rawLimit, 10);
 
+      let isActive = true;
+      if (tl.isActive !== undefined) {
+        isActive = tl.isActive;
+      } else if (tl.isLimitEnabled !== undefined) {
+        isActive = tl.isLimitEnabled;
+      } else {
+        isActive = dailyLimit > 0;
+      }
+
       return prisma.timeLimit.upsert({
         where: {
           profileId_dayOfWeek: {
@@ -165,13 +174,15 @@ const updateTimeLimits = async (req, res) => {
         },
         update: { 
           dailyLimitMinutes: dailyLimit,
-          limitMinutes: dailyLimit
+          limitMinutes: dailyLimit,
+          isActive
         },
         create: {
           profileId,
           dayOfWeek,
           dailyLimitMinutes: dailyLimit,
-          limitMinutes: dailyLimit
+          limitMinutes: dailyLimit,
+          isActive
         }
       });
     });
