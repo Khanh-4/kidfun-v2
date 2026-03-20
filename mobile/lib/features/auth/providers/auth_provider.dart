@@ -58,7 +58,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _repo.login(email, password);
       await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
-      _sendFcmTokenIfAvailable();
+      sendFcmTokenIfAvailable();
       SocketService.instance.joinFamily(user.id);
       print('📡 Login success: called joinFamily for user ${user.id}');
     } catch (e) {
@@ -72,7 +72,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _repo.register(name, email, password);
       await SecureStorage.saveUserId(user.id);
       state = AuthAuthenticated(user);
-      _sendFcmTokenIfAvailable();
+      sendFcmTokenIfAvailable();
       SocketService.instance.joinFamily(user.id);
       print('📡 Register success: called joinFamily for user ${user.id}');
     } catch (e) {
@@ -87,8 +87,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthUnauthenticated();
   }
 
-  Future<void> _sendFcmTokenIfAvailable() async {
+  Future<void> sendFcmTokenIfAvailable() async {
     try {
+      // FIX TEST 9: Request notification permissions first before getting token
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      
       final fcmToken = await FirebaseMessaging.instance.getToken();
       if (fcmToken != null) {
         await _repo.registerFcmToken(fcmToken);
