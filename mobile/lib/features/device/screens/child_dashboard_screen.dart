@@ -303,6 +303,60 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     });
   }
 
+  Future<void> _fetchAndApplyNewLimit() async {
+    if (_deviceCode == null) return;
+    try {
+      final nowLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      final newTotalLimitMinutes = nowLimit.limitMinutes;
+      final newRemainingSeconds = nowLimit.remainingSeconds;
+      final enabled = nowLimit.isLimitEnabled;
+      
+      final deltaMinutes = newTotalLimitMinutes - _currentTotalLimitMinutes;
+      _currentTotalLimitMinutes = newTotalLimitMinutes;
+
+      print('📊 [_fetchAndApplyNewLimit] limitDelta=$deltaMinutes newLimit=$newTotalLimitMinutes enabled=$enabled');
+
+      if (mounted) {
+        setState(() {
+          _isLimitEnabled = enabled;
+          // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
+          if (_endTime != null) {
+            _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
+          } else {
+            _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
+          }
+          
+          final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+          _remainingSeconds = secs > 0 ? secs : 0;
+          
+          if (_remainingSeconds > 30 * 60) _hasShown30m = false;
+          if (_remainingSeconds > 15 * 60) _hasShown15m = false;
+          if (_remainingSeconds > 5 * 60) _hasShown5m = false;
+        });
+        
+        if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
+          Navigator.of(context, rootNavigator: true).pop();
+          _isTimeUpDialogShowing = false;
+        }
+
+        if (enabled) {
+          if (_remainingSeconds > 0 && _currentTotalLimitMinutes > 0) {
+            if (_countdownTimer == null || !_countdownTimer!.isActive) {
+              _hasShown30m = false;
+              _hasShown15m = false;
+              _hasShown5m = false;
+              _startCountdown();
+            }
+          } else if (!_isTimeUpDialogShowing) {
+            _onTimeUp();
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ [_fetchAndApplyNewLimit] Error fetching new limit: $e');
+    }
+  }
+
   void _setupSocketListeners() {
     final socket = SocketService.instance.socket;
 
@@ -313,61 +367,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     socket.off('timeLimitUpdated');
     socket.on('timeLimitUpdated', (data) async {
       print('🔔 [SOCKET] timeLimitUpdated received. Applying delta to countdown.');
-      if (_deviceCode == null) return;
-      try {
-        final nowLimit = await _childRepo.getTodayLimit(_deviceCode!);
-        final newTotalLimitMinutes = nowLimit.limitMinutes;
-        final newRemainingSeconds = nowLimit.remainingSeconds;
-        final enabled = nowLimit.isLimitEnabled;
-        
-        final deltaMinutes = newTotalLimitMinutes - _currentTotalLimitMinutes;
-        _currentTotalLimitMinutes = newTotalLimitMinutes;
-
-        print('📊 [timeLimitUpdated] limitDelta=$deltaMinutes newLimit=$newTotalLimitMinutes enabled=$enabled');
-
-        if (mounted) {
-          setState(() {
-            _isLimitEnabled = enabled;
-            // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
-            if (_endTime != null) {
-              _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
-            } else {
-              _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
-            }
-            
-            final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
-            _remainingSeconds = secs > 0 ? secs : 0;
-            
-            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
-            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
-            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
-          });
-          
-          if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
-            Navigator.of(context, rootNavigator: true).pop();
-            _isTimeUpDialogShowing = false;
-          }
-
-          if (enabled) {
-            if (_remainingSeconds > 0 && _currentTotalLimitMinutes > 0) {
-              if (_countdownTimer == null || !_countdownTimer!.isActive) {
-                _hasShown30m = false;
-                _hasShown15m = false;
-                _hasShown5m = false;
-                _startCountdown();
-              }
-            } else if (!_isTimeUpDialogShowing) {
-              _onTimeUp();
-            }
-          }
-        }
-      } catch (e) {
-        print('❌ [timeLimitUpdated] Error fetching new limit: $e');
-      }
+      await _fetchAndApplyNewLimit();
     });
 
     socket.off('timeExtensionResponse');
-    socket.on('timeExtensionResponse', (data) {
+    socket.on('timeExtensionResponse', (data) async {
       print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
       final approved = data['approved'] as bool;
       final responseMinutes = data['responseMinutes'] as int? ?? 0;
@@ -376,16 +380,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         setState(() => _waitingForResponse = false);
         _showResultDialog(approved, responseMinutes);
         if (approved) {
-          final addedSeconds = responseMinutes * 60;
-          setState(() {
-            _remainingSeconds += addedSeconds;
-            // BUG 2 FIX: shift endTime forward by the approved bonus
-            _endTime = (_endTime ?? DateTime.now()).add(Duration(seconds: addedSeconds));
-            
-            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
-            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
-            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
-          });
+          await _fetchAndApplyNewLimit();
         }
       }
     });
