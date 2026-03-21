@@ -568,7 +568,7 @@ const getTodayLimit = async (req, res) => {
     const usedMinutes = Math.floor(usedSeconds / 60);
 
     const dbIsActive = todayLimit?.isActive ?? true;
-    const isLimitEnabled = dbIsActive && baseLimit > 0;
+    const isLimitEnabled = dbIsActive;
 
     console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, extensionBonus=${extensionBonus}, limitMinutes=${limitMinutes}, usedMinutes=${usedMinutes}, remainingMinutes=${remainingMinutes}, remainingSeconds=${remainingSeconds}`);
 
