@@ -33,7 +33,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   int? _sessionId;
   Timer? _countdownTimer;
   Timer? _heartbeatTimer;
-  final Set<int> _triggeredWarnings = {};
+  bool _hasShown30m = false;
+  bool _hasShown15m = false;
+  bool _hasShown5m = false;
   bool _isTimeUpDialogShowing = false;
   bool _waitingForResponse = false;
 
@@ -155,7 +157,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             Navigator.of(context, rootNavigator: true).pop();
             _isTimeUpDialogShowing = false;
          }
-      } else if (_remainingSeconds <= 0) {
+      } else if (_remainingSeconds <= 0 || (_isLimitEnabled && _currentTotalLimitMinutes == 0)) {
          if (!_isTimeUpDialogShowing) {
             _onTimeUp();
          }
@@ -213,25 +215,22 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   void _checkSoftWarning() {
     if (!_isLimitEnabled) return;
-    
-    // Bug A fix: compare exact seconds (e.g. 30*60 = 1800) instead of integer-divided minutes
-    // Old: remainingMinutes == 30 would trigger at 1859s (30:59) instead of 1800s (30:00)
 
-    // Mốc 30 phút — chính xác tại 1800 giây
-    if (_remainingSeconds == 30 * 60 && !_triggeredWarnings.contains(30)) {
-      _triggeredWarnings.add(30);
+    // Trigger <= 30 minutes
+    if (_remainingSeconds <= 30 * 60 && !_hasShown30m) {
+      _hasShown30m = true;
       _showWarningDialog('SOFT_30', 'Còn 30 phút', 'Con còn 30 phút sử dụng thiết bị hôm nay.');
     }
 
-    // Mốc 15 phút — chính xác tại 900 giây
-    if (_remainingSeconds == 15 * 60 && !_triggeredWarnings.contains(15)) {
-      _triggeredWarnings.add(15);
+    // Trigger <= 15 minutes
+    if (_remainingSeconds <= 15 * 60 && !_hasShown15m) {
+      _hasShown15m = true;
       _showWarningDialog('SOFT_15', 'Còn 15 phút', 'Con còn 15 phút. Hãy hoàn thành việc đang làm nhé!');
     }
 
-    // Mốc 5 phút — chính xác tại 300 giây
-    if (_remainingSeconds == 5 * 60 && !_triggeredWarnings.contains(5)) {
-      _triggeredWarnings.add(5);
+    // Trigger <= 5 minutes
+    if (_remainingSeconds <= 5 * 60 && !_hasShown5m) {
+      _hasShown5m = true;
       _showWarningDialog('SOFT_5', 'Còn 5 phút!', 'Con còn 5 phút. Sắp hết giờ rồi!');
     }
   }
@@ -338,6 +337,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             
             final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
             _remainingSeconds = secs > 0 ? secs : 0;
+            
+            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
+            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
+            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
           });
           
           if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
@@ -346,9 +349,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           }
 
           if (enabled) {
-            if (_remainingSeconds > 0) {
+            if (_remainingSeconds > 0 && _currentTotalLimitMinutes > 0) {
               if (_countdownTimer == null || !_countdownTimer!.isActive) {
-                _triggeredWarnings.clear();
+                _hasShown30m = false;
+                _hasShown15m = false;
+                _hasShown5m = false;
                 _startCountdown();
               }
             } else if (!_isTimeUpDialogShowing) {
@@ -376,6 +381,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             _remainingSeconds += addedSeconds;
             // BUG 2 FIX: shift endTime forward by the approved bonus
             _endTime = (_endTime ?? DateTime.now()).add(Duration(seconds: addedSeconds));
+            
+            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
+            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
+            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
           });
         }
       }
