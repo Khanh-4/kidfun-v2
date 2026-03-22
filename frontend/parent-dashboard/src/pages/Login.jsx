@@ -13,7 +13,7 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
-import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
+import { Visibility, VisibilityOff, Email, Lock, PersonAddAlt1 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import authService from '../services/authService';
 
@@ -23,23 +23,31 @@ function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [emailNotFound, setEmailNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
+    setEmailNotFound(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setEmailNotFound(false);
 
     try {
       await authService.login(formData.email, formData.password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.login.failed'));
+      const code = err.response?.data?.code;
+      if (code === 'EMAIL_NOT_FOUND') {
+        setEmailNotFound(true);
+      } else {
+        setError(err.response?.data?.message || t('auth.login.failed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -81,6 +89,27 @@ function Login() {
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
+            </Alert>
+          )}
+
+          {/* Email not found alert */}
+          {emailNotFound && (
+            <Alert
+              severity="warning"
+              sx={{ mb: 3 }}
+              action={
+                <Button
+                  component={RouterLink}
+                  to="/register"
+                  color="inherit"
+                  size="small"
+                  startIcon={<PersonAddAlt1 />}
+                >
+                  Đăng ký
+                </Button>
+              }
+            >
+              Email này chưa được đăng ký. Vui lòng tạo tài khoản mới.
             </Alert>
           )}
 

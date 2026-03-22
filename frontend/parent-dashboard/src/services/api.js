@@ -34,8 +34,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token hết hạn hoặc không hợp lệ
+    const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
+      // Token hết hạn hoặc không hợp lệ (chỉ xử lý khi không phải request đăng nhập)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.hash = '#/login';

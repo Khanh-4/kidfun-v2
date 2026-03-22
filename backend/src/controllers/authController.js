@@ -74,7 +74,7 @@ const login = async (req, res) => {
     // Tìm user
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return sendError(res, 'Invalid email or password', 401, 'INVALID_CREDENTIALS');
+      return sendError(res, 'Email chưa được đăng ký', 401, 'EMAIL_NOT_FOUND');
     }
 
     // Kiểm tra password

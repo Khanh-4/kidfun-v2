@@ -82,10 +82,64 @@ npm run db:setup         # Initialize database with migrations
 - Device linking via unique `deviceCode` (no auth required for `/api/devices/link`)
 - TimeLimit has unique constraint on `[profileId, dayOfWeek]`
 
+## Git Workflow — BẮT BUỘC
+
+### Quy trình cho MỖI task
+
+**Bước 1: Tạo feature branch**
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b feature/<area>/<tên-task>
+```
+
+**Bước 2: Code + commit**
+```bash
+git add -A
+git commit -m "feat(area): mô tả ngắn"
+```
+
+**Bước 3: Push + tạo PR về develop**
+```bash
+git push origin feature/<area>/<tên-task>
+```
+
+**Bước 4: Review + merge**
+- Code của bạn Frontend: Khanh review → approve → merge
+- Code của Khanh: Tự review → bypass rules → merge
+
+**Bước 5: Dọn dẹp branch**
+```bash
+git checkout develop && git pull origin develop
+git branch -d feature/<area>/<tên-task-cũ>
+```
+
+### KHÔNG ĐƯỢC
+- Push thẳng lên `develop` hoặc `main`
+- Code trực tiếp trên `develop`
+- Merge mà chưa tạo PR
+- Bắt đầu task mới khi chưa merge task cũ
+
+### PHẢI LÀM
+- Mỗi task = 1 feature branch riêng
+- Mỗi feature branch = 1 PR → base: develop
+- Pull develop mới nhất TRƯỚC KHI tạo branch
+- Commit message format: `feat/fix/chore(area): mô tả`
+
+### Quy ước commit message
+```
+feat(backend): add Socket.IO device events
+feat(mobile): implement device list screen
+fix(backend): handle null deviceCode in disconnect
+fix(mobile): device status not updating real-time
+chore(backend): update prisma schema
+docs: update API contract
+```
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **kidfun-v2** (633 symbols, 1061 relationships, 23 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **kidfun-v2** (632 symbols, 1061 relationships, 23 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
