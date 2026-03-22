@@ -40,6 +40,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   bool _hasShown5m = false;
   bool _isTimeUpDialogShowing = false;
   bool _waitingForResponse = false;
+  Timer? _usageSyncTimer;
 
   @override
   void initState() {
@@ -124,6 +125,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Sprint 5: Start foreground service for 24/7 monitoring
     NativeService.startForegroundService();
 
+    // Sprint 5: Sync app usage every 5 minutes
+    _startUsageSync();
+
     // Sprint 4: Task 2 - Session & Countdown
     _initSession();
     _setupSocketListeners();
@@ -195,6 +199,36 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       });
     } catch (e) {
       print('❌ Init session error: $e');
+    }
+  }
+
+  void _startUsageSync() {
+    _usageSyncTimer?.cancel();
+    _usageSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+      if (_deviceCode == null) return;
+      try {
+        final hasPermission = await NativeService.hasUsageStatsPermission();
+        if (!hasPermission) return;
+        final usage = await NativeService.getAppUsage();
+        if (usage.isNotEmpty) {
+          await _childRepo.syncAppUsage(_deviceCode!, usage);
+          print('📊 [USAGE] Synced ${usage.length} apps to server');
+        }
+      } catch (e) {
+        print('❌ [USAGE] Sync error: $e');
+      }
+    });
+  }
+
+  Future<void> _syncBlockedApps() async {
+    if (_deviceCode == null) return;
+    try {
+      final blockedApps = await _childRepo.getBlockedApps(_deviceCode!);
+      final packages = blockedApps.map((a) => a.packageName).toList();
+      await NativeService.setBlockedApps(packages);
+      print('🚫 [BLOCKED] Synced ${packages.length} blocked apps');
+    } catch (e) {
+      print('❌ [BLOCKED] Sync error: $e');
     }
   }
 
@@ -536,6 +570,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _connectionCheckTimer?.cancel();
     _countdownTimer?.cancel();
     _heartbeatTimer?.cancel();
+    _usageSyncTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     
     if (_sessionId != null) {
