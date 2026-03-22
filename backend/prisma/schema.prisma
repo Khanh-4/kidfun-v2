@@ -44,6 +44,7 @@ model Profile {
   warnings      Warning[]
   usageSessions UsageSession[]
   timeExtensionRequests TimeExtensionRequest[]
+  appUsageLogs  AppUsageLog[]
 }
 
 model Device {
@@ -66,6 +67,7 @@ model Device {
   fcmTokens     FCMToken[]
   usageSessions UsageSession[]
   timeExtensionRequests TimeExtensionRequest[]
+  appUsageLogs  AppUsageLog[]
 }
 
 model TimeLimit {
@@ -202,4 +204,21 @@ model FCMToken {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+}
+
+model AppUsageLog {
+  id            Int      @id @default(autoincrement())
+  profileId     Int
+  deviceId      Int
+  packageName   String
+  appName       String?
+  usageSeconds  Int
+  date          DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profile  Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, deviceId, packageName, date])
 }
