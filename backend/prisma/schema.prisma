@@ -45,6 +45,7 @@ model Profile {
   usageSessions UsageSession[]
   timeExtensionRequests TimeExtensionRequest[]
   appUsageLogs  AppUsageLog[]
+  blockedApps   BlockedApp[]
 }
 
 model Device {
@@ -204,6 +205,20 @@ model FCMToken {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+}
+
+model BlockedApp {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  packageName String
+  appName     String?
+  isBlocked   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, packageName])
 }
 
 model AppUsageLog {

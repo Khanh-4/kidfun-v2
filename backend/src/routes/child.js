@@ -40,4 +40,8 @@ router.get('/blocked-sites', childController.getBlockedSites);
 // POST /api/child/app-usage - Child gửi batch app usage data
 router.post('/app-usage', appUsageController.syncAppUsage);
 
+const blockedAppController = require('../controllers/blockedAppController');
+// GET /api/child/blocked-apps?deviceCode=XXX - Child lấy danh sách app bị chặn
+router.get('/blocked-apps', blockedAppController.getBlockedAppsForChild);
+
 module.exports = router;
