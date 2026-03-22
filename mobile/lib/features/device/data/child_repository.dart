@@ -37,18 +37,51 @@ class ChildRepository {
   }
 
   Future<void> logWarning({
-    required String deviceCode, 
-    required String type, 
+    required String deviceCode,
+    required String type,
     int remainingMinutes = 0,
   }) async {
     // ChildController uses header X-Device-Code and body warningType, message, remainingMinutes
-    await _dio.post('/api/child/warnings', 
+    await _dio.post('/api/child/warnings',
       data: {
         'warningType': type,
         'remainingMinutes': remainingMinutes,
         'message': 'Cảnh báo: $type - Còn $remainingMinutes phút'
       },
       options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+  }
+
+  /// POST /api/child/app-usage — gửi batch app usage data lên server
+  Future<void> syncAppUsage(String deviceCode, List<Map<String, dynamic>> usageData) async {
+    await _dio.post(
+      '/api/child/app-usage',
+      data: {'usageData': usageData},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+  }
+
+  /// GET /api/child/blocked-apps — lấy danh sách app bị chặn cho child
+  Future<List<BlockedAppModel>> getBlockedApps(String deviceCode) async {
+    final response = await _dio.get(
+      '/api/child/blocked-apps',
+      queryParameters: {'deviceCode': deviceCode},
+    );
+    final List<dynamic> list = response.data['data']['blockedApps'] as List<dynamic>;
+    return list.map((e) => BlockedAppModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+}
+
+class BlockedAppModel {
+  final String packageName;
+  final String? appName;
+
+  BlockedAppModel({required this.packageName, this.appName});
+
+  factory BlockedAppModel.fromJson(Map<String, dynamic> json) {
+    return BlockedAppModel(
+      packageName: json['packageName'] as String,
+      appName: json['appName'] as String?,
     );
   }
 }
