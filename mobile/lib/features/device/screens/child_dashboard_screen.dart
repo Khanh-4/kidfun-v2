@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/services/native_service.dart';
 import '../data/child_repository.dart';
 
 class ChildDashboardScreen extends ConsumerStatefulWidget {
@@ -119,6 +120,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Initial check
     setState(() => _isSocketConnected = SocketService.instance.isConnected);
+
+    // Sprint 5: Start foreground service for 24/7 monitoring
+    NativeService.startForegroundService();
 
     // Sprint 4: Task 2 - Session & Countdown
     _initSession();
