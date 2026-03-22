@@ -194,20 +194,31 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   void _startCountdown() {
     _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (!_isLimitEnabled) return;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (!_isLimitEnabled) {
+        timer.cancel();
+        return;
+      }
       
       // This prevents 1-minute jumps caused by Timer.periodic jitter accumulation.
       final now = DateTime.now();
-      final secs = _endTime != null
+      int secs = _endTime != null
           ? (_endTime!.difference(now).inMilliseconds / 1000).round()
           : (_remainingSeconds - 1);
+          
+      if (secs < 0) secs = 0; // Prevent _remainingSeconds from ever going below 0
+
       if (secs > 0) {
         setState(() => _remainingSeconds = secs);
         _checkSoftWarning();
       } else {
         setState(() => _remainingSeconds = 0);
+        timer.cancel();
+        _countdownTimer?.cancel();
         _onTimeUp();
       }
     });
@@ -321,7 +332,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           _isLimitEnabled = enabled;
           // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
           if (_endTime != null) {
-            _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
+            final isExpired = _remainingSeconds <= 0 || _endTime!.isBefore(DateTime.now());
+            if (isExpired) {
+              _endTime = DateTime.now().add(Duration(minutes: deltaMinutes));
+            } else {
+              _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
+            }
           } else {
             _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
           }
