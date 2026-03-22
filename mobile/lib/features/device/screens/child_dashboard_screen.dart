@@ -328,26 +328,35 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       print('📊 [_fetchAndApplyNewLimit] limitDelta=$deltaMinutes newLimit=$newTotalLimitMinutes enabled=$enabled');
 
       if (mounted) {
+        final wasUnlimited = !_isLimitEnabled || _endTime == null;
+
         setState(() {
           _isLimitEnabled = enabled;
-          // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
-          if (_endTime != null) {
-            final isExpired = _remainingSeconds <= 0 || _endTime!.isBefore(DateTime.now());
-            if (isExpired) {
-              _endTime = DateTime.now().add(Duration(minutes: deltaMinutes));
-            } else {
-              _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
-            }
+          
+          if (!enabled) {
+            _countdownTimer?.cancel();
+            _endTime = null;
+            _remainingSeconds = newRemainingSeconds;
           } else {
-            _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
+            // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
+            if (wasUnlimited) {
+              _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
+            } else {
+              final isExpired = _remainingSeconds <= 0 || _endTime!.isBefore(DateTime.now());
+              if (isExpired) {
+                _endTime = DateTime.now().add(Duration(minutes: deltaMinutes));
+              } else {
+                _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
+              }
+            }
+            
+            final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+            _remainingSeconds = secs > 0 ? secs : 0;
+            
+            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
+            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
+            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
           }
-          
-          final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
-          _remainingSeconds = secs > 0 ? secs : 0;
-          
-          if (_remainingSeconds > 30 * 60) _hasShown30m = false;
-          if (_remainingSeconds > 15 * 60) _hasShown15m = false;
-          if (_remainingSeconds > 5 * 60) _hasShown5m = false;
         });
         
         if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
