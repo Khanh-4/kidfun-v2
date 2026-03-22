@@ -163,6 +163,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   label: const Text('Thiết lập giới hạn thời gian'),
                   style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                 ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => context.push(
+                    '/profiles/${widget.profile.id}/app-blocking?name=${Uri.encodeComponent(widget.profile.profileName)}',
+                  ),
+                  icon: const Icon(Icons.block),
+                  label: const Text('Chặn app'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => context.push(
+                    '/profiles/${widget.profile.id}/app-usage?name=${Uri.encodeComponent(widget.profile.profileName)}',
+                  ),
+                  icon: const Icon(Icons.bar_chart),
+                  label: const Text('Báo cáo sử dụng'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _isLoading || _isDeleting ? null : _saveChanges,

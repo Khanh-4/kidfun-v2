@@ -15,6 +15,8 @@ import 'features/device/screens/add_device_screen.dart';
 import 'features/device/screens/scan_qr_screen.dart';
 import 'features/device/screens/child_dashboard_screen.dart';
 import 'features/time_limit/screens/time_limit_screen.dart';
+import 'features/profile/screens/app_blocking_screen.dart';
+import 'features/profile/screens/app_usage_report_screen.dart';
 import 'shared/models/profile_model.dart';
 import 'shared/widgets/time_extension_listener.dart';
 import 'core/theme/app_theme.dart';
@@ -168,6 +170,22 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = int.parse(state.pathParameters['id']!);
               final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
               return TimeLimitScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/app-blocking',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return AppBlockingScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/app-usage',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return AppUsageReportScreen(profileId: id, profileName: name);
             },
           ),
         ],
