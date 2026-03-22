@@ -38,4 +38,12 @@ router.get('/:id/app-usage/weekly', appUsageController.getWeeklyUsage);
 // GET /api/profiles/:id/app-usage?date=YYYY-MM-DD
 router.get('/:id/app-usage', appUsageController.getDailyUsage);
 
+const blockedAppController = require('../controllers/blockedAppController');
+// GET  /api/profiles/:id/blocked-apps
+router.get('/:id/blocked-apps', blockedAppController.getBlockedApps);
+// POST /api/profiles/:id/blocked-apps
+router.post('/:id/blocked-apps', blockedAppController.addBlockedApp);
+// DELETE /api/profiles/:id/blocked-apps/:packageName
+router.delete('/:id/blocked-apps/:packageName', blockedAppController.removeBlockedApp);
+
 module.exports = router;
