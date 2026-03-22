@@ -128,6 +128,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Sprint 5: Sync app usage every 5 minutes
     _startUsageSync();
 
+    // Sprint 5: Sync blocked apps from server
+    _syncBlockedApps();
+
     // Sprint 4: Task 2 - Session & Countdown
     _initSession();
     _setupSocketListeners();
@@ -332,7 +335,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _childRepo.logWarning(deviceCode: _deviceCode!, type: 'TIME_UP', remainingMinutes: 0);
     }
 
-    // Hiện màn hình khóa (fullscreen, không thoát được)
+    // Sprint 5: Lock screen bằng native DevicePolicyManager
+    NativeService.lockScreen().catchError((e) {
+      print('❌ [LOCK] lockScreen error: $e');
+    });
+
+    // Hiện màn hình khóa fullscreen (backup nếu Device Admin chưa được cấp)
     _isTimeUpDialogShowing = true;
     showDialog(
       context: context,
@@ -436,6 +444,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     socket.on('timeLimitUpdated', (data) async {
       print('🔔 [SOCKET] timeLimitUpdated received. Applying delta to countdown.');
       await _fetchAndApplyNewLimit();
+    });
+
+    socket.off('blockedAppsUpdated');
+    socket.on('blockedAppsUpdated', (data) async {
+      print('🔔 [SOCKET] blockedAppsUpdated received — re-syncing blocked apps');
+      await _syncBlockedApps();
     });
 
     socket.off('timeExtensionResponse');
@@ -580,6 +594,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Remove socket listeners
     SocketService.instance.socket.off('timeLimitUpdated');
     SocketService.instance.socket.off('timeExtensionResponse');
+    SocketService.instance.socket.off('blockedAppsUpdated');
     
     super.dispose();
   }
