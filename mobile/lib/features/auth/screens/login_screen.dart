@@ -29,18 +29,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Chỉ dùng ref.listen để navigate khi đăng nhập thành công
     ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
-        );
-      } else if (next is AuthAuthenticated) {
+      if (next is AuthAuthenticated) {
         context.go('/home');
       }
     });
 
     final authState = ref.watch(authProvider);
     final _isLoading = authState is AuthLoading;
+    final _errorMessage = authState is AuthError ? (authState as AuthError).message : null;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -57,6 +55,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue),
               ),
               const SizedBox(height: 48),
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage,
+                          style: TextStyle(color: Colors.red.shade700, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(hintText: 'Email'),

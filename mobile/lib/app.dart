@@ -199,6 +199,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isRoleSelection = state.matchedLocation == '/role-selection';
 
       if (authState is AuthLoading || roleState.isLoading) {
+        // Không redirect khỏi auth screens khi đang loading —
+        // nếu không LoginScreen sẽ bị unmount và mất state error
+        if (isAuthScreen) return null;
         return isSplash ? null : '/splash';
       }
 
