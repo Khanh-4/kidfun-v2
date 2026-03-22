@@ -4,6 +4,7 @@ const childController = require('../controllers/childController');
 const sessionController = require('../controllers/sessionController');
 const warningController = require('../controllers/warningController');
 const extensionController = require('../controllers/extensionController');
+const appUsageController = require('../controllers/appUsageController');
 
 // Tất cả routes PUBLIC - Child không cần authentication
 // Dùng deviceCode từ X-Device-Code header để identify
@@ -35,5 +36,8 @@ router.post('/extension-request', extensionController.createExtensionRequest);
 
 // GET /api/child/blocked-sites - Lấy danh sách blocked sites (dùng deviceCode)
 router.get('/blocked-sites', childController.getBlockedSites);
+
+// POST /api/child/app-usage - Child gửi batch app usage data
+router.post('/app-usage', appUsageController.syncAppUsage);
 
 module.exports = router;

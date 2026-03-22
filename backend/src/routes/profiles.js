@@ -32,4 +32,10 @@ const extensionController = require('../controllers/extensionController');
 // GET /api/profiles/:id/extension-requests - Xem lịch sử xin thêm giờ
 router.get('/:id/extension-requests', extensionController.getExtensionRequests);
 
+const appUsageController = require('../controllers/appUsageController');
+// GET /api/profiles/:id/app-usage/weekly — phải đứng trước /app-usage để tránh conflict route param
+router.get('/:id/app-usage/weekly', appUsageController.getWeeklyUsage);
+// GET /api/profiles/:id/app-usage?date=YYYY-MM-DD
+router.get('/:id/app-usage', appUsageController.getDailyUsage);
+
 module.exports = router;
