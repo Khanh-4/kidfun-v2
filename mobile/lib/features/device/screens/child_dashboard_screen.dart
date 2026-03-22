@@ -30,6 +30,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   bool _isLimitEnabled = true;
   int _currentTotalLimitMinutes = 0; // Tracks baseLimit + extension minutes
   DateTime? _endTime; // BUG 2 FIX: anchor for drift-free countdown
+  int? _pausedRemainingSeconds; // NEW
   int? _sessionId;
   Timer? _countdownTimer;
   Timer? _heartbeatTimer;
@@ -64,6 +65,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _countdownTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
       print('📦 App resumed: recalculating drift natively');
+      if (!_isLimitEnabled) return;
       if (_isLimitEnabled && _endTime != null) {
         // BUG 8 FIX: precise millisecond rounding to avoid fraction truncation lag
         final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
@@ -334,13 +336,16 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           _isLimitEnabled = enabled;
           
           if (!enabled) {
+            _pausedRemainingSeconds = _remainingSeconds;
             _countdownTimer?.cancel();
             _endTime = null;
             _remainingSeconds = newRemainingSeconds;
           } else {
             // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
             if (wasUnlimited) {
-              _endTime = DateTime.now().add(Duration(seconds: newRemainingSeconds));
+              _remainingSeconds = (_pausedRemainingSeconds ?? newRemainingSeconds) + (deltaMinutes * 60);
+              _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+              _pausedRemainingSeconds = null;
             } else {
               final isExpired = _remainingSeconds <= 0 || _endTime!.isBefore(DateTime.now());
               if (isExpired) {
