@@ -46,4 +46,10 @@ router.post('/:id/blocked-apps', blockedAppController.addBlockedApp);
 // DELETE /api/profiles/:id/blocked-apps/:packageName
 router.delete('/:id/blocked-apps/:packageName', blockedAppController.removeBlockedApp);
 
+const timeLimitController = require('../controllers/timeLimitController');
+// PUT /api/profiles/:id/time-limits/gradual — bật gradual reduction
+router.put('/:id/time-limits/gradual', timeLimitController.setGradualReduction);
+// PUT /api/profiles/:id/time-limits/gradual/disable — tắt gradual reduction
+router.put('/:id/time-limits/gradual/disable', timeLimitController.disableGradualReduction);
+
 module.exports = router;

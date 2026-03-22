@@ -560,7 +560,26 @@ const getTodayLimit = async (req, res) => {
     }, 0);
 
     // fallback to limitMinutes if dailyLimitMinutes is null
-    const baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
+    let baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
+
+    // Gradual reduction: tính limit hiệu lực nếu đang trong tiến trình giảm dần
+    if (
+      todayLimit?.isGradual &&
+      todayLimit.gradualTarget != null &&
+      todayLimit.gradualWeeks &&
+      todayLimit.gradualStartDate
+    ) {
+      const startDate = new Date(todayLimit.gradualStartDate);
+      const weeksElapsed = Math.floor((vnNow - startDate) / (7 * 24 * 60 * 60 * 1000));
+      if (weeksElapsed < todayLimit.gradualWeeks) {
+        const reduction =
+          (baseLimit - todayLimit.gradualTarget) * (weeksElapsed / todayLimit.gradualWeeks);
+        baseLimit = Math.round(baseLimit - reduction);
+      } else {
+        baseLimit = todayLimit.gradualTarget;
+      }
+    }
+
     const limitMinutes = baseLimit + extensionBonus;
     const limitSeconds = limitMinutes * 60;
     const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
