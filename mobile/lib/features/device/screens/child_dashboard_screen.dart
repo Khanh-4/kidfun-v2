@@ -67,6 +67,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _countdownTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
       print('📦 App resumed: recalculating drift natively');
+      // Re-check permissions after user returns from Settings
+      if (!_isTimeUpDialogShowing) _checkAndRequestPermissions();
       if (!_isLimitEnabled) return;
       if (_isLimitEnabled && _endTime != null) {
         // BUG 8 FIX: precise millisecond rounding to avoid fraction truncation lag
@@ -124,6 +126,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 5: Start foreground service for 24/7 monitoring
     NativeService.startForegroundService();
+
+    // Sprint 5: Prompt user to grant required permissions
+    await _checkAndRequestPermissions();
 
     // Sprint 5: Sync app usage every 5 minutes
     _startUsageSync();
@@ -202,6 +207,73 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       });
     } catch (e) {
       print('❌ Init session error: $e');
+    }
+  }
+
+  Future<void> _checkAndRequestPermissions() async {
+    if (!mounted) return;
+
+    final hasUsage = await NativeService.hasUsageStatsPermission();
+    if (!hasUsage && mounted) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.bar_chart, color: Color(0xFF6366f1)),
+              const SizedBox(width: 8),
+              Text('Cần quyền theo dõi app', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            'KidFun cần quyền "Đọc dữ liệu sử dụng ứng dụng" để phụ huynh có thể xem và quản lý các app con đang dùng.',
+            style: GoogleFonts.nunito(fontSize: 15),
+          ),
+          actions: [
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                NativeService.requestUsageStatsPermission();
+              },
+              icon: const Icon(Icons.settings),
+              label: Text('Mở Cài đặt', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+      return; // Chờ user cấp quyền, sẽ re-check khi resume
+    }
+
+    final hasAccessibility = await NativeService.isAccessibilityEnabled();
+    if (!hasAccessibility && mounted) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.accessibility, color: Color(0xFF6366f1)),
+              const SizedBox(width: 8),
+              Text('Cần quyền Accessibility', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            'KidFun cần quyền Accessibility để có thể chặn các ứng dụng khi phụ huynh yêu cầu.',
+            style: GoogleFonts.nunito(fontSize: 15),
+          ),
+          actions: [
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                NativeService.requestAccessibilityPermission();
+              },
+              icon: const Icon(Icons.settings),
+              label: Text('Mở Cài đặt', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -354,7 +426,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             'Thời gian sử dụng thiết bị hôm nay đã hết.\nHãy nghỉ ngơi nhé!',
             style: GoogleFonts.nunito(fontSize: 16),
           ),
-          actions: const [], // Không có nút dismiss
+          actions: [
+            ElevatedButton.icon(
+              onPressed: () => _showRequestDialog(),
+              icon: const Icon(Icons.access_time),
+              label: Text('Xin thêm giờ', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
         ),
       ),
     ).then((_) {
