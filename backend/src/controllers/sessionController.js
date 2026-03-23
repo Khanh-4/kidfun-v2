@@ -98,6 +98,7 @@ exports.heartbeat = async (req, res) => {
       remainingSeconds,
       limitMinutes,
       usedMinutes,
+      isBlocked: remainingSeconds <= 0,
     });
   } catch (err) {
     return sendError(res, err.message, 500);
