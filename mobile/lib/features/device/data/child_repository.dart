@@ -56,8 +56,7 @@ class ChildRepository {
   Future<void> syncAppUsage(String deviceCode, List<Map<String, dynamic>> usageData) async {
     await _dio.post(
       '/api/child/app-usage',
-      data: {'usageData': usageData},
-      options: Options(headers: {'X-Device-Code': deviceCode}),
+      data: {'deviceCode': deviceCode, 'usageData': usageData},
     );
   }
 
