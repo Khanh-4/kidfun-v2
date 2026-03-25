@@ -169,7 +169,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     '/profiles/${widget.profile.id}/app-blocking?name=${Uri.encodeComponent(widget.profile.profileName)}',
                   ),
                   icon: const Icon(Icons.block),
-                  label: const Text('Chặn app'),
+                  label: const Text('Chặn ứng dụng'),
                   style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                 ),
                 const SizedBox(height: 12),

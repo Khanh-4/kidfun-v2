@@ -534,31 +534,6 @@ const getTodayLimit = async (req, res) => {
     const today = vnNow.getDay(); // 0 = Sunday
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
-    const startOfDay = new Date(vnNow);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    // Tính tổng thời gian được cộng (extensions)
-    const extensions = await prisma.timeExtensionRequest.findMany({
-      where: {
-        profileId: device.profile.id,
-        status: 'APPROVED',
-        createdAt: { gte: startOfDay }
-      }
-    });
-    const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
-
-    const sessions = await prisma.usageSession.findMany({
-      where: {
-        profileId: device.profile.id,
-        startTime: { gte: startOfDay },
-      },
-    });
-
-    const usedSeconds = sessions.reduce((total, s) => {
-      const end = s.endTime || new Date();
-      return total + (end.getTime() - new Date(s.startTime).getTime()) / 1000;
-    }, 0);
-
     // fallback to limitMinutes if dailyLimitMinutes is null
     let baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
 
@@ -580,16 +555,17 @@ const getTodayLimit = async (req, res) => {
       }
     }
 
-    const limitMinutes = baseLimit + extensionBonus;
-    const limitSeconds = limitMinutes * 60;
-    const remainingSeconds = Math.max(0, Math.round(limitSeconds - usedSeconds));
-    const remainingMinutes = Math.ceil(remainingSeconds / 60);
-    const usedMinutes = Math.floor(usedSeconds / 60);
+    // BUG FIX: dùng calcRemaining() thay vì usageSession (bảng không được ghi bởi session APIs)
+    // calcRemaining đọc từ usageLog (được tạo bởi startSession + heartbeat) → chính xác
+    const { usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds } =
+      await calcRemaining(device.profile.id, device.id);
+
+    const limitMinutes = baseLimit + bonusMinutes;
 
     const dbIsActive = todayLimit?.isActive ?? true;
     const isLimitEnabled = dbIsActive;
 
-    console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, extensionBonus=${extensionBonus}, limitMinutes=${limitMinutes}, usedMinutes=${usedMinutes}, remainingMinutes=${remainingMinutes}, remainingSeconds=${remainingSeconds}`);
+    console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, bonusMinutes=${bonusMinutes}, limitMinutes=${limitMinutes}, usedMinutes=${usedMinutes}, remainingMinutes=${remainingMinutes}, remainingSeconds=${remainingSeconds}`);
 
     return sendSuccess(res, {
       profileId: device.profile.id,
