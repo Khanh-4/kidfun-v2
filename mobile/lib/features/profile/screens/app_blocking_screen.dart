@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../data/app_usage_repository.dart';
 
 class AppBlockingScreen extends StatefulWidget {
@@ -33,9 +32,8 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final results = await Future.wait([
-        _repo.getDailyUsage(widget.profileId, today),
+        _repo.getAllApps(widget.profileId),
         _repo.getBlockedApps(widget.profileId),
       ]);
 
@@ -156,7 +154,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
             ...blockedApps.map((app) => _buildAppTile(app)),
             const Divider(),
           ],
-          _buildSectionHeader('App đã dùng hôm nay (${otherApps.length})', Colors.grey.shade700),
+          _buildSectionHeader('Tất cả app đã cài (${otherApps.length})', Colors.grey.shade700),
           ...otherApps.map((app) => _buildAppTile(app)),
         ],
       ),
@@ -205,7 +203,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
         ),
       ),
       subtitle: Text(
-        app.usageSeconds > 0 ? 'Hôm nay: ${app.formattedDuration}' : app.packageName,
+        app.usageSeconds > 0 ? 'Tổng dùng: ${app.formattedDuration}' : app.packageName,
         style: const TextStyle(fontSize: 12),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

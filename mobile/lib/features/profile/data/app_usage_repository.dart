@@ -64,6 +64,15 @@ class AppUsageRepository {
     return list.map((e) => AppUsageEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// GET /api/profiles/:id/all-apps — tất cả app đã từng cài trên thiết bị con
+  Future<List<AppUsageEntry>> getAllApps(int profileId) async {
+    final response = await _dio.get(
+      '${ApiConstants.profiles}/$profileId/all-apps',
+    );
+    final List list = response.data['data']['apps'] as List? ?? [];
+    return list.map((e) => AppUsageEntry.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   Future<List<BlockedApp>> getBlockedApps(int profileId) async {
     final response = await _dio.get(
       '${ApiConstants.profiles}/$profileId/blocked-apps',

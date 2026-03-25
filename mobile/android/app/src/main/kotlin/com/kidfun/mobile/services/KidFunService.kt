@@ -4,16 +4,38 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.kidfun.mobile.MainActivity
+import com.kidfun.mobile.receivers.KidFunDeviceAdminReceiver
 
 class KidFunService : Service() {
     companion object {
         const val CHANNEL_ID = "kidfun_foreground"
         const val NOTIFICATION_ID = 1001
+        const val ACTION_SET_LOCK_TIME = "SET_LOCK_TIME"
+        const val EXTRA_LOCK_AT = "lockAtMillis"
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var lockAtMillis: Long = 0
+
+    private val checkLockRunnable = object : Runnable {
+        override fun run() {
+            if (lockAtMillis > 0 && System.currentTimeMillis() >= lockAtMillis) {
+                lockScreen()
+                lockAtMillis = 0
+            } else if (lockAtMillis > 0) {
+                handler.postDelayed(this, 10_000L) // kiểm tra mỗi 10 giây
+            }
+        }
     }
 
     override fun onCreate() {
@@ -37,10 +59,28 @@ class KidFunService : Service() {
             .build()
 
         startForeground(NOTIFICATION_ID, notification)
+
+        if (intent?.action == ACTION_SET_LOCK_TIME) {
+            val newLockAt = intent.getLongExtra(EXTRA_LOCK_AT, 0L)
+            handler.removeCallbacks(checkLockRunnable)
+            lockAtMillis = newLockAt
+            if (lockAtMillis > 0) {
+                handler.post(checkLockRunnable)
+            }
+        }
+
         return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun lockScreen() {
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val admin = ComponentName(this, KidFunDeviceAdminReceiver::class.java)
+        if (dpm.isAdminActive(admin)) {
+            dpm.lockNow()
+        }
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

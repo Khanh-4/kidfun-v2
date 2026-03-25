@@ -26,6 +26,24 @@ class UsageStatsHelper(private val context: Context) {
         context.startActivity(intent)
     }
 
+    fun getInstalledApps(): List<Map<String, Any>> {
+        val pm = context.packageManager
+        return pm.getInstalledApplications(0)
+            .filter { (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 }
+            .mapNotNull { info ->
+                try {
+                    val appName = pm.getApplicationLabel(info).toString()
+                    mapOf(
+                        "packageName" to info.packageName,
+                        "appName" to appName,
+                        "usageSeconds" to 0
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+    }
+
     fun getTodayUsage(): List<Map<String, Any>> {
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val cal = Calendar.getInstance()

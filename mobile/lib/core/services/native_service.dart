@@ -11,6 +11,26 @@ class NativeService {
     );
   }
 
+  /// Lấy danh sách TẤT CẢ app đã cài đặt (không phải system app)
+  static Future<List<Map<String, dynamic>>> getInstalledApps() async {
+    final result = await _channel.invokeMethod('getInstalledApps');
+    return List<Map<String, dynamic>>.from(
+      (result as List).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+  }
+
+  /// Lên lịch khoá màn hình lúc [endTime] — hoạt động kể cả khi app chạy ngầm
+  static Future<void> scheduleLockAt(DateTime endTime) async {
+    await _channel.invokeMethod('scheduleLockAt', {
+      'epochMillis': endTime.millisecondsSinceEpoch,
+    });
+  }
+
+  /// Huỷ lịch khoá màn hình đã đặt trước
+  static Future<void> cancelScheduledLock() async {
+    await _channel.invokeMethod('cancelScheduledLock');
+  }
+
   /// Bắt đầu foreground service
   static Future<void> startForegroundService() async {
     await _channel.invokeMethod('startForegroundService');
