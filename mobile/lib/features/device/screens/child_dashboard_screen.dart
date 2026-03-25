@@ -65,8 +65,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       print('📦 App paused/inactive: cancelling timer to prevent catch-up glitch');
       _countdownTimer?.cancel();
+      // Sprint 5 fix: khi chạy ngầm, native service chịu trách nhiệm khoá màn hình
+      if (_isLimitEnabled && _endTime != null && _endTime!.isAfter(DateTime.now())) {
+        NativeService.scheduleLockAt(_endTime!).catchError(
+          (e) => print('❌ [LOCK] scheduleLockAt error: $e'),
+        );
+      }
     } else if (state == AppLifecycleState.resumed) {
       print('📦 App resumed: recalculating drift natively');
+      // Huỷ lịch khoá native — Flutter timer tiếp quản
+      NativeService.cancelScheduledLock().catchError(
+        (e) => print('❌ [LOCK] cancelScheduledLock error: $e'),
+      );
       // Re-check permissions after user returns from Settings
       if (!_isTimeUpDialogShowing) _checkAndRequestPermissions();
       if (!_isLimitEnabled) return;
@@ -129,6 +139,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 5: Prompt user to grant required permissions
     await _checkAndRequestPermissions();
+
+    // Sprint 5: Sync all installed apps once on startup (for parent's app-blocking screen)
+    _syncInstalledApps();
 
     // Sprint 5: Sync app usage every 5 minutes
     _startUsageSync();
@@ -274,6 +287,19 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ],
         ),
       );
+    }
+  }
+
+  Future<void> _syncInstalledApps() async {
+    if (_deviceCode == null) return;
+    try {
+      final apps = await NativeService.getInstalledApps();
+      if (apps.isNotEmpty) {
+        await _childRepo.syncAppUsage(_deviceCode!, apps);
+        print('📱 [INSTALLED] Synced ${apps.length} installed apps to server');
+      }
+    } catch (e) {
+      print('❌ [INSTALLED] Sync error: $e');
     }
   }
 

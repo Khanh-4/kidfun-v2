@@ -145,4 +145,30 @@ const getWeeklyUsage = async (req, res) => {
   }
 };
 
-module.exports = { syncAppUsage, getDailyUsage, getWeeklyUsage };
+// GET /api/profiles/:id/all-apps
+// Trả về tất cả app đã từng được cài trên thiết bị con (distinct packageName, tổng usage)
+const getAllApps = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.id);
+
+    const rows = await prisma.appUsageLog.groupBy({
+      by: ['packageName', 'appName'],
+      where: { profileId },
+      _sum: { usageSeconds: true },
+      orderBy: { _sum: { usageSeconds: 'desc' } },
+    });
+
+    return sendSuccess(res, {
+      apps: rows.map((r) => ({
+        packageName: r.packageName,
+        appName: r.appName,
+        usageSeconds: r._sum.usageSeconds ?? 0,
+      })),
+    });
+  } catch (err) {
+    console.error('getAllApps error:', err);
+    return sendError(res, err.message, 500, 'INTERNAL_ERROR');
+  }
+};
+
+module.exports = { syncAppUsage, getDailyUsage, getWeeklyUsage, getAllApps };

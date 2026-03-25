@@ -26,6 +26,8 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "getAppUsage" -> result.success(usageHelper.getTodayUsage())
 
+                    "getInstalledApps" -> result.success(usageHelper.getInstalledApps())
+
                     "startForegroundService" -> {
                         val serviceIntent = Intent(this, KidFunService::class.java)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -33,6 +35,25 @@ class MainActivity : FlutterActivity() {
                         } else {
                             startService(serviceIntent)
                         }
+                        result.success(null)
+                    }
+
+                    "scheduleLockAt" -> {
+                        val epochMillis = call.argument<Long>("epochMillis") ?: 0L
+                        val serviceIntent = Intent(this, KidFunService::class.java).apply {
+                            action = KidFunService.ACTION_SET_LOCK_TIME
+                            putExtra(KidFunService.EXTRA_LOCK_AT, epochMillis)
+                        }
+                        startService(serviceIntent)
+                        result.success(null)
+                    }
+
+                    "cancelScheduledLock" -> {
+                        val serviceIntent = Intent(this, KidFunService::class.java).apply {
+                            action = KidFunService.ACTION_SET_LOCK_TIME
+                            putExtra(KidFunService.EXTRA_LOCK_AT, 0L)
+                        }
+                        startService(serviceIntent)
                         result.success(null)
                     }
 

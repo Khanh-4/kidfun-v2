@@ -37,6 +37,8 @@ const appUsageController = require('../controllers/appUsageController');
 router.get('/:id/app-usage/weekly', appUsageController.getWeeklyUsage);
 // GET /api/profiles/:id/app-usage?date=YYYY-MM-DD
 router.get('/:id/app-usage', appUsageController.getDailyUsage);
+// GET /api/profiles/:id/all-apps — tất cả app đã cài (distinct, tổng usage)
+router.get('/:id/all-apps', appUsageController.getAllApps);
 
 const blockedAppController = require('../controllers/blockedAppController');
 // GET  /api/profiles/:id/blocked-apps
