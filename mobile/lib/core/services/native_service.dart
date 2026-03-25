@@ -46,6 +46,11 @@ class NativeService {
     await _channel.invokeMethod('setBlockedApps', {'packages': packageNames});
   }
 
+  /// Force-check foreground app ngay lập tức và chặn nếu nằm trong blocked list
+  static Future<void> checkAndBlockCurrentApp() async {
+    await _channel.invokeMethod('checkAndBlockCurrentApp');
+  }
+
   /// Lock screen bằng DevicePolicyManager
   /// Trả về true nếu lock thành công, false nếu cần cấp quyền Device Admin
   static Future<bool> lockScreen() async {

@@ -327,6 +327,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final blockedApps = await _childRepo.getBlockedApps(_deviceCode!);
       final packages = blockedApps.map((a) => a.packageName).toList();
       await NativeService.setBlockedApps(packages);
+      // Force-check: nếu app hiện tại đang bị chặn → đẩy về Home ngay
+      await NativeService.checkAndBlockCurrentApp();
       print('🚫 [BLOCKED] Synced ${packages.length} blocked apps');
     } catch (e) {
       print('❌ [BLOCKED] Sync error: $e');
