@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const childController = require('../controllers/childController');
-const sessionController = require('../controllers/sessionController');
 const warningController = require('../controllers/warningController');
 const extensionController = require('../controllers/extensionController');
 const appUsageController = require('../controllers/appUsageController');
@@ -16,13 +15,13 @@ router.get('/status', childController.getStatus);
 router.get('/today-limit', childController.getTodayLimit);
 
 // POST /api/child/session/start - Bắt đầu session mới
-router.post('/session/start', sessionController.startSession);
+router.post('/session/start', childController.startSession);
 
 // POST /api/child/session/heartbeat - Cập nhật session (mỗi 60s)
-router.post('/session/heartbeat', sessionController.heartbeat);
+router.post('/session/heartbeat', childController.heartbeat);
 
 // POST /api/child/session/end - Kết thúc session
-router.post('/session/end', sessionController.endSession);
+router.post('/session/end', childController.endSession);
 
 // POST /api/child/bonus - Lưu bonus minutes khi Parent duyệt
 router.post('/bonus', childController.addBonus);
