@@ -199,10 +199,10 @@ const startSession = async (req, res) => {
       });
 
       // BUG FIX: close any open UsageLog entries from this session.
-      // Without this, calcRemaining() would see open logs on every restart and
-      // re-accumulate the same elapsed seconds on each calcRemaining() call
-      // (works correctly now due to the open-log fix, but we should still close
-      // them to keep the table clean and avoid double-counting across sessions).
+      // Use device.lastSeen as the effective end time — that's the last confirmed
+      // active heartbeat, so we don't count idle time between force-close and restart.
+      // Falls back to now if lastSeen is unavailable.
+      const lastActiveTime = device.lastSeen ? new Date(device.lastSeen) : now;
       const openLogs = await prisma.usageLog.findMany({
         where: {
           deviceId: device.id,
@@ -211,10 +211,13 @@ const startSession = async (req, res) => {
         }
       });
       for (const log of openLogs) {
-        const durationSeconds = Math.max(0, Math.floor((now - new Date(log.startTime)) / 1000));
+        const logStart = new Date(log.startTime);
+        // Use lastActiveTime only if it's after the log started, otherwise fall back to now
+        const effectiveEnd = lastActiveTime > logStart ? lastActiveTime : now;
+        const durationSeconds = Math.max(0, Math.floor((effectiveEnd - logStart) / 1000));
         await prisma.usageLog.update({
           where: { id: log.id },
-          data: { endTime: now, durationSeconds }
+          data: { endTime: effectiveEnd, durationSeconds }
         });
       }
     }
