@@ -51,7 +51,15 @@ const calcRemaining = async (profileId, deviceId) => {
     }
   });
 
-  const totalSeconds = usageLogs.reduce((sum, log) => sum + (log.durationSeconds || 0), 0);
+  const now = new Date();
+  // BUG FIX: open logs (endTime=null, durationSeconds=null) were counted as 0.
+  // Calculate elapsed seconds for open logs so the countdown is accurate on restart.
+  const totalSeconds = usageLogs.reduce((sum, log) => {
+    if (log.durationSeconds !== null) return sum + log.durationSeconds;
+    // Open log — count elapsed time since startTime, capped at end-of-day
+    const effectiveEnd = now < endOfDay ? now : endOfDay;
+    return sum + Math.max(0, Math.floor((effectiveEnd - new Date(log.startTime)) / 1000));
+  }, 0);
   const usedMinutes = Math.round(totalSeconds / 60);
 
   // Get bonus from active session started TODAY only
@@ -189,6 +197,26 @@ const startSession = async (req, res) => {
           totalMinutes: durationMinutes
         }
       });
+
+      // BUG FIX: close any open UsageLog entries from this session.
+      // Without this, calcRemaining() would see open logs on every restart and
+      // re-accumulate the same elapsed seconds on each calcRemaining() call
+      // (works correctly now due to the open-log fix, but we should still close
+      // them to keep the table clean and avoid double-counting across sessions).
+      const openLogs = await prisma.usageLog.findMany({
+        where: {
+          deviceId: device.id,
+          endTime: null,
+          startTime: { gte: session.startTime }
+        }
+      });
+      for (const log of openLogs) {
+        const durationSeconds = Math.max(0, Math.floor((now - new Date(log.startTime)) / 1000));
+        await prisma.usageLog.update({
+          where: { id: log.id },
+          data: { endTime: now, durationSeconds }
+        });
+      }
     }
 
     // Tạo session mới
