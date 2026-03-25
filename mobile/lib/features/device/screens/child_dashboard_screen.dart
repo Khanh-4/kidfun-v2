@@ -160,22 +160,43 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     try {
       // 1. Get remaining time
       final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
-      // Bug D fix: debug log to verify API returns correct value
       print('📊 [DEBUG] _initSession: limitMinutes=${todayLimit.limitMinutes}, remainingMinutes=${todayLimit.remainingMinutes}, remainingSeconds=${todayLimit.remainingSeconds}');
-      
-      _currentTotalLimitMinutes = todayLimit.limitMinutes; // Initialize total limit tracking
+
+      _currentTotalLimitMinutes = todayLimit.limitMinutes;
 
       if (mounted) {
         final serverSeconds = todayLimit.remainingSeconds;
-        final drift = _endTime == null ? 0 : (_remainingSeconds - serverSeconds).abs();
+        final serverEndTime = DateTime.now().add(Duration(seconds: serverSeconds));
+
+        // Restore saved endTime for second-level accuracy after force-close.
+        // Backend closes UsageLogs at device.lastSeen (~60s heartbeat granularity).
+        // savedEndTime gives the exact wall-clock anchor from the previous session.
+        final prefs = await SharedPreferences.getInstance();
+        final savedEpoch = prefs.getInt('end_time_epoch_ms_$_deviceCode');
+        final savedEndTime = savedEpoch != null
+            ? DateTime.fromMillisecondsSinceEpoch(savedEpoch)
+            : null;
+
+        // Use saved value only if still in the future AND within 120s of server.
+        // A larger gap means the parent changed the limit — trust server in that case.
+        DateTime chosenEndTime;
+        if (savedEndTime != null &&
+            savedEndTime.isAfter(DateTime.now()) &&
+            savedEndTime.difference(serverEndTime).inSeconds.abs() <= 120) {
+          // Small drift — take the more conservative (earlier) value
+          chosenEndTime = savedEndTime.isBefore(serverEndTime) ? savedEndTime : serverEndTime;
+        } else {
+          chosenEndTime = serverEndTime;
+        }
+
         setState(() {
           _isLimitEnabled = todayLimit.isLimitEnabled;
-          if (drift > 60 || _endTime == null) {
-             _remainingSeconds = serverSeconds;
-             // BUG 2 FIX: pin endTime anchor so countdown is wall-clock-based
-             _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
-          }
+          _endTime = chosenEndTime;
+          _remainingSeconds = chosenEndTime.difference(DateTime.now()).inSeconds.clamp(0, serverSeconds + 120).toInt();
         });
+
+        // Persist chosen endTime for the next restart
+        await prefs.setInt('end_time_epoch_ms_$_deviceCode', chosenEndTime.millisecondsSinceEpoch);
       }
 
       // 2. Start session
@@ -474,6 +495,17 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     });
   }
 
+  // Persist _endTime to SharedPreferences so it survives force-close.
+  Future<void> _saveEndTime() async {
+    if (_deviceCode == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (_endTime == null) {
+      await prefs.remove('end_time_epoch_ms_$_deviceCode');
+    } else {
+      await prefs.setInt('end_time_epoch_ms_$_deviceCode', _endTime!.millisecondsSinceEpoch);
+    }
+  }
+
   Future<void> _fetchAndApplyNewLimit() async {
     if (_deviceCode == null) return;
     try {
@@ -521,7 +553,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             if (_remainingSeconds > 5 * 60) _hasShown5m = false;
           }
         });
-        
+
+        // Persist updated endTime so the next restart picks up the correct anchor
+        _saveEndTime();
+
         if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
           Navigator.of(context, rootNavigator: true).pop();
           _isTimeUpDialogShowing = false;
