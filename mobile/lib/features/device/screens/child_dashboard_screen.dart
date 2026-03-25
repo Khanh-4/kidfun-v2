@@ -203,6 +203,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           try {
             final result = await _childRepo.heartbeat(
               sessionId: _sessionId!,
+              deviceCode: _deviceCode!,
             );
             if (mounted) {
               // Completely decouple heartbeat API response from UI countdown
@@ -426,7 +427,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _countdownTimer?.cancel();
     _heartbeatTimer?.cancel();
     if (_sessionId != null) {
-      _childRepo.endSession(_sessionId!);
+      _childRepo.endSession(_sessionId!, _deviceCode ?? '');
       _sessionId = null;
     }
 
@@ -706,7 +707,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     WidgetsBinding.instance.removeObserver(this);
     
     if (_sessionId != null) {
-      _childRepo.endSession(_sessionId!);
+      _childRepo.endSession(_sessionId!, _deviceCode ?? '');
     }
     
     // Remove socket listeners

@@ -2,6 +2,18 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
+// Helper: get VN date as 'YYYY-MM-DD' string (avoids UTC/VN day-boundary mismatch on Railway)
+const getVnDateStr = (date = new Date()) => {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+};
+
+// Parse a 'YYYY-MM-DD' string into a UTC midnight Date that matches Prisma's stored date field
+const parseDateStr = (dateStr) => {
+  // Store dates as UTC midnight so they compare correctly with Prisma
+  const d = new Date(dateStr + 'T00:00:00.000Z');
+  return d;
+};
+
 // POST /api/child/app-usage
 // Child gửi batch usage data lên server định kỳ
 const syncAppUsage = async (req, res) => {
@@ -21,10 +33,9 @@ const syncAppUsage = async (req, res) => {
       return sendError(res, 'Device not linked to any profile', 404, 'DEVICE_NOT_LINKED');
     }
 
-    // Dùng ngày VN (UTC+7) để group by date
-    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const today = new Date(vnNow);
-    today.setHours(0, 0, 0, 0);
+    // Dùng ngày VN (UTC+7) để tránh cross-day overlap khi server chạy ở UTC (Railway)
+    const todayStr = getVnDateStr();
+    const today = parseDateStr(todayStr);
 
     const results = await Promise.all(
       usageData.map((usage) => {
@@ -69,9 +80,9 @@ const syncAppUsage = async (req, res) => {
 const getDailyUsage = async (req, res) => {
   try {
     const profileId = parseInt(req.params.id);
-    const dateStr = req.query.date || new Date().toISOString().split('T')[0];
-    const date = new Date(dateStr);
-    date.setHours(0, 0, 0, 0);
+    // Chuẩn hóa date theo VN timezone để match với data đã lưu
+    const dateStr = req.query.date || getVnDateStr();
+    const date = parseDateStr(dateStr);
 
     const usage = await prisma.appUsageLog.findMany({
       where: { profileId, date },
@@ -104,15 +115,19 @@ const getDailyUsage = async (req, res) => {
 const getWeeklyUsage = async (req, res) => {
   try {
     const profileId = parseInt(req.params.id);
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 6);
-    startDate.setHours(0, 0, 0, 0);
+    // Tính 7 ngày gần nhất theo VN timezone để không bị lệch ngày
+    const todayStr = getVnDateStr();
+    const endDate = parseDateStr(todayStr);
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - 6);
+    // endDate = today midnight UTC, range = [startDate, endDate+1day)
+    const endDateExclusive = new Date(endDate);
+    endDateExclusive.setUTCDate(endDateExclusive.getUTCDate() + 1);
 
     const usage = await prisma.appUsageLog.findMany({
       where: {
         profileId,
-        date: { gte: startDate, lte: endDate },
+        date: { gte: startDate, lt: endDateExclusive },
       },
       orderBy: { date: 'asc' },
     });

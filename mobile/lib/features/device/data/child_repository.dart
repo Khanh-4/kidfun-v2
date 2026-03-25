@@ -24,16 +24,21 @@ class ChildRepository {
 
   Future<HeartbeatResult> heartbeat({
     required int sessionId,
+    required String deviceCode,
   }) async {
-    final response = await _dio.post('/api/child/session/heartbeat', 
-      data: { 'sessionId': sessionId },
+    final response = await _dio.post(
+      '/api/child/session/heartbeat',
+      data: {'sessionId': sessionId},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
     );
     return HeartbeatResult.fromJson(response.data['data']);
   }
 
-  Future<void> endSession(int sessionId) async {
-    await _dio.post('/api/child/session/end', 
-      data: { 'sessionId': sessionId },
+  Future<void> endSession(int sessionId, String deviceCode) async {
+    await _dio.post(
+      '/api/child/session/end',
+      data: {'sessionId': sessionId},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
     );
   }
 
