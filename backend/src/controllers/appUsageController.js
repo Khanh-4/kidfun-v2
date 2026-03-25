@@ -40,7 +40,9 @@ const syncAppUsage = async (req, res) => {
             },
           },
           update: {
-            usageSeconds: { increment: usage.usageSeconds },
+            // Android UsageStatsManager trả về totalTimeInForeground tích lũy từ đầu ngày
+            // → set trực tiếp thay vì increment để tránh double-counting mỗi sync cycle
+            usageSeconds: usage.usageSeconds,
             ...(usage.appName ? { appName: usage.appName } : {}),
           },
           create: {

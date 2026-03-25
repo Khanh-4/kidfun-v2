@@ -69,6 +69,11 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
+                    "checkAndBlockCurrentApp" -> {
+                        AppBlockerService.instance?.forceCheckForeground()
+                        result.success(null)
+                    }
+
                     "lockScreen" -> {
                         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
                         val adminComponent = ComponentName(this, KidFunDeviceAdminReceiver::class.java)
