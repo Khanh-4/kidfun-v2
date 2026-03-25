@@ -138,10 +138,87 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
           ),
         ),
         const Divider(height: 1),
-        Expanded(child: _buildUsageList(_dailyUsage, _isLoadingDaily)),
+        Expanded(child: _buildGroupedDailyList(_dailyUsage, _isLoadingDaily)),
       ],
     );
   }
+
+  Widget _buildGroupedDailyList(List<AppUsageEntry> items, bool isLoading) {
+    if (isLoading) return const Center(child: CircularProgressIndicator());
+    if (items.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.phone_android, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Không có dữ liệu sử dụng', style: TextStyle(color: Colors.grey, fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    // Group by deviceName
+    final Map<String, List<AppUsageEntry>> byDevice = {};
+    for (final entry in items) {
+      final key = entry.deviceName ?? 'Thiết bị không xác định';
+      byDevice.putIfAbsent(key, () => []).add(entry);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      children: byDevice.entries.expand((deviceEntry) {
+        final deviceItems = deviceEntry.value;
+        final maxSeconds = deviceItems.fold(0, (m, e) => e.usageSeconds > m ? e.usageSeconds : m);
+        final totalSeconds = deviceItems.fold(0, (sum, e) => sum + e.usageSeconds);
+        return [
+          _buildDeviceHeader(deviceEntry.key, totalSeconds),
+          ...deviceItems.asMap().entries.map((indexed) {
+            final index = indexed.key;
+            final entry = indexed.value;
+            final ratio = maxSeconds > 0 ? entry.usageSeconds / maxSeconds : 0.0;
+            final percent = totalSeconds > 0
+                ? (entry.usageSeconds / totalSeconds * 100).toStringAsFixed(1)
+                : '0.0';
+            return _buildAppCard(entry, index, ratio, percent);
+          }),
+        ];
+      }).toList(),
+    );
+  }
+
+  Widget _buildDeviceHeader(String deviceName, int totalSeconds) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.indigo.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.phone_android, size: 16, color: Colors.indigo.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              deviceName,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.indigo.shade700,
+              ),
+            ),
+          ),
+          Text(
+            _formatDuration(totalSeconds),
+            style: TextStyle(fontSize: 12, color: Colors.indigo.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildWeeklyTab() {
     if (_isLoadingWeekly) {
@@ -240,85 +317,7 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
         final entry = items[index];
         final ratio = maxSeconds > 0 ? entry.usageSeconds / maxSeconds : 0.0;
         final percent = totalSeconds > 0 ? (entry.usageSeconds / totalSeconds * 100).toStringAsFixed(1) : '0.0';
-
-        return Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${index + 1}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.indigo.shade700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.appName,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            entry.packageName,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          entry.formattedDuration,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                        Text(
-                          '$percent%',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: ratio.toDouble(),
-                    minHeight: 6,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _barColor(index),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildAppCard(entry, index, ratio, percent);
       },
     );
 
@@ -326,6 +325,85 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
       return RefreshIndicator(onRefresh: () async => onRefresh(), child: list);
     }
     return list;
+  }
+
+  Widget _buildAppCard(AppUsageEntry entry, int index, double ratio, String percent) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo.shade700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.appName,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        entry.packageName,
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      entry.formattedDuration,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    Text(
+                      '$percent%',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: ratio.toDouble(),
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(_barColor(index)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Color _barColor(int index) {

@@ -80,7 +80,7 @@ const login = async (req, res) => {
     // Kiểm tra password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) {
-      return sendError(res, 'Invalid email or password', 401, 'INVALID_CREDENTIALS');
+      return sendError(res, 'Mật khẩu nhập sai. Xin nhập lại', 401, 'INVALID_CREDENTIALS');
     }
 
     const token = generateToken(user);

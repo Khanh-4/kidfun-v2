@@ -6,11 +6,15 @@ class AppUsageEntry {
   final String packageName;
   final String appName;
   final int usageSeconds;
+  final int? deviceId;
+  final String? deviceName;
 
   AppUsageEntry({
     required this.packageName,
     required this.appName,
     required this.usageSeconds,
+    this.deviceId,
+    this.deviceName,
   });
 
   factory AppUsageEntry.fromJson(Map<String, dynamic> json) {
@@ -18,6 +22,8 @@ class AppUsageEntry {
       packageName: json['packageName'] as String,
       appName: json['appName'] as String? ?? json['packageName'] as String,
       usageSeconds: json['usageSeconds'] as int? ?? 0,
+      deviceId: json['deviceId'] as int?,
+      deviceName: json['deviceName'] as String?,
     );
   }
 

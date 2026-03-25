@@ -101,7 +101,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chặn app — ${widget.profileName}'),
+        title: Text('Chặn ứng dụng — ${widget.profileName}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -141,8 +141,15 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
   }
 
   Widget _buildAppList() {
+    // Group apps by deviceName
+    final Map<String, List<AppUsageEntry>> byDevice = {};
+    for (final app in _knownApps) {
+      final key = app.deviceName ?? 'Thiết bị không xác định';
+      byDevice.putIfAbsent(key, () => []).add(app);
+    }
+
+    // Collect globally blocked apps section at top
     final blockedApps = _knownApps.where((a) => _blockedPackages.contains(a.packageName)).toList();
-    final otherApps = _knownApps.where((a) => !_blockedPackages.contains(a.packageName)).toList();
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -150,12 +157,45 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           if (blockedApps.isNotEmpty) ...[
-            _buildSectionHeader('Đang bị chặn (${blockedApps.length})', Colors.red.shade700),
+            _buildSectionHeader('🚫 Đang bị chặn (${blockedApps.length})', Colors.red.shade700),
             ...blockedApps.map((app) => _buildAppTile(app)),
-            const Divider(),
+            const Divider(height: 1, thickness: 1),
+            const SizedBox(height: 8),
           ],
-          _buildSectionHeader('Tất cả app đã cài (${otherApps.length})', Colors.grey.shade700),
-          ...otherApps.map((app) => _buildAppTile(app)),
+          ...byDevice.entries.expand((entry) => [
+            _buildDeviceHeader(entry.key),
+            ...entry.value
+                .where((a) => !_blockedPackages.contains(a.packageName))
+                .map((app) => _buildAppTile(app)),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceHeader(String deviceName) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.indigo.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.phone_android, size: 16, color: Colors.indigo.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              deviceName,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.indigo.shade700,
+              ),
+            ),
+          ),
         ],
       ),
     );

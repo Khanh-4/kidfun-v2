@@ -76,6 +76,7 @@ const getDailyUsage = async (req, res) => {
     const usage = await prisma.appUsageLog.findMany({
       where: { profileId, date },
       orderBy: { usageSeconds: 'desc' },
+      include: { device: { select: { id: true, deviceName: true } } },
     });
 
     const totalSeconds = usage.reduce((sum, u) => sum + u.usageSeconds, 0);
@@ -89,6 +90,8 @@ const getDailyUsage = async (req, res) => {
         appName: u.appName,
         usageMinutes: Math.round(u.usageSeconds / 60),
         usageSeconds: u.usageSeconds,
+        deviceId: u.deviceId,
+        deviceName: u.device?.deviceName ?? null,
       })),
     });
   } catch (err) {
@@ -154,18 +157,29 @@ const getAllApps = async (req, res) => {
   try {
     const profileId = parseInt(req.params.id);
 
+    // Group by packageName+appName+deviceId so we can show per-device breakdown
     const rows = await prisma.appUsageLog.groupBy({
-      by: ['packageName', 'appName'],
+      by: ['packageName', 'appName', 'deviceId'],
       where: { profileId },
       _sum: { usageSeconds: true },
       orderBy: { _sum: { usageSeconds: 'desc' } },
     });
+
+    // Fetch device names for all unique deviceIds
+    const deviceIds = [...new Set(rows.map((r) => r.deviceId).filter(Boolean))];
+    const devices = await prisma.device.findMany({
+      where: { id: { in: deviceIds } },
+      select: { id: true, deviceName: true },
+    });
+    const deviceMap = Object.fromEntries(devices.map((d) => [d.id, d.deviceName]));
 
     return sendSuccess(res, {
       apps: rows.map((r) => ({
         packageName: r.packageName,
         appName: r.appName,
         usageSeconds: r._sum.usageSeconds ?? 0,
+        deviceId: r.deviceId,
+        deviceName: deviceMap[r.deviceId] ?? null,
       })),
     });
   } catch (err) {
