@@ -571,9 +571,16 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
       if (mounted) {
         setState(() => _waitingForResponse = false);
-        _showResultDialog(approved, responseMinutes);
+        // BUG FIX: Apply limit FIRST so _fetchAndApplyNewLimit() correctly dismisses
+        // the "Hết giờ" dialog (rootNavigator.pop). If we showed the result dialog first,
+        // pop() would dismiss the result dialog instead, leaving "Hết giờ" on screen.
         if (approved) {
           await _fetchAndApplyNewLimit();
+          // Cancel native lock-screen alarm — time has been extended
+          NativeService.cancelScheduledLock().catchError((e) => null);
+        }
+        if (mounted) {
+          _showResultDialog(approved, responseMinutes);
         }
       }
     });
