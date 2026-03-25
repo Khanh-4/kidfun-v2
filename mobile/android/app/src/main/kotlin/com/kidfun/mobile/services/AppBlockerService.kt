@@ -2,8 +2,6 @@ package com.kidfun.mobile.services
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.app.usage.UsageStatsManager
-import android.content.Context
 import android.view.accessibility.AccessibilityEvent
 
 class AppBlockerService : AccessibilityService() {
@@ -11,6 +9,10 @@ class AppBlockerService : AccessibilityService() {
         var blockedPackages: MutableSet<String> = mutableSetOf()
         var isEnabled = false
         var instance: AppBlockerService? = null
+        // Track the last app seen in foreground via accessibility events — used by
+        // forceCheckForeground() to detect the current app without querying UsageStatsManager
+        // (which is unreliable in short time windows).
+        var lastForegroundPackage: String? = null
     }
 
     override fun onServiceConnected() {
@@ -28,36 +30,26 @@ class AppBlockerService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: return
+            // Always update foreground tracking, even for non-blocked apps
+            lastForegroundPackage = packageName
             if (blockedPackages.contains(packageName)) {
-                // Chặn: quay về home screen
                 performGlobalAction(GLOBAL_ACTION_HOME)
             }
         }
     }
 
     /**
-     * Force-check foreground app sau khi blocked list thay đổi.
-     * Nếu app hiện tại đang bị chặn → đẩy về Home ngay lập tức.
+     * Force-close the currently visible app if it's in the blocked list.
+     * Called immediately after the blocked-apps list is updated so that an app
+     * already in the foreground is ejected without waiting for the next window event.
+     *
+     * Uses [lastForegroundPackage] (kept fresh by [onAccessibilityEvent]) instead of
+     * querying UsageStatsManager, which is unreliable for short time windows.
      */
     fun forceCheckForeground() {
-        try {
-            val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return
-            val now = System.currentTimeMillis()
-            // Query usage events trong 5 giây gần nhất để tìm foreground app
-            val stats = usm.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                now - 5000,
-                now
-            )
-            val currentApp = stats
-                ?.maxByOrNull { it.lastTimeUsed }
-                ?.packageName
-
-            if (currentApp != null && blockedPackages.contains(currentApp)) {
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }
-        } catch (e: Exception) {
-            // Silently fail — UsageStats permission may not be granted
+        val currentPkg = lastForegroundPackage ?: return
+        if (blockedPackages.contains(currentPkg)) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
         }
     }
 
