@@ -212,8 +212,8 @@ class SocketService {
 
   void onAppPaused() {
     if (_currentRole == 'child') {
-      print('⏸️ [SOCKET] Child App Paused: Disconnecting to show offline status');
-      socket.disconnect();
+      print('⏸️ [SOCKET] Child App Paused: Keeping connection alive for background sync');
+      // socket.disconnect();
     }
   }
 

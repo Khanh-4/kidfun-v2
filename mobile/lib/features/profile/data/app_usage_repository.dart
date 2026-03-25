@@ -44,6 +44,18 @@ class BlockedApp {
   }
 }
 
+class WeeklyUsageData {
+  final List<AppUsageEntry> topApps;
+  final int totalWeeklySeconds;
+  final int dailyAverageSeconds;
+
+  WeeklyUsageData({
+    required this.topApps,
+    required this.totalWeeklySeconds,
+    required this.dailyAverageSeconds,
+  });
+}
+
 class AppUsageRepository {
   final _dio = DioClient.instance;
 
@@ -52,16 +64,34 @@ class AppUsageRepository {
       '${ApiConstants.profiles}/$profileId/app-usage',
       queryParameters: {'date': date},
     );
-    final List list = response.data['data']['appUsage'] as List? ?? [];
+    final List list = response.data['data']['apps'] as List? ?? [];
     return list.map((e) => AppUsageEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<List<AppUsageEntry>> getWeeklyUsage(int profileId) async {
+  Future<WeeklyUsageData> getWeeklyUsage(int profileId) async {
     final response = await _dio.get(
       '${ApiConstants.profiles}/$profileId/app-usage/weekly',
     );
-    final List list = response.data['data']['appUsage'] as List? ?? [];
-    return list.map((e) => AppUsageEntry.fromJson(e as Map<String, dynamic>)).toList();
+    
+    final data = response.data['data'] as Map<String, dynamic>? ?? {};
+    final dailyTotalsMap = data['dailyTotals'] as Map<String, dynamic>? ?? {};
+    
+    int totalWeeklySeconds = 0;
+    dailyTotalsMap.values.forEach((val) {
+      if (val is int) totalWeeklySeconds += val;
+      else if (val is double) totalWeeklySeconds += val.toInt();
+    });
+    
+    final int dailyAverageSeconds = totalWeeklySeconds ~/ 7;
+
+    final List list = data['topApps'] as List? ?? [];
+    final topApps = list.map((e) => AppUsageEntry.fromJson(e as Map<String, dynamic>)).toList();
+    
+    return WeeklyUsageData(
+      topApps: topApps,
+      totalWeeklySeconds: totalWeeklySeconds,
+      dailyAverageSeconds: dailyAverageSeconds,
+    );
   }
 
   /// GET /api/profiles/:id/all-apps — tất cả app đã từng cài trên thiết bị con

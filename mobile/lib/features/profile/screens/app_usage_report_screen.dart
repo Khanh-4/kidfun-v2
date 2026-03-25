@@ -22,7 +22,7 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
   late TabController _tabController;
 
   List<AppUsageEntry> _dailyUsage = [];
-  List<AppUsageEntry> _weeklyUsage = [];
+  WeeklyUsageData? _weeklyUsage;
   bool _isLoadingDaily = true;
   bool _isLoadingWeekly = true;
   String _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -93,6 +93,11 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
         title: Text('Báo cáo sử dụng — ${widget.profileName}'),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: const [
             Tab(text: 'Hôm nay'),
             Tab(text: '7 ngày qua'),
@@ -139,7 +144,71 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
   }
 
   Widget _buildWeeklyTab() {
-    return _buildUsageList(_weeklyUsage, _isLoadingWeekly, showRefresh: true, onRefresh: _loadWeeklyUsage);
+    if (_isLoadingWeekly) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_weeklyUsage == null || _weeklyUsage!.topApps.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.phone_android, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('Không có dữ liệu sử dụng', style: TextStyle(color: Colors.grey, fontSize: 16)),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: _loadWeeklyUsage, 
+              icon: const Icon(Icons.refresh), 
+              label: const Text('Thử lại')
+            )
+          ],
+        ),
+      );
+    }
+
+    final totalFormatted = _formatDuration(_weeklyUsage!.totalWeeklySeconds);
+    final avgFormatted = _formatDuration(_weeklyUsage!.dailyAverageSeconds);
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          color: Colors.blue.shade50,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildSummaryStat('Tổng thời gian', totalFormatted, Icons.timeline),
+              Container(width: 1, height: 40, color: Colors.blue.shade200),
+              _buildSummaryStat('Trung bình ngày', avgFormatted, Icons.assessment),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: _buildUsageList(_weeklyUsage!.topApps, false, showRefresh: true, onRefresh: _loadWeeklyUsage),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryStat(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.blue.shade700, size: 28),
+        const SizedBox(height: 8),
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 13, color: Colors.blue.shade700)),
+      ],
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    if (seconds <= 0) return '0 phút';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    if (h > 0) return '${h}g ${m}p';
+    return '${m} phút';
   }
 
   Widget _buildUsageList(List<AppUsageEntry> items, bool isLoading,

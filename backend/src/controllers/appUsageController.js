@@ -136,6 +136,7 @@ const getWeeklyUsage = async (req, res) => {
         packageName: pkg,
         appName: data.appName,
         totalMinutes: Math.round(data.totalSeconds / 60),
+        usageSeconds: data.totalSeconds,
       }));
 
     return sendSuccess(res, { dailyTotals, topApps });

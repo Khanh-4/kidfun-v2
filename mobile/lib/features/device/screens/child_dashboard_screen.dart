@@ -236,7 +236,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             children: [
               const Icon(Icons.bar_chart, color: Color(0xFF6366f1)),
               const SizedBox(width: 8),
-              Text('Cần quyền theo dõi app', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+              Flexible(child: Text('Cần quyền theo dõi app', style: GoogleFonts.nunito(fontWeight: FontWeight.bold))),
             ],
           ),
           content: Text(
@@ -268,7 +268,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             children: [
               const Icon(Icons.accessibility, color: Color(0xFF6366f1)),
               const SizedBox(width: 8),
-              Text('Cần quyền Accessibility', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+              Flexible(child: Text('Cần quyền Accessibility', style: GoogleFonts.nunito(fontWeight: FontWeight.bold))),
             ],
           ),
           content: Text(
