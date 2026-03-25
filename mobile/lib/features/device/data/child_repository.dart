@@ -14,11 +14,12 @@ class ChildRepository {
   }
 
   Future<int> startSession(String deviceCode) async {
-    final response = await _dio.post('/api/child/session/start', 
-      data: { 'deviceCode': deviceCode }
+    final response = await _dio.post(
+      '/api/child/session/start',
+      data: {},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
     );
-    // Backend returns { success: true, data: { sessionId: ... } }
-    return response.data['data']['sessionId'] as int;
+    return response.data['data']['session']['id'] as int;
   }
 
   Future<HeartbeatResult> heartbeat({
