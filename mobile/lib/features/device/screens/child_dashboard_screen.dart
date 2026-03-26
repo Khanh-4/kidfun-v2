@@ -461,6 +461,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     NativeService.lockScreen().catchError((e) {
       print('❌ [LOCK] lockScreen error: $e');
     });
+    // Bật chế độ khoá liên tục: thiết bị tự khoá lại mỗi khi trẻ mở khoá
+    NativeService.enterLockedState().catchError((e) {
+      print('❌ [LOCK] enterLockedState error: $e');
+    });
 
     // Hiện màn hình khóa fullscreen (backup nếu Device Admin chưa được cấp)
     _isTimeUpDialogShowing = true;
@@ -560,6 +564,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
           Navigator.of(context, rootNavigator: true).pop();
           _isTimeUpDialogShowing = false;
+          // Tắt chế độ khoá liên tục vì phụ huynh đã cấp thêm thời gian
+          NativeService.exitLockedState().catchError((e) {
+            print('❌ [LOCK] exitLockedState error: $e');
+          });
         }
 
         if (enabled) {

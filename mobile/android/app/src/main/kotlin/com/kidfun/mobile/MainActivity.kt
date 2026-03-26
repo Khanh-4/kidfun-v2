@@ -62,6 +62,22 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
+                    "enterLockedState" -> {
+                        val serviceIntent = Intent(this, KidFunService::class.java).apply {
+                            action = KidFunService.ACTION_ENTER_LOCKED_STATE
+                        }
+                        startService(serviceIntent)
+                        result.success(null)
+                    }
+
+                    "exitLockedState" -> {
+                        val serviceIntent = Intent(this, KidFunService::class.java).apply {
+                            action = KidFunService.ACTION_EXIT_LOCKED_STATE
+                        }
+                        startService(serviceIntent)
+                        result.success(null)
+                    }
+
                     "setBlockedApps" -> {
                         val packages = call.argument<List<String>>("packages") ?: emptyList()
                         AppBlockerService.blockedPackages.clear()
