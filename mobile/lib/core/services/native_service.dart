@@ -76,4 +76,15 @@ class NativeService {
   static Future<void> requestAccessibilityPermission() async {
     await _channel.invokeMethod('requestAccessibilityPermission');
   }
+
+  /// Bật chế độ khoá liên tục: sau khi hết giờ, thiết bị sẽ tự khoá lại
+  /// mỗi khi trẻ mở khoá, cho đến khi phụ huynh cấp thêm thời gian
+  static Future<void> enterLockedState() async {
+    await _channel.invokeMethod('enterLockedState');
+  }
+
+  /// Tắt chế độ khoá liên tục (gọi khi phụ huynh cấp thêm thời gian)
+  static Future<void> exitLockedState() async {
+    await _channel.invokeMethod('exitLockedState');
+  }
 }
