@@ -10,6 +10,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -28,6 +29,10 @@ class KidFunService : Service() {
         const val ACTION_EXIT_LOCKED_STATE = "EXIT_LOCKED_STATE"
         // Grace period (ms) child has to request extension before re-locking
         const val RELOCK_DELAY_MS = 30_000L
+
+        private const val PREFS_NAME = "kidfun_service_prefs"
+        private const val KEY_LOCK_AT_MILLIS = "lockAtMillis"
+        private const val KEY_IS_LOCKED_STATE = "isInLockedState"
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -35,11 +40,22 @@ class KidFunService : Service() {
     private var isInLockedState = false
     private var userPresentReceiver: BroadcastReceiver? = null
 
+    private val prefs: SharedPreferences by lazy {
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
     private val checkLockRunnable = object : Runnable {
         override fun run() {
             if (lockAtMillis > 0 && System.currentTimeMillis() >= lockAtMillis) {
                 lockScreen()
                 lockAtMillis = 0
+                // Time expired — enter full lock mode
+                if (!isInLockedState) {
+                    isInLockedState = true
+                    persistState()
+                    enableFullLockMode()
+                    registerUserPresentReceiver()
+                }
             } else if (lockAtMillis > 0) {
                 handler.postDelayed(this, 10_000L) // kiểm tra mỗi 10 giây
             }
@@ -53,6 +69,7 @@ class KidFunService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        restoreState()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -77,16 +94,21 @@ class KidFunService : Service() {
                 val newLockAt = intent.getLongExtra(EXTRA_LOCK_AT, 0L)
                 handler.removeCallbacks(checkLockRunnable)
                 lockAtMillis = newLockAt
+                persistState()
                 if (lockAtMillis > 0) {
                     handler.post(checkLockRunnable)
                 }
             }
             ACTION_ENTER_LOCKED_STATE -> {
                 isInLockedState = true
+                persistState()
+                enableFullLockMode()
                 registerUserPresentReceiver()
             }
             ACTION_EXIT_LOCKED_STATE -> {
                 isInLockedState = false
+                persistState()
+                disableFullLockMode()
                 handler.removeCallbacks(reLockRunnable)
                 unregisterUserPresentReceiver()
             }
@@ -102,6 +124,60 @@ class KidFunService : Service() {
         unregisterUserPresentReceiver()
     }
 
+    /**
+     * Persist lock state to SharedPreferences so it survives process death and reboot.
+     */
+    private fun persistState() {
+        prefs.edit()
+            .putLong(KEY_LOCK_AT_MILLIS, lockAtMillis)
+            .putBoolean(KEY_IS_LOCKED_STATE, isInLockedState)
+            .apply()
+    }
+
+    /**
+     * Restore lock state after service restart or device reboot.
+     */
+    private fun restoreState() {
+        lockAtMillis = prefs.getLong(KEY_LOCK_AT_MILLIS, 0L)
+        isInLockedState = prefs.getBoolean(KEY_IS_LOCKED_STATE, false)
+
+        if (isInLockedState) {
+            // Device was in locked state before — resume full lock
+            enableFullLockMode()
+            registerUserPresentReceiver()
+            // Lock screen immediately if device was just rebooted
+            lockScreen()
+        } else if (lockAtMillis > 0) {
+            if (System.currentTimeMillis() >= lockAtMillis) {
+                // Lock time already passed (e.g. device was off) — lock now
+                lockScreen()
+                lockAtMillis = 0
+                isInLockedState = true
+                persistState()
+                enableFullLockMode()
+                registerUserPresentReceiver()
+            } else {
+                // Lock time in the future — schedule it
+                handler.post(checkLockRunnable)
+            }
+        }
+    }
+
+    /**
+     * Enable full lock: AppBlockerService blocks ALL apps except KidFun
+     */
+    private fun enableFullLockMode() {
+        AppBlockerService.isFullLockMode = true
+        AppBlockerService.instance?.forceCheckForeground()
+    }
+
+    /**
+     * Disable full lock: return to normal app-specific blocking
+     */
+    private fun disableFullLockMode() {
+        AppBlockerService.isFullLockMode = false
+    }
+
     private fun registerUserPresentReceiver() {
         if (userPresentReceiver != null) return
         userPresentReceiver = object : BroadcastReceiver() {
@@ -112,6 +188,8 @@ class KidFunService : Service() {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     }
                     context.startActivity(appIntent)
+                    // Full lock mode via AccessibilityService blocks all other apps
+                    enableFullLockMode()
                     // Khoá lại sau RELOCK_DELAY_MS nếu vẫn đang trong trạng thái khoá
                     handler.removeCallbacks(reLockRunnable)
                     handler.postDelayed(reLockRunnable, RELOCK_DELAY_MS)

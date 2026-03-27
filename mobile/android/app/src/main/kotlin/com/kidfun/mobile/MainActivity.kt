@@ -125,6 +125,11 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
+                    "isInLockedState" -> {
+                        val prefs = getSharedPreferences("kidfun_service_prefs", Context.MODE_PRIVATE)
+                        result.success(prefs.getBoolean("isInLockedState", false))
+                    }
+
                     else -> result.notImplemented()
                 }
             }

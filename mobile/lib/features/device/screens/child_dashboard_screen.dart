@@ -199,12 +199,19 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         await prefs.setInt('end_time_epoch_ms_$_deviceCode', chosenEndTime.millisecondsSinceEpoch);
       }
 
-      // 2. Start session
+      // 2. Check if native service was in locked state (e.g. after reboot)
+      final wasLocked = await NativeService.isInLockedState();
+
+      // 3. Start session
       final sid = await _childRepo.startSession(_deviceCode!);
       _sessionId = sid;
 
-      // 3. Start countdown or trigger time up immediately
-      if (!_isLimitEnabled) {
+      // 4. Start countdown or trigger time up immediately
+      if (wasLocked && !_isTimeUpDialogShowing) {
+         // Device was locked before reboot — resume locked state immediately
+         print('🔒 [BOOT] Restoring locked state from native service');
+         _onTimeUp();
+      } else if (!_isLimitEnabled) {
          if (_isTimeUpDialogShowing) {
             Navigator.of(context, rootNavigator: true).pop();
             _isTimeUpDialogShowing = false;

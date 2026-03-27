@@ -87,4 +87,10 @@ class NativeService {
   static Future<void> exitLockedState() async {
     await _channel.invokeMethod('exitLockedState');
   }
+
+  /// Kiểm tra xem thiết bị có đang ở trạng thái khoá liên tục không
+  /// (dùng để phục hồi sau reboot)
+  static Future<bool> isInLockedState() async {
+    return await _channel.invokeMethod('isInLockedState') as bool;
+  }
 }
