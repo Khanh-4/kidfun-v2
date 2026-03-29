@@ -56,18 +56,46 @@ function Devices() {
   const user = authService.getCurrentUser();
 
   useEffect(() => {
-    socketService.connect(user?.id);
-  }, [user?.id]);
-
-  useEffect(() => {
     loadDevices();
     loadProfiles();
+  }, []);
+
+  // Listen for real-time device status changes (socket connected in MainLayout)
+  useEffect(() => {
+    socketService.onDeviceStatusChanged((data) => {
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === data.deviceId ? { ...d, isOnline: data.isOnline } : d
+        )
+      );
+    });
+
+    socketService.onDeviceLinked(() => {
+      // Refresh device list when a new device is linked
+      loadDevices();
+    });
+
+    socketService.onDeviceOnline((data) => {
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === data.deviceId ? { ...d, isOnline: true } : d
+        )
+      );
+    });
+
+    socketService.onDeviceOffline((data) => {
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === data.deviceId ? { ...d, isOnline: false } : d
+        )
+      );
+    });
   }, []);
 
   const loadDevices = async () => {
     try {
       const response = await api.get('/devices');
-      // Lọc bỏ device đang chờ ghép nối (pending)
+      // Filter out pending devices
       const linkedDevices = (response.data || []).filter(
         (d) => d.deviceName !== 'Pending Device'
       );

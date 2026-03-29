@@ -2,16 +2,12 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
-console.log('[ParentSocket] SOCKET_URL:', SOCKET_URL);
-
 class SocketService {
   socket = null;
   listeners = {};
 
   connect(userId) {
     if (this.socket?.connected) return;
-
-    console.log('[ParentSocket] Connecting to:', SOCKET_URL, 'userId:', userId);
 
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -20,26 +16,46 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('🔌 Parent connected to server, socketId:', this.socket.id);
-      // Tham gia phòng gia đình
-      console.log('[ParentSocket] Emitting joinFamily:', { userId, role: 'parent' });
+      console.log('[ParentSocket] Connected, socketId:', this.socket.id);
       this.socket.emit('joinFamily', { userId, role: 'parent' });
     });
 
     this.socket.on('connect_error', (err) => {
-      console.error('🔴 Parent socket connect_error:', err.message, 'URL:', SOCKET_URL);
+      console.error('[ParentSocket] connect_error:', err.message);
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ Parent disconnected, reason:', reason);
+      console.log('[ParentSocket] disconnected:', reason);
     });
 
-    // Lắng nghe yêu cầu thêm thời gian từ Child
+    // Time extension request from child
     this.socket.on('timeExtensionRequest', (data) => {
-      console.log('📩 Received time extension request:', data);
       if (this.listeners.onTimeExtensionRequest) {
         this.listeners.onTimeExtensionRequest(data);
       }
+    });
+
+    // Device online/offline events
+    this.socket.on('deviceOnline', (data) => {
+      if (this.listeners.onDeviceOnline) this.listeners.onDeviceOnline(data);
+    });
+
+    this.socket.on('deviceOffline', (data) => {
+      if (this.listeners.onDeviceOffline) this.listeners.onDeviceOffline(data);
+    });
+
+    this.socket.on('device_status_changed', (data) => {
+      if (this.listeners.onDeviceStatusChanged) this.listeners.onDeviceStatusChanged(data);
+    });
+
+    // New device linked
+    this.socket.on('deviceLinked', (data) => {
+      if (this.listeners.onDeviceLinked) this.listeners.onDeviceLinked(data);
+    });
+
+    // Soft warning from child
+    this.socket.on('softWarning', (data) => {
+      if (this.listeners.onSoftWarning) this.listeners.onSoftWarning(data);
     });
   }
 
@@ -50,24 +66,44 @@ class SocketService {
     }
   }
 
-  // Đăng ký listener
+  // Register listeners
   onTimeExtensionRequest(callback) {
     this.listeners.onTimeExtensionRequest = callback;
   }
 
-  // Parent phản hồi yêu cầu
-  respondTimeExtension(userId, approved, additionalMinutes, message) {
+  onDeviceOnline(callback) {
+    this.listeners.onDeviceOnline = callback;
+  }
+
+  onDeviceOffline(callback) {
+    this.listeners.onDeviceOffline = callback;
+  }
+
+  onDeviceStatusChanged(callback) {
+    this.listeners.onDeviceStatusChanged = callback;
+  }
+
+  onDeviceLinked(callback) {
+    this.listeners.onDeviceLinked = callback;
+  }
+
+  onSoftWarning(callback) {
+    this.listeners.onSoftWarning = callback;
+  }
+
+  // Parent responds to time extension request
+  // Uses correct field names: requestId + responseMinutes (matching backend)
+  respondTimeExtension(requestId, approved, responseMinutes) {
     if (this.socket) {
       this.socket.emit('respondTimeExtension', {
-        userId,
+        requestId,
         approved,
-        additionalMinutes,
-        message,
+        responseMinutes,
       });
     }
   }
 
-  // Parent xóa thiết bị - thông báo đến Child
+  // Parent removes device - notify child
   removeDevice(userId, deviceId, deviceCode) {
     if (this.socket) {
       this.socket.emit('removeDevice', {
@@ -77,7 +113,6 @@ class SocketService {
       });
     }
   }
-
 }
 
 export default new SocketService();
