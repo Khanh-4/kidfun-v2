@@ -23,8 +23,8 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
+import api from '../services/api';
 import socketService from '../services/socketService';
-import authService from '../services/authService';
 
 function Notifications() {
   const { t } = useTranslation();
@@ -34,33 +34,43 @@ function Notifications() {
   const [additionalMinutes, setAdditionalMinutes] = useState(30);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  const user = authService.getCurrentUser();
+  const handleApprove = async () => {
+    if (!selectedRequest) return;
 
-  const handleApprove = () => {
-    socketService.respondTimeExtension(
-      user?.id,
-      true,
-      additionalMinutes,
-      t('notifications.approvedMessage', { minutes: additionalMinutes })
-    );
+    try {
+      // Use REST API for approve (writes to DB + emits socket to child)
+      await api.put(`/extension-requests/${selectedRequest.id}/approve`, {
+        responseMinutes: additionalMinutes,
+      });
 
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === selectedRequest.id ? { ...r, status: 'approved', additionalMinutes } : r
-      )
-    );
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === selectedRequest.id
+            ? { ...r, status: 'approved', responseMinutes: additionalMinutes }
+            : r
+        )
+      );
 
-    setResponseDialog(false);
-    setSelectedRequest(null);
-    setSnackbar({
-      open: true,
-      message: t('notifications.approvedMessage', { minutes: additionalMinutes }),
-      severity: 'success',
-    });
+      setResponseDialog(false);
+      setSelectedRequest(null);
+      setSnackbar({
+        open: true,
+        message: t('notifications.approvedMessage', { minutes: additionalMinutes }),
+        severity: 'success',
+      });
+    } catch (err) {
+      console.error('Approve extension error:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || t('common.error'),
+        severity: 'error',
+      });
+    }
   };
 
   const handleReject = (request) => {
-    socketService.respondTimeExtension(user?.id, false, 0, t('notifications.rejectedMessage'));
+    // Use socket for reject (no REST endpoint for reject)
+    socketService.respondTimeExtension(request.id, false, 0);
 
     setRequests((prev) =>
       prev.map((r) => (r.id === request.id ? { ...r, status: 'rejected' } : r))
@@ -75,11 +85,12 @@ function Notifications() {
 
   const openApproveDialog = (request) => {
     setSelectedRequest(request);
-    setAdditionalMinutes(30);
+    setAdditionalMinutes(request.requestMinutes || 30);
     setResponseDialog(true);
   };
 
   const formatTime = (isoString) => {
+    if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -115,7 +126,11 @@ function Notifications() {
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Typography variant="h6">{t('notifications.requestTime')}</Typography>
+                      <Typography variant="h6">
+                        {request.profileName
+                          ? `${request.profileName} - ${t('notifications.requestTime')}`
+                          : t('notifications.requestTime')}
+                      </Typography>
                       {request.status === 'approved' && (
                         <Chip label={t('notifications.approved')} color="success" size="small" />
                       )}
@@ -124,13 +139,16 @@ function Notifications() {
                       )}
                     </Box>
                     <Typography color="text.secondary" gutterBottom>
-                      <strong>{request.deviceName}</strong> • {formatTime(request.timestamp)}
+                      <strong>{request.deviceName}</strong> • {formatTime(request.createdAt)}
+                      {request.requestMinutes && ` • ${request.requestMinutes} ${t('dashboard.minuteUnit') || 'phút'}`}
                     </Typography>
-                    <Box sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 2, mt: 1 }}>
-                      <Typography variant="body2">
-                        <strong>{t('notifications.reason')}</strong> {request.reason}
-                      </Typography>
-                    </Box>
+                    {request.reason && (
+                      <Box sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 2, mt: 1 }}>
+                        <Typography variant="body2">
+                          <strong>{t('notifications.reason')}</strong> {request.reason}
+                        </Typography>
+                      </Box>
+                    )}
 
                     {!request.status && (
                       <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
@@ -155,7 +173,7 @@ function Notifications() {
 
                     {request.status === 'approved' && (
                       <Typography color="success.main" sx={{ mt: 1 }}>
-                        {t('notifications.addedMinutes', { minutes: request.additionalMinutes })}
+                        {t('notifications.addedMinutes', { minutes: request.responseMinutes })}
                       </Typography>
                     )}
                   </Box>
@@ -166,7 +184,7 @@ function Notifications() {
         </Box>
       )}
 
-      {/* Dialog */}
+      {/* Approve Dialog */}
       <Dialog open={responseDialog} onClose={() => setResponseDialog(false)}>
         <DialogTitle>{t('notifications.approveTitle')}</DialogTitle>
         <DialogContent>

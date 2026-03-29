@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import socketService from '../../services/socketService';
 import authService from '../../services/authService';
+import api from '../../services/api';
 
 const drawerWidth = 260;
 
@@ -21,6 +22,44 @@ function MainLayout() {
     setMobileOpen(!mobileOpen);
   };
 
+  // Normalize socket timeExtensionRequest data to match UI expectations
+  const normalizeRequest = (data) => ({
+    id: data.requestId,
+    profileId: data.profileId,
+    profileName: data.profileName,
+    deviceName: data.deviceName,
+    requestMinutes: data.requestMinutes,
+    reason: data.reason || '',
+    createdAt: data.createdAt,
+    status: null, // pending
+  });
+
+  // Fetch pending extension requests from REST API on mount
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const response = await api.get('/extension-requests/pending');
+        const pending = (response.data.requests || []).map((req) => ({
+          id: req.id,
+          profileId: req.profileId,
+          profileName: req.profile?.profileName || '',
+          deviceName: req.device?.deviceName || '',
+          requestMinutes: req.requestMinutes,
+          reason: req.reason || '',
+          createdAt: req.createdAt,
+          status: null, // pending
+        }));
+        setRequests(pending);
+      } catch (err) {
+        console.error('Failed to fetch pending requests:', err);
+      }
+    };
+
+    if (user?.id) {
+      fetchPending();
+    }
+  }, [user?.id]);
+
   // Connect socket once at layout level
   useEffect(() => {
     if (!user?.id) return;
@@ -28,11 +67,24 @@ function MainLayout() {
     socketService.connect(user.id);
 
     socketService.onTimeExtensionRequest((data) => {
-      setRequests((prev) => [data, ...prev]);
+      const normalized = normalizeRequest(data);
+      setRequests((prev) => {
+        // Avoid duplicates (REST fetch + socket push on joinFamily)
+        if (prev.some((r) => r.id === normalized.id)) return prev;
+        return [normalized, ...prev];
+      });
       setSnackbar({
         open: true,
         message: t('common.timeExtensionRequest', { device: data.deviceName }),
         severity: 'info',
+      });
+    });
+
+    socketService.onSoftWarning((data) => {
+      setSnackbar({
+        open: true,
+        message: `${data.profileName}: ${data.message}`,
+        severity: 'warning',
       });
     });
 
