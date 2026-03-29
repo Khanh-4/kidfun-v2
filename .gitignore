@@ -171,3 +171,5 @@ pubspec.lock
 .gitnexus
 AGENTS.md
 CLAUDE.md
+plantuml.jar
+reports/
