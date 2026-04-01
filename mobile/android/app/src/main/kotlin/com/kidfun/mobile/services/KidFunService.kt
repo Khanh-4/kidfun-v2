@@ -33,12 +33,19 @@ class KidFunService : Service() {
         private const val PREFS_NAME = "kidfun_service_prefs"
         private const val KEY_LOCK_AT_MILLIS = "lockAtMillis"
         private const val KEY_IS_LOCKED_STATE = "isInLockedState"
+        private const val KEY_IS_SCREEN_ON = "isScreenOn"
+
+        /** Tracks whether screen is on — accessible from Flutter via MethodChannel */
+        @Volatile
+        var isScreenOn: Boolean = true
+            private set
     }
 
     private val handler = Handler(Looper.getMainLooper())
     private var lockAtMillis: Long = 0
     private var isInLockedState = false
     private var userPresentReceiver: BroadcastReceiver? = null
+    private var screenStateReceiver: BroadcastReceiver? = null
 
     private val prefs: SharedPreferences by lazy {
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -70,6 +77,7 @@ class KidFunService : Service() {
         super.onCreate()
         createNotificationChannel()
         restoreState()
+        registerScreenStateReceiver()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -122,6 +130,7 @@ class KidFunService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterUserPresentReceiver()
+        unregisterScreenStateReceiver()
     }
 
     /**
@@ -231,6 +240,48 @@ class KidFunService : Service() {
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
+        }
+    }
+
+    // ── Screen State Receiver ────────────────────────────────────────────────
+
+    /**
+     * Register BroadcastReceiver for SCREEN_OFF / SCREEN_ON events.
+     * Updates [isScreenOn] static flag and persists to SharedPreferences
+     * so Flutter can poll the state via MethodChannel.
+     */
+    private fun registerScreenStateReceiver() {
+        if (screenStateReceiver != null) return
+        screenStateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        isScreenOn = false
+                        prefs.edit().putBoolean(KEY_IS_SCREEN_ON, false).apply()
+                    }
+                    Intent.ACTION_SCREEN_ON -> {
+                        isScreenOn = true
+                        prefs.edit().putBoolean(KEY_IS_SCREEN_ON, true).apply()
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenStateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(screenStateReceiver, filter)
+        }
+    }
+
+    private fun unregisterScreenStateReceiver() {
+        screenStateReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: IllegalArgumentException) {}
+            screenStateReceiver = null
         }
     }
 }

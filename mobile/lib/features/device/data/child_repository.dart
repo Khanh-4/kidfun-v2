@@ -75,6 +75,26 @@ class ChildRepository {
     final List<dynamic> list = response.data['data']['blockedApps'] as List<dynamic>;
     return list.map((e) => BlockedAppModel.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// POST /api/child/session/pause — Tạm dừng tracking khi màn hình tắt
+  Future<int> pauseSession(String deviceCode) async {
+    final response = await _dio.post(
+      '/api/child/session/pause',
+      data: {},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+    return response.data['data']['remainingSeconds'] as int? ?? 0;
+  }
+
+  /// POST /api/child/session/resume — Tiếp tục tracking khi màn hình bật
+  Future<int> resumeSession(String deviceCode) async {
+    final response = await _dio.post(
+      '/api/child/session/resume',
+      data: {},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+    return response.data['data']['remainingSeconds'] as int? ?? 0;
+  }
 }
 
 class BlockedAppModel {

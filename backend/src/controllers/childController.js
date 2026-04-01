@@ -430,6 +430,123 @@ const endSession = async (req, res) => {
   }
 };
 
+// POST /api/child/session/pause — Screen turned off, stop counting usage
+const pauseSession = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+
+    if (!deviceCode) {
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    const device = await prisma.device.findUnique({
+      where: { deviceCode }
+    });
+
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    const now = new Date();
+
+    // Close open usage logs — this stops accumulating usage time
+    const openLogs = await prisma.usageLog.findMany({
+      where: {
+        deviceId: device.id,
+        endTime: null
+      }
+    });
+
+    for (const log of openLogs) {
+      const durationSeconds = Math.max(0, Math.floor((now - new Date(log.startTime)) / 1000));
+      await prisma.usageLog.update({
+        where: { id: log.id },
+        data: { endTime: now, durationSeconds }
+      });
+    }
+
+    // Update device lastSeen
+    await prisma.device.update({
+      where: { id: device.id },
+      data: { lastSeen: now }
+    });
+
+    console.log(`⏸️ Session PAUSED: deviceCode=${deviceCode}, closed ${openLogs.length} open logs`);
+
+    // Calculate remaining for response
+    if (device.profileId) {
+      const { remainingMinutes, remainingSeconds } = await calcRemaining(device.profileId, device.id);
+      return sendSuccess(res, { paused: true, remainingMinutes, remainingSeconds });
+    }
+
+    sendSuccess(res, { paused: true });
+  } catch (error) {
+    console.error('Pause session error:', error);
+    sendError(res, 'Failed to pause session', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// POST /api/child/session/resume — Screen turned on, resume counting usage
+const resumeSession = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+
+    if (!deviceCode) {
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    const device = await prisma.device.findUnique({
+      where: { deviceCode }
+    });
+
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    if (!device.profileId) {
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
+    }
+
+    const now = new Date();
+
+    // Ensure active session exists
+    const activeSession = await prisma.session.findFirst({
+      where: { deviceId: device.id, status: 'ACTIVE' },
+      orderBy: { startTime: 'desc' }
+    });
+
+    if (!activeSession) {
+      return sendError(res, 'No active session to resume', 404, 'NO_ACTIVE_SESSION');
+    }
+
+    // Create new usage log entry (startTime only) — this resumes accumulation
+    await prisma.usageLog.create({
+      data: {
+        profileId: device.profileId,
+        deviceId: device.id,
+        appName: 'KidFun Monitor',
+        startTime: now,
+        activityType: 'MONITORING'
+      }
+    });
+
+    // Update device
+    await prisma.device.update({
+      where: { id: device.id },
+      data: { lastSeen: now, isOnline: true }
+    });
+
+    console.log(`▶️ Session RESUMED: deviceCode=${deviceCode}`);
+
+    // Calculate remaining for response
+    const { remainingMinutes, remainingSeconds } = await calcRemaining(device.profileId, device.id);
+    sendSuccess(res, { resumed: true, remainingMinutes, remainingSeconds });
+  } catch (error) {
+    console.error('Resume session error:', error);
+    sendError(res, 'Failed to resume session', 500, 'INTERNAL_ERROR');
+  }
+};
+
 // POST /api/child/bonus
 const addBonus = async (req, res) => {
   try {
@@ -631,5 +748,7 @@ module.exports = {
   addBonus,
   createWarning,
   getBlockedSites,
-  getTodayLimit
+  getTodayLimit,
+  pauseSession,
+  resumeSession
 };

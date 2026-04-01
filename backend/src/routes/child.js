@@ -23,6 +23,12 @@ router.post('/session/heartbeat', childController.heartbeat);
 // POST /api/child/session/end - Kết thúc session
 router.post('/session/end', childController.endSession);
 
+// POST /api/child/session/pause - Tạm dừng session (màn hình tắt)
+router.post('/session/pause', childController.pauseSession);
+
+// POST /api/child/session/resume - Tiếp tục session (màn hình bật)
+router.post('/session/resume', childController.resumeSession);
+
 // POST /api/child/bonus - Lưu bonus minutes khi Parent duyệt
 router.post('/bonus', childController.addBonus);
 

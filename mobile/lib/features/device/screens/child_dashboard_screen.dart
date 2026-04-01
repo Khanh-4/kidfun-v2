@@ -46,6 +46,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   bool _isTimeUpDialogShowing = false;
   bool _waitingForResponse = false;
   Timer? _usageSyncTimer;
+  Timer? _screenPollTimer;
+  bool _isScreenPaused = false; // true when screen is off and timer paused
 
   @override
   void initState() {
@@ -85,6 +87,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       // Re-check permissions after user returns from Settings
       if (!_isTimeUpDialogShowing) _checkAndRequestPermissions();
       if (!_isLimitEnabled) return;
+      // If screen is paused, don't resume countdown — wait for _resumeFromScreenOn
+      if (_isScreenPaused) return;
       if (_isLimitEnabled && _endTime != null) {
         // BUG 8 FIX: precise millisecond rounding to avoid fraction truncation lag
         final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
@@ -153,6 +157,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 5: Sync blocked apps from server
     _syncBlockedApps();
+
+    // Sprint 6: Poll screen state for pause/resume timer
+    _startScreenStatePoll();
 
     // Sprint 4: Task 2 - Session & Countdown
     _initSession();
@@ -371,6 +378,102 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       print('🚫 [BLOCKED] Synced ${packages.length} blocked apps');
     } catch (e) {
       print('❌ [BLOCKED] Sync error: $e');
+    }
+  }
+
+  // ── Screen State Polling (Sprint 6: Pause/Resume timer on screen off/on) ────
+
+  void _startScreenStatePoll() {
+    _screenPollTimer?.cancel();
+    _screenPollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted || _deviceCode == null) return;
+      if (_isTimeUpDialogShowing) return; // Don't poll during locked state
+
+      try {
+        final screenOn = await NativeService.isScreenOn();
+
+        if (!screenOn && !_isScreenPaused) {
+          // Screen just turned off — pause timer
+          _pauseForScreenOff();
+        } else if (screenOn && _isScreenPaused) {
+          // Screen just turned on — resume timer
+          await _resumeFromScreenOn();
+        }
+      } catch (e) {
+        // Native call might fail if service not ready — silently ignore
+        print('❌ [SCREEN] Poll error: $e');
+      }
+    });
+  }
+
+  void _pauseForScreenOff() {
+    if (_isScreenPaused || !_isLimitEnabled) return;
+
+    print('📱 [SCREEN OFF] Pausing timer and notifying backend');
+    _isScreenPaused = true;
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+
+    // Notify backend to close open usage logs (stops counting)
+    if (_deviceCode != null) {
+      _childRepo.pauseSession(_deviceCode!).then((remainingSeconds) {
+        print('⏸️ [PAUSE] Backend confirmed pause. Server remaining: ${remainingSeconds}s');
+      }).catchError((e) {
+        print('❌ [PAUSE] Backend error: $e');
+      });
+    }
+  }
+
+  Future<void> _resumeFromScreenOn() async {
+    if (!_isScreenPaused || !_isLimitEnabled) return;
+
+    print('📱 [SCREEN ON] Resuming timer from backend');
+    _isScreenPaused = false;
+
+    if (_deviceCode == null) return;
+
+    try {
+      // Notify backend to create new usage log (resumes counting)
+      final serverSeconds = await _childRepo.resumeSession(_deviceCode!);
+
+      if (mounted) {
+        setState(() {
+          _remainingSeconds = serverSeconds > 0 ? serverSeconds : 0;
+          _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+        });
+        _saveEndTime();
+
+        if (_remainingSeconds > 0) {
+          _startCountdown();
+          // Restart heartbeat
+          _heartbeatTimer?.cancel();
+          _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+            if (_sessionId != null) {
+              try {
+                final result = await _childRepo.heartbeat(
+                  sessionId: _sessionId!,
+                  deviceCode: _deviceCode!,
+                );
+                if (mounted && result.isBlocked && !_isTimeUpDialogShowing) {
+                  _onTimeUp();
+                }
+              } catch (e) {
+                print('❌ Heartbeat error: $e');
+              }
+            }
+          });
+        } else if (!_isTimeUpDialogShowing) {
+          _onTimeUp();
+        }
+      }
+    } catch (e) {
+      print('❌ [RESUME] Error: $e');
+      // Fallback: just resume countdown from last known state
+      if (mounted && _endTime != null) {
+        final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+        setState(() => _remainingSeconds = secs > 0 ? secs : 0);
+        if (_remainingSeconds > 0) _startCountdown();
+      }
     }
   }
 
@@ -678,6 +781,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _countdownTimer?.cancel();
     _heartbeatTimer?.cancel();
     _usageSyncTimer?.cancel();
+    _screenPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     
     if (_sessionId != null) {
