@@ -18,7 +18,7 @@ Spec chỉ mô tả **Child Pages** cho mobile (Section 4). Parent screens (Sect
 | Bước | File kế hoạch | Trạng thái | Branch |
 |------|--------------|-----------|--------|
 | 1 | [Step1-Design-Tokens.md](./Step1-Design-Tokens.md) | ✅ Xong | `feat/ui/design-tokens` |
-| 2 | [Step2-RequestTimePage.md](./Step2-RequestTimePage.md) | ⬜ Chưa làm | `feat/ui/request-time-page` |
+| 2 | [Step2-RequestTimePage.md](./Step2-RequestTimePage.md) | ✅ Xong | `feat/ui/request-time-page` |
 | 3 | [Step3-LockedPage.md](./Step3-LockedPage.md) | ⬜ Chưa làm | `feat/ui/locked-page` |
 | 4 | [Step4-TimeRemainingPage.md](./Step4-TimeRemainingPage.md) | ⬜ Chưa làm | `feat/ui/time-remaining-page` |
 | 5 | [Step5-LinkDevicePage.md](./Step5-LinkDevicePage.md) | ⬜ Chưa làm | `feat/ui/link-device-page` |

@@ -14,6 +14,7 @@ import 'features/device/screens/device_list_screen.dart';
 import 'features/device/screens/add_device_screen.dart';
 import 'features/device/screens/scan_qr_screen.dart';
 import 'features/device/screens/child_dashboard_screen.dart';
+import 'features/device/screens/child_request_time_screen.dart';
 import 'features/time_limit/screens/time_limit_screen.dart';
 import 'features/profile/screens/app_blocking_screen.dart';
 import 'features/profile/screens/app_usage_report_screen.dart';
@@ -207,6 +208,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/child-dashboard',
         builder: (context, state) => const ChildDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/child-request-time',
+        builder: (context, state) => const ChildRequestTimeScreen(),
       ),
     ],
     redirect: (context, state) {
