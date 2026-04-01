@@ -10,7 +10,8 @@
     "build": "prisma generate && prisma migrate deploy",
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
-    "test:coverage": "NODE_ENV=test jest --coverage"
+    "test:coverage": "NODE_ENV=test jest --coverage",
+    "seed:demo": "node prisma/seed-demo.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
