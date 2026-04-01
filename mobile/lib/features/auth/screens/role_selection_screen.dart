@@ -44,7 +44,7 @@ class RoleSelectionScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          'KidShield',
+          'KidFun',
           style: GoogleFonts.nunito(
             fontSize: 32,
             fontWeight: FontWeight.w800,
@@ -182,7 +182,7 @@ class RoleSelectionScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 32, bottom: 24),
       child: Text(
-        'KidShield — Bảo vệ thế hệ tương lai 🛡️',
+        'KidFun — Bảo vệ thế hệ tương lai 🛡️',
         textAlign: TextAlign.center,
         style: GoogleFonts.nunito(
           fontSize: 12,

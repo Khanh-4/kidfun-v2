@@ -393,7 +393,7 @@ class _ChildLockedWidgetState extends State<ChildLockedWidget>
     return Padding(
       padding: const EdgeInsets.only(bottom: 32, top: 8),
       child: Text(
-        'KidShield đang bảo vệ bạn 🛡️',
+        'KidFun đang bảo vệ bạn 🛡️',
         textAlign: TextAlign.center,
         style: GoogleFonts.nunito(
           fontSize: 12,

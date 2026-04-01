@@ -130,6 +130,11 @@ class MainActivity : FlutterActivity() {
                         result.success(prefs.getBoolean("isInLockedState", false))
                     }
 
+                    "isScreenOn" -> {
+                        // Read from KidFunService static field (updated by BroadcastReceiver)
+                        result.success(KidFunService.isScreenOn)
+                    }
+
                     else -> result.notImplemented()
                 }
             }

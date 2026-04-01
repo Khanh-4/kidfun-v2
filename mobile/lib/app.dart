@@ -115,8 +115,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _buildProfilesSection(profiles, profileState),
                   const SizedBox(height: 24),
                   _buildDevicesSection(devices, deviceState),
-                  const SizedBox(height: 32),
-                  _buildLogout(),
                   const SizedBox(height: 24),
                 ]),
               ),
@@ -139,70 +137,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildSliverHeader(String userName) {
     return SliverAppBar(
-      expandedHeight: 140,
+      expandedHeight: 160,
       floating: false,
       pinned: true,
       backgroundColor: AppColors.indigo600,
       elevation: 0,
       automaticallyImplyLeading: false,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppColors.linkDeviceGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate how collapsed the app bar is (0.0 = fully expanded, 1.0 = fully collapsed)
+          final top = constraints.biggest.height;
+          final statusBarHeight = MediaQuery.of(context).padding.top;
+          final minHeight = kToolbarHeight + statusBarHeight;
+          const maxHeight = 160.0 + 0; // expandedHeight
+          final expandRatio = ((top - minHeight) / (maxHeight - minHeight)).clamp(0.0, 1.0);
+          
+          return FlexibleSpaceBar(
+            collapseMode: CollapseMode.parallax,
+            background: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: AppColors.linkDeviceGradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              padding: EdgeInsets.fromLTRB(20, statusBarHeight + kToolbarHeight + 8, 20, 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Xin chào, $userName!',
+                              style: GoogleFonts.nunito(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Bảng điều khiển phụ huynh',
+                              style: GoogleFonts.nunito(
+                                fontSize: 13,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.shield_outlined, color: Colors.white, size: 28),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 56, 20, 20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Xin chào, $userName!',
-                      style: GoogleFonts.nunito(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Bảng điều khiển phụ huynh',
-                      style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                    ),
-                  ],
+            title: Opacity(
+              opacity: 1.0 - expandRatio,
+              child: Text(
+                'KidFun',
+                style: GoogleFonts.nunito(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
                 ),
               ),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child:
-                    const Icon(Icons.shield_outlined, color: Colors.white, size: 28),
-              ),
-            ],
-          ),
-        ),
-        title: Text(
-          'KidShield',
-          style: GoogleFonts.nunito(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-          ),
-        ),
-        titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+            ),
+            titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+          );
+        },
       ),
       actions: [
         IconButton(
@@ -551,18 +570,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildLogout() {
-    return Center(
-      child: TextButton.icon(
-        onPressed: () => ref.read(authProvider.notifier).logout(),
-        icon: const Icon(Icons.logout_rounded,
-            color: AppColors.slate400, size: 16),
-        label: Text('Đăng xuất',
-            style: GoogleFonts.nunito(
-                color: AppColors.slate400, fontSize: 13)),
-      ),
-    );
-  }
+
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -687,7 +695,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // 2. Child Role bypasses Login and gets forced to scan UI
       if (role == 'child') {
         if (isLinked) {
-          if (state.matchedLocation != '/child-dashboard') {
+          // Whitelist all valid child routes to prevent redirect loops
+          final isChildRoute = state.matchedLocation == '/child-dashboard' ||
+              state.matchedLocation == '/child-request-time';
+          if (!isChildRoute) {
             return '/child-dashboard';
           }
         } else {
