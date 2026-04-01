@@ -274,6 +274,10 @@ const heartbeat = async (req, res) => {
       return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
+    if (!sessionId || !Number.isInteger(Number(sessionId))) {
+      return sendError(res, 'sessionId is required and must be an integer', 400, 'INVALID_SESSION_ID');
+    }
+
     const device = await prisma.device.findUnique({
       where: { deviceCode }
     });
@@ -284,7 +288,7 @@ const heartbeat = async (req, res) => {
 
     // Update session
     const session = await prisma.session.update({
-      where: { id: sessionId },
+      where: { id: Number(sessionId) },
       data: { totalMinutes: elapsedMinutes }
     });
 
@@ -348,6 +352,10 @@ const endSession = async (req, res) => {
       return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
+    if (!sessionId || !Number.isInteger(Number(sessionId))) {
+      return sendError(res, 'sessionId is required and must be an integer', 400, 'INVALID_SESSION_ID');
+    }
+
     const device = await prisma.device.findUnique({
       where: { deviceCode }
     });
@@ -358,7 +366,7 @@ const endSession = async (req, res) => {
 
     const now = new Date();
     const session = await prisma.session.findUnique({
-      where: { id: sessionId }
+      where: { id: Number(sessionId) }
     });
 
     if (!session) {
@@ -369,7 +377,7 @@ const endSession = async (req, res) => {
 
     // Update session
     await prisma.session.update({
-      where: { id: sessionId },
+      where: { id: Number(sessionId) },
       data: {
         status: 'COMPLETED',
         endTime: now,
