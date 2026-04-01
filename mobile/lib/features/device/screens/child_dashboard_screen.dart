@@ -628,13 +628,38 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
       if (mounted) {
         setState(() => _waitingForResponse = false);
-        // BUG FIX: Apply limit FIRST so _fetchAndApplyNewLimit() correctly dismisses
-        // the "Hết giờ" dialog (rootNavigator.pop). If we showed the result dialog first,
-        // pop() would dismiss the result dialog instead, leaving "Hết giờ" on screen.
-        if (approved) {
-          await _fetchAndApplyNewLimit();
-          // Cancel native lock-screen alarm — time has been extended
+        if (approved && responseMinutes > 0) {
+          // Apply extension directly from socket payload — no HTTP round-trip needed.
+          // This gives instant UI feedback. _currentTotalLimitMinutes is updated so
+          // subsequent _fetchAndApplyNewLimit() calls see deltaMinutes=0 and don't
+          // apply the extension a second time.
+          setState(() {
+            _currentTotalLimitMinutes += responseMinutes;
+            final isExpired = _remainingSeconds <= 0 ||
+                _endTime == null ||
+                _endTime!.isBefore(DateTime.now());
+            if (isExpired) {
+              _endTime = DateTime.now().add(Duration(minutes: responseMinutes));
+            } else {
+              _endTime = _endTime!.add(Duration(minutes: responseMinutes));
+            }
+            final secs =
+                (_endTime!.difference(DateTime.now()).inMilliseconds / 1000)
+                    .round();
+            _remainingSeconds = secs > 0 ? secs : 0;
+            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
+            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
+            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
+          });
+          _saveEndTime();
+          _startCountdown();
           NativeService.cancelScheduledLock().catchError((e) => null);
+          // Dismiss "Hết giờ" dialog if showing
+          if (_isTimeUpDialogShowing && mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+            _isTimeUpDialogShowing = false;
+            NativeService.exitLockedState().catchError((e) => null);
+          }
         }
         if (mounted) {
           _showResultDialog(approved, responseMinutes);
