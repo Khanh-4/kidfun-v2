@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/role_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
@@ -9,130 +11,182 @@ class RoleSelectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-               // KidFun Logo / Branding with Hero Animation
-              Center(
-                child: Hero(
-                  tag: 'kidfun_logo',
-                  child: Column(
-                    children: [
-                      Icon(Icons.child_care, size: 100, color: Colors.blue.shade600),
-                      const SizedBox(height: 16),
-                      Text(
-                        'KidFun',
-                        style: TextStyle(
-                          fontSize: 40, 
-                          fontWeight: FontWeight.bold, 
-                          color: Colors.blue.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Bạn đang thiết lập cho thiết bị của ai?',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-              const SizedBox(height: 48),
-
-              // Parent Card
-              _RoleCard(
-                icon: Icons.supervisor_account,
-                title: 'Tôi là Phụ huynh',
-                description: 'Quản lý thời gian và nội dung của con',
-                color: Colors.blue.shade600,
-                onTap: () async {
-                  await ref.read(roleProvider.notifier).setRole('parent');
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Child Card
-              _RoleCard(
-                icon: Icons.smart_display,
-                title: 'Thiết bị của con',
-                description: 'Kết nối thiết bị này với tài khoản phụ huynh',
-                color: Colors.orange.shade600,
-                onTap: () async {
-                  await ref.read(roleProvider.notifier).setRole('child');
-                },
-              ),
-            ],
+      body: Container(
+        decoration: AppTheme.gradientBg(AppColors.linkDeviceGradient),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.screenPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildBranding(),
+                _buildParentCard(ref),
+                const SizedBox(height: 16),
+                _buildChildCard(ref),
+                _buildFooter(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-class _RoleCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _RoleCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 40, color: color),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
+  Widget _buildBranding() {
+    return Column(
+      children: [
+        const SizedBox(height: 64),
+        Container(
+          width: 80,
+          height: 80,
+          decoration: AppTheme.glassCard(radius: 20),
+          child: const Icon(Icons.shield_outlined, size: 44, color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'KidShield',
+          style: GoogleFonts.nunito(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
           ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Bảo vệ con yêu của bạn',
+          style: GoogleFonts.nunito(
+            fontSize: 14,
+            color: Colors.white.withOpacity(0.70),
+          ),
+        ),
+        const SizedBox(height: 48),
+      ],
+    );
+  }
+
+  Widget _buildParentCard(WidgetRef ref) {
+    return GestureDetector(
+      onTap: () => ref.read(roleProvider.notifier).setRole('parent'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(AppTheme.cardPadding),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.indigo600.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+              ),
+              child: const Icon(
+                Icons.supervisor_account_outlined,
+                size: 32,
+                color: AppColors.indigo600,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tôi là Phụ huynh',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.slate800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Quản lý thời gian và nội dung của con',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      color: AppColors.slate500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.slate400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChildCard(WidgetRef ref) {
+    return GestureDetector(
+      onTap: () => ref.read(roleProvider.notifier).setRole('child'),
+      child: Container(
+        decoration: AppTheme.glassCard(),
+        padding: const EdgeInsets.all(AppTheme.cardPadding),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.20),
+                borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+              ),
+              child: const Icon(
+                Icons.phone_android_outlined,
+                size: 32,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Thiết bị của con',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Kết nối thiết bị này với tài khoản phụ huynh',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.70),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.60)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 32, bottom: 24),
+      child: Text(
+        'KidShield — Bảo vệ thế hệ tương lai 🛡️',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.nunito(
+          fontSize: 12,
+          color: Colors.white.withOpacity(0.40),
         ),
       ),
     );
