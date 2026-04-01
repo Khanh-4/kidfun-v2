@@ -28,9 +28,9 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
 
   final MobileScannerController _controller = MobileScannerController();
   final List<TextEditingController> _codeControllers =
-      List.generate(4, (_) => TextEditingController());
+      List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes =
-      List.generate(4, (_) => FocusNode());
+      List.generate(6, (_) => FocusNode());
 
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
@@ -291,7 +291,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'Nhập mã 4 chữ số do phụ huynh cung cấp',
+          'Nhập mã 6 chữ số do phụ huynh cung cấp',
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
             fontSize: 13,
@@ -317,7 +317,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(4, (i) => _buildDigitBox(i)),
+                children: List.generate(6, (i) => _buildDigitBox(i)),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -403,8 +403,8 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
 
   Widget _buildDigitBox(int index) {
     return SizedBox(
-      width: 56,
-      height: 64,
+      width: 44,
+      height: 56,
       child: TextField(
         controller: _codeControllers[index],
         focusNode: _focusNodes[index],
@@ -438,7 +438,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
           contentPadding: EdgeInsets.zero,
         ),
         onChanged: (val) {
-          if (val.isNotEmpty && index < 3) {
+          if (val.isNotEmpty && index < 5) {
             _focusNodes[index + 1].requestFocus();
           } else if (val.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
@@ -452,7 +452,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
   static const _steps = [
     {'emoji': '📱', 'title': 'Tải ứng dụng', 'desc': 'Tải KidShield từ App Store hoặc Google Play'},
     {'emoji': '🚀', 'title': 'Mở ứng dụng', 'desc': 'Mở và chọn "Liên kết thiết bị mới"'},
-    {'emoji': '🔢', 'title': 'Nhập mã hoặc quét QR', 'desc': 'Nhập mã 4 chữ số từ phụ huynh'},
+    {'emoji': '🔢', 'title': 'Nhập mã hoặc quét QR', 'desc': 'Nhập mã 6 chữ số từ phụ huynh'},
     {'emoji': '✅', 'title': 'Xác nhận từ phụ huynh', 'desc': 'Phụ huynh nhận thông báo xác nhận'},
   ];
 
