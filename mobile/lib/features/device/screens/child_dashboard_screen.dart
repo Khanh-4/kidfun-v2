@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/services/native_service.dart';
@@ -692,8 +695,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Container(
+          decoration: AppTheme.gradientBg(AppColors.timeRemainingGradient),
+          child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ),
       );
     }
 
@@ -708,7 +714,48 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       );
     }
 
-    return _buildDashboard();
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: Container(
+          decoration: AppTheme.gradientBg(AppColors.timeRemainingGradient),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.screenPadding,
+                  ),
+                  child: Column(
+                    children: [
+                      _buildTopBar(),
+                      _buildProfileRow(),
+                      const SizedBox(height: 8),
+                      _buildCircularProgress(),
+                      const SizedBox(height: 16),
+                      _buildStatusMessage(),
+                      const SizedBox(height: 16),
+                      _buildAppUsageCard(),
+                      const SizedBox(height: 16),
+                      _buildActionButtons(),
+                      const SizedBox(height: 24),
+                      _buildFooterStars(),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildRelinkScreen() {
@@ -766,88 +813,52 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     );
   }
 
-  Widget _buildDashboard() {
-    return PopScope(
-      canPop: false, // Child cannot go back
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF0F4FF),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      _buildWelcomeCard(),
-                      const SizedBox(height: 24),
-                      _buildTimeCard(),
-                      const SizedBox(height: 24),
-                      _buildConnectionStatus(),
-                      const SizedBox(height: 24),
-                      _buildRequestMoreTimeButton(),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTopBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 4),
       child: Row(
         children: [
-          // App name
-          Expanded(
-            child: Text(
-              'KidFun 🌟',
-              style: GoogleFonts.nunito(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-              ),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.20),
+              borderRadius: BorderRadius.circular(AppTheme.radiusIconSm),
             ),
-          ),
-          // Connection indicator
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _isSocketConnected ? _pulseAnimation.value : 1.0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: _isSocketConnected ? Colors.greenAccent : Colors.red.shade300,
-                    shape: BoxShape.circle,
-                    boxShadow: _isSocketConnected
-                        ? [BoxShadow(color: Colors.greenAccent.withValues(alpha: 0.7), blurRadius: 8, spreadRadius: 2)]
-                        : [],
-                  ),
-                ),
-              );
-            },
+            child: const Icon(Icons.shield_outlined, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 8),
           Text(
-            _isSocketConnected ? 'Đã kết nối máy chủ' : 'Mất kết nối máy chủ',
+            'KidShield',
             style: GoogleFonts.nunito(
-              color: _isSocketConnected ? Colors.greenAccent : Colors.red.shade200,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (ctx, _) => Transform.scale(
+              scale: _pulseAnimation.value,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _isSocketConnected
+                      ? const Color(0xFF34D399)
+                      : Colors.red.shade300,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _isSocketConnected ? 'Đang giám sát' : 'Mất kết nối',
+            style: GoogleFonts.nunito(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.80),
             ),
           ),
         ],
@@ -855,42 +866,53 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     );
   }
 
-  Widget _buildWelcomeCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF42E695), Color(0xFF3BB2B8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(color: const Color(0xFF42E695).withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 8)),
-        ],
-      ),
+  Widget _buildProfileRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          const Text('👦', style: TextStyle(fontSize: 60)),
-          const SizedBox(width: 16),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.20),
+              borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+            ),
+            child: const Center(child: Text('👦', style: TextStyle(fontSize: 24))),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Xin chào!',
-                  style: GoogleFonts.nunito(color: Colors.white70, fontSize: 16),
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
                 Text(
-                  'Hôm nay vui không? 😊',
+                  _deviceCode ?? 'Thiết bị',
                   style: GoogleFonts.nunito(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.60),
                   ),
                 ),
               ],
+            ),
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.20),
+              borderRadius: BorderRadius.circular(AppTheme.radiusIconSm),
+            ),
+            child: const Icon(
+              Icons.notifications_none_outlined,
+              color: Colors.white,
+              size: 20,
             ),
           ),
         ],
@@ -898,165 +920,393 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     );
   }
 
-  Widget _buildTimeCard() {
+  Widget _buildCircularProgress() {
+    final totalSeconds = _currentTotalLimitMinutes * 60;
+    final percent = totalSeconds > 0
+        ? (1.0 - (_remainingSeconds / totalSeconds)).clamp(0.0, 1.0)
+        : 0.0;
+    final isWarning = _remainingSeconds > 0 && _remainingSeconds < 30 * 60;
+
+    if (!_isLimitEnabled) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          decoration: AppTheme.glassCard(),
+          child: Text(
+            'Hôm nay con có thể thoải mái sử dụng thiết bị 🎉',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      child: SizedBox(
+        width: 220,
+        height: 220,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CustomPaint(
+              size: const Size(220, 220),
+              painter: _CircularProgressPainter(
+                percent: percent,
+                trackColor: Colors.white.withOpacity(0.20),
+                fillColor: isWarning ? const Color(0xFFF97316) : Colors.white,
+                strokeWidth: 18,
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Thời gian còn lại',
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.60),
+                  ),
+                ),
+                Text(
+                  _formatTimeDisplay(_remainingSeconds),
+                  style: GoogleFonts.nunito(
+                    fontSize: 42,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  '/ ${_currentTotalLimitMinutes ~/ 60}h'
+                  '${_currentTotalLimitMinutes % 60 > 0 ? " ${_currentTotalLimitMinutes % 60}m" : ""}'
+                  ' hôm nay',
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.60),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isWarning
+                        ? const Color(0xFFF97316).withOpacity(0.30)
+                        : Colors.white.withOpacity(0.20),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                  ),
+                  child: Text(
+                    'Đã dùng: ${_formatTimeDisplay((_currentTotalLimitMinutes * 60) - _remainingSeconds)}',
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isWarning ? const Color(0xFFFFEDD5) : Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTimeDisplay(int seconds) {
+    if (seconds < 0) seconds = 0;
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) return '${h}h${m.toString().padLeft(2, '0')}m';
+    if (m > 0) return '${m}m${s.toString().padLeft(2, '0')}s';
+    return '${s}s';
+  }
+
+  Widget _buildStatusMessage() {
+    final isWarning = _remainingSeconds > 0 && _remainingSeconds < 30 * 60;
+    final remainMins = _remainingSeconds ~/ 60;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8)),
-        ],
+        color: isWarning
+            ? const Color(0xFFF97316).withOpacity(0.20)
+            : Colors.white.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+        border: Border.all(
+          color: isWarning
+              ? const Color(0xFFFED7AA).withOpacity(0.30)
+              : Colors.white.withOpacity(0.20),
+        ),
       ),
       child: Column(
         children: [
-          if (!_isLimitEnabled) ...[
-            Text(
-              'Hôm nay con có thể thoải mái sử dụng thiết bị',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Colors.green.shade600,
-                height: 1.4,
-              ),
+          Text(
+            isWarning ? '⚠️ Sắp hết giờ!' : '🌟 Đang dùng tốt!',
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: isWarning ? const Color(0xFFFED7AA) : Colors.white,
             ),
-          ] else ...[
-            Text(
-              '⏳ Thời gian còn lại',
-              style: GoogleFonts.nunito(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          Text(
+            isWarning
+                ? 'Còn $remainMins phút, hãy chuẩn bị dừng lại nhé'
+                : 'Tiếp tục giữ thói quen tốt bạn nhé!',
+            style: GoogleFonts.nunito(
+              fontSize: 12,
+              color: isWarning
+                  ? const Color(0xFFFED7AA).withOpacity(0.70)
+                  : Colors.white.withOpacity(0.60),
             ),
-            const SizedBox(height: 16),
-            Text(
-              _formattedTime,
-              style: GoogleFonts.nunito(
-                fontSize: 72,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF667EEA),
-                height: 1.0,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Thời gian hôm nay có hạn. Hãy sử dụng thông minh!',
-              style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey.shade400),
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildConnectionStatus() {
+  Widget _buildAppUsageCard() {
+    final apps = [
+      {'emoji': '▶️', 'name': 'YouTube',   'used': 45, 'max': 60,  'color': const Color(0xFFEF4444), 'blocked': false},
+      {'emoji': '🎮', 'name': 'Roblox',    'used': 30, 'max': 45,  'color': const Color(0xFFF97316), 'blocked': false},
+      {'emoji': '📚', 'name': 'Khan Acad', 'used': 20, 'max': 120, 'color': const Color(0xFF10B981), 'blocked': false},
+      {'emoji': '🎵', 'name': 'TikTok',    'used': 0,  'max': 0,   'color': const Color(0xFFEF4444), 'blocked': true},
+    ];
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _isSocketConnected
-            ? Colors.green.shade50
-            : Colors.red.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _isSocketConnected ? Colors.green.shade200 : Colors.red.shade200,
-        ),
-      ),
-      child: Row(
+      decoration: AppTheme.glassCard(),
+      padding: const EdgeInsets.all(AppTheme.cardPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (ctx, child) {
-              return Transform.scale(
-                scale: _isSocketConnected ? _pulseAnimation.value : 1.0,
-                child: Icon(
-                  _isSocketConnected ? Icons.wifi : Icons.wifi_off,
-                  color: _isSocketConnected ? Colors.green : Colors.red,
-                  size: 32,
-                ),
-              );
-            },
+          Text(
+            'Ứng dụng hôm nay',
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.80),
+            ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 12),
+          ...apps.map((app) => _buildAppRow(app)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppRow(Map app) {
+    final blocked = app['blocked'] as bool;
+    final used = app['used'] as int;
+    final max = app['max'] as int;
+    final color = app['color'] as Color;
+    final progress = max > 0 ? (used / max).clamp(0.0, 1.0) : 0.0;
+    final isOver = progress > 0.9;
+
+    return Opacity(
+      opacity: blocked ? 0.50 : 1.0,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Text(
-                  _isSocketConnected ? '🟢 Đã kết nối với máy chủ' : '🔴 Mất kết nối',
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: _isSocketConnected ? Colors.green.shade700 : Colors.red.shade700,
+                Text(app['emoji'] as String, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    app['name'] as String,
+                    style: GoogleFonts.nunito(fontSize: 13, color: Colors.white),
                   ),
                 ),
-                Text(
-                  _isSocketConnected
-                      ? 'Phụ huynh có thể theo dõi hoạt động của bạn'
-                      : 'Đang cố gắng kết nối lại...',
-                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey.shade600),
-                ),
+                blocked
+                    ? Row(
+                        children: [
+                          const Icon(Icons.lock_outline, size: 12, color: Color(0xFFFCA5A5)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Bị chặn',
+                            style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              color: const Color(0xFFFCA5A5),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        '${used}/${max}ph',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          color: Colors.white.withOpacity(0.60),
+                        ),
+                      ),
               ],
             ),
-          ),
-          if (!_isSocketConnected)
-            IconButton(
-              onPressed: () {
-                SocketService.instance.reconnect();
-              },
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Kết nối lại',
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRequestMoreTimeButton() {
-    return GestureDetector(
-      onTap: _waitingForResponse ? null : () => context.push('/child-request-time'),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          gradient: _waitingForResponse
-              ? const LinearGradient(colors: [Colors.grey, Colors.blueGrey])
-              : const LinearGradient(
-                  colors: [Color(0xFFFF9966), Color(0xFFFF5E62)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: (_waitingForResponse ? Colors.grey : const Color(0xFFFF5E62))
-                  .withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_waitingForResponse ? '⏳' : '🙋', style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 12),
-              Text(
-                _waitingForResponse ? 'Đang chờ duyệt...' : 'Xin thêm giờ',
-                style: GoogleFonts.nunito(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+            if (!blocked) ...[
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.white.withOpacity(0.20),
+                  valueColor: AlwaysStoppedAnimation(
+                    isOver ? const Color(0xFFF97316) : color,
+                  ),
+                  minHeight: 6,
                 ),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: _waitingForResponse
+                ? null
+                : () => context.push('/child-request-time'),
+            child: Opacity(
+              opacity: _waitingForResponse ? 0.60 : 1.0,
+              child: Container(
+                height: AppTheme.btnHeightLg,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.20),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+                  border: Border.all(color: Colors.white.withOpacity(0.20)),
+                ),
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _waitingForResponse
+                            ? Icons.hourglass_top_outlined
+                            : Icons.access_time_outlined,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _waitingForResponse ? 'Đang chờ...' : 'Xin thêm giờ',
+                        style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: AppTheme.gap),
+        Expanded(
+          child: Container(
+            height: AppTheme.btnHeightLg,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.slate900.withOpacity(0.20),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.home_outlined, color: AppColors.indigo700, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Trang chủ',
+                    style: GoogleFonts.nunito(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: AppColors.indigo700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterStars() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        5,
+        (_) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(Icons.star, size: 16, color: Colors.white.withOpacity(0.30)),
+        ),
+      ),
+    );
+  }
+}
+
+class _CircularProgressPainter extends CustomPainter {
+  final double percent;
+  final Color trackColor;
+  final Color fillColor;
+  final double strokeWidth;
+
+  const _CircularProgressPainter({
+    required this.percent,
+    required this.trackColor,
+    required this.fillColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+    const startAngle = -math.pi / 2;
+    final sweepAngle = 2 * math.pi * percent;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      0,
+      2 * math.pi,
+      false,
+      Paint()
+        ..color = trackColor
+        ..strokeWidth = strokeWidth
+        ..style = PaintingStyle.stroke,
+    );
+
+    if (percent > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        Paint()
+          ..color = fillColor
+          ..strokeWidth = strokeWidth
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CircularProgressPainter old) =>
+      old.percent != percent || old.fillColor != fillColor;
 }
