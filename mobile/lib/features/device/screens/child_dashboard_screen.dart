@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/services/native_service.dart';
 import '../data/child_repository.dart';
+import 'child_locked_widget.dart';
 
 class ChildDashboardScreen extends ConsumerStatefulWidget {
   const ChildDashboardScreen({super.key});
@@ -219,8 +221,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
          _onTimeUp();
       } else if (!_isLimitEnabled) {
          if (_isTimeUpDialogShowing) {
-            Navigator.of(context, rootNavigator: true).pop();
-            _isTimeUpDialogShowing = false;
+            setState(() => _isTimeUpDialogShowing = false);
          }
       } else if (_remainingSeconds <= 0 || (_isLimitEnabled && _currentTotalLimitMinutes == 0)) {
          if (!_isTimeUpDialogShowing) {
@@ -479,37 +480,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       print('❌ [LOCK] enterLockedState error: $e');
     });
 
-    // Hiện màn hình khóa fullscreen (backup nếu Device Admin chưa được cấp)
-    _isTimeUpDialogShowing = true;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => PopScope(
-        canPop: false, // Chặn nút back
-        child: AlertDialog(
-          title: Text('⏰ Hết giờ!', 
-            style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: Colors.red)),
-          content: Text(
-            'Thời gian sử dụng thiết bị hôm nay đã hết.\nHãy nghỉ ngơi nhé!',
-            style: GoogleFonts.nunito(fontSize: 16),
-          ),
-          actions: [
-            ElevatedButton.icon(
-              onPressed: () => context.push('/child-request-time'),
-              icon: const Icon(Icons.access_time),
-              label: Text('Xin thêm giờ', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).then((_) {
-      _isTimeUpDialogShowing = false;
-    });
+    // Hiện màn hình khóa fullscreen thay thế toàn bộ dashboard
+    setState(() => _isTimeUpDialogShowing = true);
   }
 
   // Persist _endTime to SharedPreferences so it survives force-close.
@@ -575,8 +547,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         _saveEndTime();
 
         if ((!enabled || _remainingSeconds > 0) && _isTimeUpDialogShowing) {
-          Navigator.of(context, rootNavigator: true).pop();
-          _isTimeUpDialogShowing = false;
+          setState(() => _isTimeUpDialogShowing = false);
           // Tắt chế độ khoá liên tục vì phụ huynh đã cấp thêm thời gian
           NativeService.exitLockedState().catchError((e) {
             print('❌ [LOCK] exitLockedState error: $e');
@@ -654,10 +625,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           _saveEndTime();
           _startCountdown();
           NativeService.cancelScheduledLock().catchError((e) => null);
-          // Dismiss "Hết giờ" dialog if showing
+          // Dismiss locked screen if showing — setState triggers build() to show dashboard
           if (_isTimeUpDialogShowing && mounted) {
-            Navigator.of(context, rootNavigator: true).pop();
-            _isTimeUpDialogShowing = false;
+            setState(() => _isTimeUpDialogShowing = false);
             NativeService.exitLockedState().catchError((e) => null);
           }
         }
@@ -729,6 +699,13 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     if (!_hasToken) {
       return _buildRelinkScreen();
+    }
+
+    if (_isTimeUpDialogShowing) {
+      return ChildLockedWidget(
+        onRequestTime: () => context.push('/child-request-time'),
+        onGoHome: () => setState(() => _isTimeUpDialogShowing = false),
+      );
     }
 
     return _buildDashboard();
