@@ -284,7 +284,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Widget _buildStep(int number, String label, bool isActive, bool isDone) {
-    final color = (isActive || isDone) ? AppColors.indigo600 : AppColors.slate300;
+    final color = (isActive || isDone) ? AppColors.indigo600 : AppColors.slate200;
     return Column(
       children: [
         Container(
