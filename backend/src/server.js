@@ -26,7 +26,8 @@ const io = new Server(httpServer, {
   allowEIO3: true, // Support older socket.io-client versions (v2/v3)
   pingInterval: 25000,  // Tăng lên 25s (default) cho ngrok/railway
   pingTimeout: 20000,   // Timeout 20s
-  perMessageDeflate: false // Tắt để tránh conflict proxy
+  perMessageDeflate: false, // Tắt để tránh conflict proxy
+  transports: ['websocket', 'polling'] // Cho phép polling làm fallback khi websocket bị block
 });
 
 // Middleware
