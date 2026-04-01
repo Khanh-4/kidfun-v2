@@ -193,6 +193,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           _isLimitEnabled = todayLimit.isLimitEnabled;
           _endTime = chosenEndTime;
           _remainingSeconds = chosenEndTime.difference(DateTime.now()).inSeconds.clamp(0, serverSeconds + 120).toInt();
+
+          // BUG 1.2 FIX: Initialize guard flags based on current time to prevent 
+          // redundant warnings if starting/resuming when already below milestones.
+          _hasShown30m = _remainingSeconds <= 30 * 60;
+          _hasShown15m = _remainingSeconds <= 15 * 60;
+          _hasShown5m = _remainingSeconds <= 5 * 60;
         });
 
         // Persist chosen endTime for the next restart
