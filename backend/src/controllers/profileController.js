@@ -27,6 +27,10 @@ const createProfile = async (req, res) => {
   try {
     const { profileName, dateOfBirth, avatarUrl } = req.body;
 
+    if (!profileName || typeof profileName !== 'string' || profileName.trim().length === 0) {
+      return sendError(res, 'profileName là bắt buộc', 400, 'MISSING_PROFILE_NAME');
+    }
+
     const profile = await prisma.profile.create({
       data: {
         userId: req.user.userId,
@@ -140,6 +144,10 @@ const updateTimeLimits = async (req, res) => {
   try {
     const profileId = parseInt(req.params.id);
     const { timeLimits } = req.body;
+
+    if (!Array.isArray(timeLimits) || timeLimits.length === 0) {
+      return sendError(res, 'timeLimits phải là mảng không rỗng', 400, 'INVALID_TIME_LIMITS');
+    }
 
     // Verify profile belongs to user
     const profile = await prisma.profile.findFirst({

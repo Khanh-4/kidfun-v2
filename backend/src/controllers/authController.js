@@ -30,6 +30,16 @@ const register = async (req, res) => {
   try {
     const { email, password, fullName, phoneNumber } = req.body;
 
+    if (!fullName || typeof fullName !== 'string' || fullName.trim().length === 0) {
+      return sendError(res, 'fullName là bắt buộc', 400, 'MISSING_FULL_NAME');
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return sendError(res, 'Email không hợp lệ', 400, 'INVALID_EMAIL');
+    }
+    if (!password || password.length < 6) {
+      return sendError(res, 'Mật khẩu phải có ít nhất 6 ký tự', 400, 'INVALID_PASSWORD');
+    }
+
     // Kiểm tra email đã tồn tại
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -70,6 +80,10 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return sendError(res, 'Email và mật khẩu là bắt buộc', 400, 'MISSING_CREDENTIALS');
+    }
 
     // Tìm user
     const user = await prisma.user.findUnique({ where: { email } });
