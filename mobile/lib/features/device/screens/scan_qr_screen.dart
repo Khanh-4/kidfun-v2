@@ -253,7 +253,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
                 ),
               ),
               Text(
-                'KidShield Child Monitor',
+                'KidFun Child Monitor',
                 style: GoogleFonts.nunito(
                   fontSize: 12,
                   color: Colors.white.withOpacity(0.70),
@@ -450,7 +450,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
   }
 
   static const _steps = [
-    {'emoji': '📱', 'title': 'Tải ứng dụng', 'desc': 'Tải KidShield từ App Store hoặc Google Play'},
+    {'emoji': '📱', 'title': 'Tải ứng dụng', 'desc': 'Tải KidFun từ App Store hoặc Google Play'},
     {'emoji': '🚀', 'title': 'Mở ứng dụng', 'desc': 'Mở và chọn "Liên kết thiết bị mới"'},
     {'emoji': '🔢', 'title': 'Nhập mã hoặc quét QR', 'desc': 'Nhập mã 6 chữ số từ phụ huynh'},
     {'emoji': '✅', 'title': 'Xác nhận từ phụ huynh', 'desc': 'Phụ huynh nhận thông báo xác nhận'},

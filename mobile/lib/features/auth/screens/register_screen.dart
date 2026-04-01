@@ -101,7 +101,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'KidShield',
+          'KidFun',
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
             fontSize: 24,

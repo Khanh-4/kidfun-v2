@@ -829,7 +829,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            'KidShield',
+            'KidFun',
             style: GoogleFonts.nunito(
               fontWeight: FontWeight.w700,
               color: Colors.white,
@@ -972,11 +972,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                   ),
                 ),
                 Text(
-                  _formatTimeDisplay(_remainingSeconds),
+                  _formattedTime,
                   style: GoogleFonts.nunito(
-                    fontSize: 42,
+                    fontSize: 36,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
+                    letterSpacing: 1,
                   ),
                 ),
                 Text(
@@ -1165,84 +1166,67 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: _waitingForResponse
+    return SizedBox(
+      width: double.infinity,
+      height: AppTheme.btnHeightLg,
+      child: GestureDetector(
+        onTap: _waitingForResponse
+            ? null
+            : () => context.push('/child-request-time'),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            gradient: _waitingForResponse
                 ? null
-                : () => context.push('/child-request-time'),
-            child: Opacity(
-              opacity: _waitingForResponse ? 0.60 : 1.0,
-              child: Container(
-                height: AppTheme.btnHeightLg,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.20),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
-                  border: Border.all(color: Colors.white.withOpacity(0.20)),
-                ),
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _waitingForResponse
-                            ? Icons.hourglass_top_outlined
-                            : Icons.access_time_outlined,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _waitingForResponse ? 'Đang chờ...' : 'Xin thêm giờ',
-                        style: GoogleFonts.nunito(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                : const LinearGradient(
+                    colors: [Color(0xFFFFFFFF), Color(0xFFF0F0FF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ),
-              ),
-            ),
+            color: _waitingForResponse ? Colors.white.withOpacity(0.20) : null,
+            borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+            border: _waitingForResponse
+                ? Border.all(color: Colors.white.withOpacity(0.20))
+                : null,
+            boxShadow: _waitingForResponse
+                ? null
+                : [
+                    BoxShadow(
+                      color: AppColors.slate900.withOpacity(0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
-        ),
-        SizedBox(width: AppTheme.gap),
-        Expanded(
-          child: Container(
-            height: AppTheme.btnHeightLg,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.slate900.withOpacity(0.20),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _waitingForResponse
+                      ? Icons.hourglass_top_outlined
+                      : Icons.access_time_outlined,
+                  color: _waitingForResponse
+                      ? Colors.white
+                      : AppColors.indigo700,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _waitingForResponse ? 'Đang chờ phụ huynh...' : '⏱ Xin thêm giờ',
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: _waitingForResponse
+                        ? Colors.white
+                        : AppColors.indigo700,
+                  ),
                 ),
               ],
             ),
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.home_outlined, color: AppColors.indigo700, size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Trang chủ',
-                    style: GoogleFonts.nunito(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.indigo700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
-      ],
+      ),
     );
   }
 
