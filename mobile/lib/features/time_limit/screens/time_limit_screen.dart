@@ -191,7 +191,7 @@ class _TimeLimitScreenState extends ConsumerState<TimeLimitScreen> {
               // BUG 1 FIX: widened from 70 → 90 so "720 ph" fits without clipping.
               // Also uses the persistent controller (not an inline-created one).
               SizedBox(
-                width: 90,
+                width: 100, // Widened to 100 to ensure 3-digit numbers + ' ph' fit comfortably
                 child: TextField(
                   keyboardType: TextInputType.number,
                   controller: controller,
@@ -199,7 +199,10 @@ class _TimeLimitScreenState extends ConsumerState<TimeLimitScreen> {
                     final mins = int.tryParse(v) ?? 0;
                     notifier.updateDayLimit(limit.dayOfWeek, mins.clamp(0, 720), true);
                   },
-                  decoration: const InputDecoration(suffixText: 'ph'),
+                  decoration: const InputDecoration(
+                    suffixText: 'ph',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                  ),
                 ),
               ),
             ],
