@@ -158,8 +158,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Sprint 5: Sync blocked apps from server
     _syncBlockedApps();
 
-    // Sprint 6: Poll screen state for pause/resume timer
-    _startScreenStatePoll();
+    // NOTE: Screen state polling moved to _initSession() — it must start AFTER
+    // session is established, otherwise resume/pause API calls will 404.
 
     // Sprint 4: Task 2 - Session & Countdown
     _initSession();
@@ -264,6 +264,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           }
         }
       });
+
+      // Sprint 6: Start screen state polling AFTER session is established
+      // This prevents resume/pause API calls from 404-ing due to no active session
+      _startScreenStatePoll();
     } catch (e) {
       print('❌ Init session error: $e');
     }
@@ -408,6 +412,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   void _pauseForScreenOff() {
     if (_isScreenPaused || !_isLimitEnabled) return;
+    if (_sessionId == null) return; // Guard: no session yet, skip pause
 
     print('📱 [SCREEN OFF] Pausing timer and notifying backend');
     _isScreenPaused = true;
@@ -426,6 +431,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   Future<void> _resumeFromScreenOn() async {
     if (!_isScreenPaused || !_isLimitEnabled) return;
+    if (_sessionId == null) return; // Guard: no session yet, skip resume
 
     print('📱 [SCREEN ON] Resuming timer from backend');
     _isScreenPaused = false;
@@ -758,7 +764,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         ),
         actions: [
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Auto-navigate back to child dashboard (clears any pushed routes like request time screen)
+              if (mounted) context.go('/child-dashboard');
+            },
             child: Text('OK', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
           ),
         ],
