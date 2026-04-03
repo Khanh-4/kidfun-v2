@@ -35,8 +35,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final hasToken = await _repo.isLoggedIn();
       if (hasToken) {
         final userId = await SecureStorage.getUserId();
+        final fullName = await SecureStorage.getFullName() ?? 'Phụ huynh';
+        final email = await SecureStorage.getEmail() ?? '';
         state = AuthAuthenticated(
-          UserModel(id: userId ?? 0, email: '', fullName: 'Đang tải...'),
+          UserModel(id: userId ?? 0, email: email, fullName: fullName),
         );
         // Reconnect socket for returning users
         if (userId != null && userId > 0) {
@@ -57,6 +59,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.login(email, password);
       await SecureStorage.saveUserId(user.id);
+      await SecureStorage.saveFullName(user.fullName);
+      await SecureStorage.saveEmail(user.email);
       state = AuthAuthenticated(user);
       sendFcmTokenIfAvailable();
       SocketService.instance.joinFamily(user.id);
@@ -71,6 +75,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.register(name, email, password);
       await SecureStorage.saveUserId(user.id);
+      await SecureStorage.saveFullName(user.fullName);
+      await SecureStorage.saveEmail(user.email);
       state = AuthAuthenticated(user);
       sendFcmTokenIfAvailable();
       SocketService.instance.joinFamily(user.id);
