@@ -7,6 +7,8 @@ class SecureStorage {
   static const _refreshTokenKey = 'refresh_token';
   static const _fcmTokenKey = 'fcm_token';
   static const _userIdKey = 'user_id';
+  static const _fullNameKey = 'user_full_name';
+  static const _emailKey = 'user_email';
 
   // ── User ID ──────────────────────────────────────
   static Future<void> saveUserId(int userId) async {
@@ -45,8 +47,27 @@ class SecureStorage {
     return await _storage.read(key: _fcmTokenKey);
   }
 
+  // ── User Full Name ─────────────────────────────
+  static Future<void> saveFullName(String fullName) async {
+    await _storage.write(key: _fullNameKey, value: fullName);
+  }
+
+  static Future<String?> getFullName() async {
+    return await _storage.read(key: _fullNameKey);
+  }
+
+  // ── User Email ──────────────────────────────────
+  static Future<void> saveEmail(String email) async {
+    await _storage.write(key: _emailKey, value: email);
+  }
+
+  static Future<String?> getEmail() async {
+    return await _storage.read(key: _emailKey);
+  }
+
   // ── Xóa tất cả khi logout ───────────────────────
   static Future<void> clearAll() async {
     await _storage.deleteAll();
   }
 }
+
