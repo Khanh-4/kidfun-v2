@@ -8,7 +8,7 @@ import '../data/location_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_colors.dart';
 
-class _MyPolygonClickListener extends PolygonAnnotationClickListener {
+class _MyPolygonClickListener extends OnPolygonAnnotationClickListener {
   final Function(PolygonAnnotation) onClick;
   _MyPolygonClickListener(this.onClick);
   @override
