@@ -53,4 +53,14 @@ class LocationRepository {
   Future<void> deleteGeofence(int profileId, int geofenceId) async {
     await _dio.delete('/api/parent/profiles/$profileId/geofences/$geofenceId');
   }
+
+  // Task 6: History
+  Future<List<dynamic>> getHistory(int profileId, String date) async {
+    final response = await _dio.get(
+      '/api/parent/profiles/$profileId/location-events',
+      queryParameters: {'date': date},
+    );
+    return response.data['data'] ?? [];
+  }
 }
+

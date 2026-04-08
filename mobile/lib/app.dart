@@ -27,6 +27,7 @@ import 'features/device/screens/child_dashboard_screen.dart';
 import 'features/device/screens/child_request_time_screen.dart';
 import 'features/time_limit/screens/time_limit_screen.dart';
 import 'features/location/screens/map_screen.dart';
+import 'features/location/screens/location_history_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -651,6 +652,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = int.parse(state.pathParameters['id']!);
               final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
               return MapScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/location-history',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return LocationHistoryScreen(profileId: id, profileName: name);
             },
           ),
         ],

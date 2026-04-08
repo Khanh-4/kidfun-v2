@@ -417,6 +417,15 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/location?name=$name'),
           ),
+          Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.history_rounded,
+            iconBg: const Color(0xFFF1F5F9), // slate 100
+            iconColor: const Color(0xFF64748B), // slate 500
+            label: 'Lịch sử di chuyển',
+            onTap: () => context.push(
+                '/profiles/$pid/location-history?name=$name'),
+          ),
         ],
       ),
     );
