@@ -4,14 +4,50 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/profile_provider.dart';
 import '../../../shared/models/profile_model.dart';
+import '../../../core/network/socket_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 
-class ProfileListScreen extends ConsumerWidget {
+class ProfileListScreen extends ConsumerStatefulWidget {
   const ProfileListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileListScreen> createState() => _ProfileListScreenState();
+}
+
+class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _listenForSOS();
+  }
+
+  void _listenForSOS() {
+    SocketService.instance.socket.on('sosAlert', (data) {
+      if (!mounted) return;
+      
+      final profileName = data['profileName'] as String?;
+      final lat = data['latitude'] as num?;
+      final lng = data['longitude'] as num?;
+      final audioUrl = data['audioUrl'] as String?;
+      
+      context.push('/sos-alert', extra: {
+        'profileName': profileName,
+        'latitude': lat,
+        'longitude': lng,
+        'audioUrl': audioUrl,
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.socket.off('sosAlert');
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(profileProvider);
 
     return Scaffold(
