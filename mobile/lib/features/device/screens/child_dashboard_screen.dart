@@ -16,6 +16,8 @@ import '../../location/data/location_repository.dart';
 import '../data/child_repository.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'child_locked_widget.dart';
 
@@ -55,6 +57,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   Timer? _usageSyncTimer;
   Timer? _screenPollTimer;
   bool _isScreenPaused = false; // true when screen is off and timer paused
+
+  // SOS Task 7
+  bool _isSOSing = false;
+  int _sosCountdown = 15;
+  Timer? _sosTimer;
+  final _audioRecorder = AudioRecorder();
 
   @override
   void initState() {
@@ -875,8 +883,89 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     SocketService.instance.socket.off('timeExtensionResponse');
     SocketService.instance.socket.off('blockedAppsUpdated');
     LocationService.instance.stop();
+    _sosTimer?.cancel();
+    _audioRecorder.dispose();
     
     super.dispose();
+  }
+
+  Future<void> _triggerSOS() async {
+    if (_deviceCode == null || _isSOSing) return;
+
+    final hasMic = await Permission.microphone.request().isGranted;
+    if (!hasMic) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("KidFun cần quyền Micro để ghi âm cảnh báo SOS."),
+        ));
+      }
+      return;
+    }
+
+    setState(() {
+      _isSOSing = true;
+      _sosCountdown = 15;
+    });
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/sos_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+
+      _sosTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+        if (!mounted) return;
+        setState(() {
+          _sosCountdown--;
+        });
+
+        if (_sosCountdown <= 0) {
+          timer.cancel();
+          await _finishSOS(path);
+        }
+      });
+    } catch (e) {
+      print('❌ Start SOS error: $e');
+      if (mounted) setState(() => _isSOSing = false);
+    }
+  }
+
+  Future<void> _finishSOS(String audioPath) async {
+    try {
+      final recordedPath = await _audioRecorder.stop();
+      if (recordedPath == null) throw Exception("Recording failed");
+
+      final position = await LocationService.instance.getCurrentLocation();
+      double lat = position?.latitude ?? 0;
+      double lng = position?.longitude ?? 0;
+
+      await _childRepo.sendSOS(
+        deviceCode: _deviceCode!,
+        lat: lat,
+        lng: lng,
+        audioPath: recordedPath,
+      );
+      print('✅ SOS sent');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Đã gửi cảnh báo SOS đến phụ huynh!"),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      print('❌ Send SOS error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Lỗi khi gửi SOS! Vui lòng thử lại."),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSOSing = false);
+    }
   }
 
   @override
@@ -941,6 +1030,21 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             ),
           ),
         ),
+        floatingActionButton: _isSOSing 
+          ? FloatingActionButton.extended(
+              onPressed: null,
+              backgroundColor: Colors.red.shade800,
+              icon: const SizedBox(
+                width: 24, height: 24,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              ),
+              label: Text("Đang ghi âm $_sosCountdown s...", style: const TextStyle(color: Colors.white)),
+            )
+          : FloatingActionButton(
+              onPressed: _triggerSOS,
+              backgroundColor: Colors.red,
+              child: const Icon(Icons.sos_rounded, color: Colors.white, size: 32),
+            ),
       ),
     );
   }
