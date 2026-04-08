@@ -7,7 +7,8 @@ const { sendSOSPushNotification } = require('../services/fcmService');
 // POST /api/child/sos — Child gửi SOS (multipart/form-data, no auth)
 exports.createSOS = async (req, res) => {
   try {
-    const { deviceCode, latitude, longitude, message } = req.body;
+    const deviceCode = req.body.deviceCode || req.headers['x-device-code'];
+    const { latitude, longitude, message } = req.body;
 
     if (!deviceCode || !latitude || !longitude) {
       return sendError(res, 'Missing required fields', 400);

@@ -305,6 +305,8 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           MapWidget(
             key: const ValueKey("mapWidget"),
+            textureView: true,
+            styleUri: MapboxStyles.MAPBOX_STREETS,
             cameraOptions: CameraOptions(
               center: Point(coordinates: Position(106.660172, 10.762622)), // HCM default
               zoom: 12.0,
