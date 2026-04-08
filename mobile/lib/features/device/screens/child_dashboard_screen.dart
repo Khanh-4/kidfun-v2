@@ -9,8 +9,14 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/services/native_service.dart';
+import '../../../core/services/location_service.dart';
+import '../../location/data/location_repository.dart';
 import '../data/child_repository.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:io';
 import 'child_locked_widget.dart';
 
 class ChildDashboardScreen extends ConsumerStatefulWidget {
@@ -32,6 +38,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
   // Task 2: Countdown & Session
   final _childRepo = ChildRepository();
+  final _locationRepo = LocationRepository(DioClient.instance);
   int _remainingSeconds = 0;
   bool _isLimitEnabled = true;
   int _currentTotalLimitMinutes = 0; // Tracks baseLimit + extension minutes
@@ -164,6 +171,27 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Sprint 4: Task 2 - Session & Countdown
     _initSession();
     _setupSocketListeners();
+    
+    // Task 3: Start location tracking
+    _startLocationTracking();
+  }
+
+  void _startLocationTracking() {
+    if (_deviceCode == null) return;
+    
+    LocationService.instance.start(onUpdate: (position) async {
+      try {
+        await _locationRepo.syncLocation(
+          deviceCode: _deviceCode!,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          accuracy: position.accuracy,
+        );
+        print('✅ [LOCATION SYNC] Sent to server');
+      } catch (e) {
+        print('❌ [LOCATION SYNC] Error: $e');
+      }
+    });
   }
 
   Future<void> _initSession() async {
@@ -337,6 +365,50 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ],
         ),
       );
+    }
+
+    // Ask for location permission
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled && mounted) {
+       print('Location service disabled');
+    } else {
+       LocationPermission permission = await Geolocator.checkPermission();
+       if (permission == LocationPermission.denied && mounted) {
+         await showDialog(
+           context: context,
+           barrierDismissible: false,
+           builder: (ctx) => AlertDialog(
+             title: Row(
+               children: [
+                 const Icon(Icons.location_on, color: Color(0xFF6366f1)),
+                 const SizedBox(width: 8),
+                 Flexible(child: Text('Cần quyền Vị trí', style: GoogleFonts.nunito(fontWeight: FontWeight.bold))),
+               ],
+             ),
+             content: Text(
+               'KidFun cần quyền Vị trí để gửi vị trí hiện tại cho phụ huynh, giúp phụ huynh biết trẻ đang ở đâu.',
+               style: GoogleFonts.nunito(fontSize: 15),
+             ),
+             actions: [
+               ElevatedButton.icon(
+                 onPressed: () async {
+                   Navigator.pop(ctx);
+                   await Geolocator.requestPermission();
+                   if (Platform.isAndroid) {
+                     final status = await Permission.locationAlways.request();
+                     if (status.isGranted) {
+                       print('✅ Background location granted');
+                     }
+                   }
+                   _startLocationTracking();
+                 },
+                 icon: const Icon(Icons.check),
+                 label: Text('Cấp quyền', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+               ),
+             ],
+           ),
+         );
+       }
     }
   }
 
@@ -802,6 +874,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     SocketService.instance.socket.off('timeLimitUpdated');
     SocketService.instance.socket.off('timeExtensionResponse');
     SocketService.instance.socket.off('blockedAppsUpdated');
+    LocationService.instance.stop();
     
     super.dispose();
   }
