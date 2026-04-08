@@ -53,4 +53,9 @@ const locationController = require('../controllers/locationController');
 // POST /api/child/location - Child gửi GPS (no auth)
 router.post('/location', locationController.postLocation);
 
+const { uploadAudio } = require('../middleware/uploadMiddleware');
+const sosController = require('../controllers/sosController');
+// POST /api/child/sos - Child gửi SOS với audio (multipart/form-data, no auth)
+router.post('/sos', uploadAudio.single('audio'), sosController.createSOS);
+
 module.exports = router;

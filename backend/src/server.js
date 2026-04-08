@@ -37,6 +37,10 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Static files — SOS audio uploads
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
@@ -47,6 +51,7 @@ const childRoutes = require('./routes/child');
 const fcmRoutes = require('./routes/fcm');
 const extensionRequestRoutes = require('./routes/extensionRequests');
 const geofenceRoutes = require('./routes/geofences');
+const sosRoutes = require('./routes/sos');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -58,6 +63,7 @@ app.use('/api/child', childRoutes);
 app.use('/api/fcm-tokens', fcmRoutes);
 app.use('/api/extension-requests', extensionRequestRoutes);
 app.use('/api/geofences', geofenceRoutes);
+app.use('/api/sos', sosRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
