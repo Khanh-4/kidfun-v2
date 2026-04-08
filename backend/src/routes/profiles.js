@@ -68,4 +68,8 @@ router.get('/:id/geofences', geofenceController.getGeofences);
 // POST /api/profiles/:id/geofences — tạo geofence mới
 router.post('/:id/geofences', geofenceController.createGeofence);
 
+const sosController = require('../controllers/sosController');
+// GET /api/profiles/:id/sos — lịch sử SOS alerts
+router.get('/:id/sos', sosController.getSOSHistory);
+
 module.exports = router;
