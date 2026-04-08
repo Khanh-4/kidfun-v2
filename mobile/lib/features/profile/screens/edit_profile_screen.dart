@@ -408,6 +408,15 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/app-usage?name=$name'),
           ),
+          Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.map_outlined,
+            iconBg: const Color(0xFFE0F2FE),
+            iconColor: const Color(0xFF0EA5E9),
+            label: 'Vị trí & Vùng an toàn',
+            onTap: () => context.push(
+                '/profiles/$pid/location?name=$name'),
+          ),
         ],
       ),
     );
