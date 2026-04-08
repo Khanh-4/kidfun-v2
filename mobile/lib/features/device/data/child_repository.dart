@@ -95,7 +95,28 @@ class ChildRepository {
     );
     return response.data['data']['remainingSeconds'] as int? ?? 0;
   }
+
+  /// POST /api/child/sos — Gởi tín hiệu SOS
+  Future<void> sendSOS({
+    required String deviceCode,
+    required double lat,
+    required double lng,
+    required String audioPath,
+  }) async {
+    final formData = FormData.fromMap({
+      'latitude': lat,
+      'longitude': lng,
+      'audio': await MultipartFile.fromFile(audioPath, filename: 'sos_audio.m4a'),
+    });
+
+    await _dio.post(
+      '/api/child/sos',
+      data: formData,
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+  }
 }
+
 
 class BlockedAppModel {
   final String packageName;
