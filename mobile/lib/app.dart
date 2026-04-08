@@ -26,6 +26,9 @@ import 'features/device/screens/scan_qr_screen.dart';
 import 'features/device/screens/child_dashboard_screen.dart';
 import 'features/device/screens/child_request_time_screen.dart';
 import 'features/time_limit/screens/time_limit_screen.dart';
+import 'features/location/screens/map_screen.dart';
+import 'features/location/screens/location_history_screen.dart';
+import 'features/location/screens/sos_alert_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -644,7 +647,36 @@ final routerProvider = Provider<GoRouter>((ref) {
               return AppUsageReportScreen(profileId: id, profileName: name);
             },
           ),
+          GoRoute(
+            path: ':id/location',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return MapScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/location-history',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return LocationHistoryScreen(profileId: id, profileName: name);
+            },
+          ),
         ],
+      ),
+      GoRoute(
+        path: '/sos-alert',
+        builder: (context, state) {
+          final extras = state.extra as Map<String, dynamic>? ?? {};
+          return SOSAlertScreen(
+            profileName: extras['profileName'] ?? 'Bé',
+            latitude: (extras['latitude'] as num?)?.toDouble() ?? 0.0,
+            longitude: (extras['longitude'] as num?)?.toDouble() ?? 0.0,
+            audioUrl: extras['audioUrl'],
+            phone: extras['phone'],
+          );
+        },
       ),
       GoRoute(
         path: '/devices',
