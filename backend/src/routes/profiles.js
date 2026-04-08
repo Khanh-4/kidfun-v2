@@ -54,4 +54,10 @@ router.put('/:id/time-limits/gradual', timeLimitController.setGradualReduction);
 // PUT /api/profiles/:id/time-limits/gradual/disable — tắt gradual reduction
 router.put('/:id/time-limits/gradual/disable', timeLimitController.disableGradualReduction);
 
+const locationController = require('../controllers/locationController');
+// GET /api/profiles/:id/location/current — vị trí GPS mới nhất
+router.get('/:id/location/current', locationController.getCurrentLocation);
+// GET /api/profiles/:id/location/history?date=YYYY-MM-DD — lịch sử GPS theo ngày
+router.get('/:id/location/history', locationController.getLocationHistory);
+
 module.exports = router;
