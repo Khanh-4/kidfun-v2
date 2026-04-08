@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../network/socket_service.dart';
+import 'location_service.dart';
 
 class AppLifecycleService extends WidgetsBindingObserver {
   static AppLifecycleService? _instance;
@@ -23,6 +24,9 @@ class AppLifecycleService extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     print('📱 [Lifecycle] App State: $state');
+    
+    final isForeground = state == AppLifecycleState.resumed;
+    LocationService.instance.setForeground(isForeground);
 
     switch (state) {
       case AppLifecycleState.paused:
