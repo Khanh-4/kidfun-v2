@@ -60,4 +60,12 @@ router.get('/:id/location/current', locationController.getCurrentLocation);
 // GET /api/profiles/:id/location/history?date=YYYY-MM-DD — lịch sử GPS theo ngày
 router.get('/:id/location/history', locationController.getLocationHistory);
 
+const geofenceController = require('../controllers/geofenceController');
+// GET  /api/profiles/:id/geofences — danh sách geofences
+// PHẢI đặt /:id/geofences/events TRƯỚC /:id/geofences để tránh conflict
+router.get('/:id/geofences/events', geofenceController.getGeofenceEvents);
+router.get('/:id/geofences', geofenceController.getGeofences);
+// POST /api/profiles/:id/geofences — tạo geofence mới
+router.post('/:id/geofences', geofenceController.createGeofence);
+
 module.exports = router;
