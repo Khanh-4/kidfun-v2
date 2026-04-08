@@ -28,6 +28,7 @@ import 'features/device/screens/child_request_time_screen.dart';
 import 'features/time_limit/screens/time_limit_screen.dart';
 import 'features/location/screens/map_screen.dart';
 import 'features/location/screens/location_history_screen.dart';
+import 'features/location/screens/sos_alert_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -663,6 +664,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
         ],
+      ),
+      GoRoute(
+        path: '/sos-alert',
+        builder: (context, state) {
+          final extras = state.extra as Map<String, dynamic>? ?? {};
+          return SOSAlertScreen(
+            profileName: extras['profileName'] ?? 'Bé',
+            latitude: (extras['latitude'] as num?)?.toDouble() ?? 0.0,
+            longitude: (extras['longitude'] as num?)?.toDouble() ?? 0.0,
+            audioUrl: extras['audioUrl'],
+            phone: extras['phone'],
+          );
+        },
       ),
       GoRoute(
         path: '/devices',
