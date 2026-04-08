@@ -61,6 +61,7 @@ dependencies:
   shared_preferences: ^2.5.4
   device_info_plus: ^12.3.0
   socket_io_client: 2.0.3+1
+  mapbox_maps_flutter: ^2.21.0
 
 dev_dependencies:
   flutter_test:
