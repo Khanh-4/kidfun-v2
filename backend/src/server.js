@@ -46,6 +46,7 @@ const blockedSiteRoutes = require('./routes/blockedSites');
 const childRoutes = require('./routes/child');
 const fcmRoutes = require('./routes/fcm');
 const extensionRequestRoutes = require('./routes/extensionRequests');
+const geofenceRoutes = require('./routes/geofences');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -56,6 +57,7 @@ app.use('/api/blocked-sites', blockedSiteRoutes);
 app.use('/api/child', childRoutes);
 app.use('/api/fcm-tokens', fcmRoutes);
 app.use('/api/extension-requests', extensionRequestRoutes);
+app.use('/api/geofences', geofenceRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
