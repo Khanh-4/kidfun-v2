@@ -12,3 +12,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Build artifacts and crash dumps
+*.salive
+*.hprof
+
