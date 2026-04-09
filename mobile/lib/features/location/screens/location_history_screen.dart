@@ -88,14 +88,15 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
         }),
       ));
 
-      await _mapboxMap!.style.addLayer(LineLayer(
+      final lineLayer = LineLayer(
         id: 'history-line',
         sourceId: 'history-route',
-        lineColorInt: Colors.blue.value,
         lineWidth: 3.0,
         lineCap: LineCap.ROUND,
         lineJoin: LineJoin.ROUND,
-      ));
+      );
+      lineLayer.lineColorInt = Colors.blue.value;
+      await _mapboxMap!.style.addLayer(lineLayer);
     }
 
     // Start marker (green) and end marker (red)
@@ -143,7 +144,7 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
       final padLng = math.max((maxLng - minLng) * 0.2, 0.001);
 
       try {
-        final camera = await _mapboxMap!.cameraForCoordinatesBounds(
+        final camera = await _mapboxMap!.cameraForCoordinateBounds(
           CoordinateBounds(
             southwest: Point(
                 coordinates:
