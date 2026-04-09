@@ -16,5 +16,3 @@ key.properties
 # Build artifacts and crash dumps
 *.salive
 *.hprof
-
-gradle.properties
