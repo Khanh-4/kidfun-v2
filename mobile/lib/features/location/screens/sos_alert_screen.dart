@@ -127,7 +127,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
               child: MapWidget(
                 key: const ValueKey("sosMapWidget"),
                 textureView: true,
-                styleUri: MapboxStyles.STREETS,
+                styleUri: MapboxStyles.MAPBOX_STREETS,
                 cameraOptions: CameraOptions(
                   center: Point(coordinates: Position(widget.longitude, widget.latitude)),
                   zoom: 16.0,
