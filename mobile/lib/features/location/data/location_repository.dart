@@ -54,20 +54,41 @@ class LocationRepository {
     await _dio.delete('/api/geofences/$geofenceId');
   }
 
-  // History: location logs for the day
+  // History: merge location logs + geofence events for the day
   Future<List<dynamic>> getHistory(int profileId, String date) async {
-    final response = await _dio.get(
-      '/api/profiles/$profileId/location/history',
-      queryParameters: {'date': date},
-    );
-    final historyList = (response.data['data']['history'] as List?) ?? [];
-    return historyList
-        .map((item) => {
-              'type': 'LOCATION',
-              'timestamp': item['createdAt'],
-              'latitude': item['latitude'],
-              'longitude': item['longitude'],
-            })
-        .toList();
+    final results = await Future.wait([
+      _dio.get('/api/profiles/$profileId/location/history',
+          queryParameters: {'date': date}),
+      _dio.get('/api/profiles/$profileId/geofences/events',
+          queryParameters: {'date': date}),
+    ]);
+
+    final locationLogs = (results[0].data['data']['history'] as List?) ?? [];
+    final geofenceEvents = (results[1].data['data']['events'] as List?) ?? [];
+
+    final combined = <Map<String, dynamic>>[
+      ...locationLogs.map((item) => {
+            'type': 'LOCATION',
+            'timestamp': item['createdAt'] as String,
+            'latitude': item['latitude'],
+            'longitude': item['longitude'],
+          }),
+      ...geofenceEvents.map((item) => {
+            'type': item['type'] as String, // ENTER hoặc EXIT
+            'timestamp': item['createdAt'] as String,
+            'latitude': item['latitude'],
+            'longitude': item['longitude'],
+            'geofenceName': (item['geofence'] as Map?)?['name'] ?? '',
+          }),
+    ];
+
+    // Sắp xếp theo thời gian tăng dần
+    combined.sort((a, b) {
+      final ta = DateTime.tryParse(a['timestamp'] as String) ?? DateTime(0);
+      final tb = DateTime.tryParse(b['timestamp'] as String) ?? DateTime(0);
+      return ta.compareTo(tb);
+    });
+
+    return combined;
   }
 }
