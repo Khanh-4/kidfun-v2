@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'core/services/native_service.dart';
@@ -35,8 +36,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Load environment variables for Mapbox token
+  await dotenv.load(fileName: ".env");
+  
   // Mapbox access token
-  MapboxOptions.setAccessToken(const String.fromEnvironment('MAPBOX_PUBLIC_TOKEN', defaultValue: 'pk.xxxxxxxxxxxxx'));
+  MapboxOptions.setAccessToken(dotenv.env['MAPBOX_PUBLIC_TOKEN'] ?? '');
   
   // Initialize Lifecycle observer
   AppLifecycleService.instance.init();
