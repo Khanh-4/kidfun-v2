@@ -230,6 +230,23 @@ const socketService = {
         }
       });
 
+      // ── Request Location: Parent yêu cầu child gửi vị trí ngay ──────────
+      socket.on('requestLocation', async ({ profileId }) => {
+        try {
+          const device = await prisma.device.findFirst({
+            where: { profileId: parseInt(profileId), isOnline: true }
+          });
+          if (device) {
+            io.to(`device_${device.deviceCode}`).emit('locationRequested');
+            console.log(`📍 [SOCKET] Location requested for profile ${profileId}, device ${device.deviceCode}`);
+          } else {
+            console.warn(`⚠️ [SOCKET] requestLocation: No online device for profile ${profileId}`);
+          }
+        } catch (err) {
+          console.error('requestLocation error:', err.message);
+        }
+      });
+
       // ── Remove Device ──────────────────────────────────────────────────────
       socket.on('removeDevice', (data) => {
         const uId = data.userId || socket.userId;
