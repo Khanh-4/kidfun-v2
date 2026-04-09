@@ -82,6 +82,40 @@ class _MapScreenState extends State<MapScreen> {
         _updateChildMarker(data['latitude'] as double, data['longitude'] as double);
       }
     });
+
+    SocketService.instance.socket.on('geofenceEvent', (data) {
+      if (!mounted) return;
+      final type = data['type'] as String? ?? '';
+      final geofenceName = data['geofenceName'] as String? ?? '';
+      final isEnter = type == 'ENTER';
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(isEnter ? Icons.login : Icons.logout,
+                  color: isEnter ? Colors.green : Colors.orange),
+              const SizedBox(width: 8),
+              Text(
+                isEnter ? 'Đã vào vùng an toàn' : 'Đã rời vùng an toàn',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Text(
+            '${widget.profileName} ${isEnter ? 'đã vào' : 'đã rời'} vùng "$geofenceName"',
+            style: GoogleFonts.nunito(fontSize: 15),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> _updateChildMarker(double lat, double lng) async {
@@ -281,31 +315,48 @@ class _MapScreenState extends State<MapScreen> {
     final gf = _geofences.firstWhere((g) => g['id'] == geofenceId, orElse: () => null);
     if (gf == null) return;
 
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: Text("Xóa Vùng an toàn?", style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-      content: Text('Bạn có chắc muốn xóa vùng "${gf['name']}" không?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            try {
-              await _locationRepo.deleteGeofence(widget.profileId, geofenceId);
-              _fetchGeofences();
-            } catch (e) {
-              print('Lỗi xóa vùng an toàn: $e');
-            }
-          },
-          child: const Text("Xóa", style: TextStyle(color: Colors.white)),
-        )
-      ],
-    ));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Xóa Vùng an toàn?",
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+        content: Text('Bạn có chắc muốn xóa vùng "${gf['name']}" không?'),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Hủy"),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await _locationRepo.deleteGeofence(widget.profileId, geofenceId);
+                      _fetchGeofences();
+                    } catch (e) {
+                      print('Lỗi xóa vùng an toàn: $e');
+                    }
+                  },
+                  child: const Text("Xóa", style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
     SocketService.instance.socket.off('locationUpdated');
+    SocketService.instance.socket.off('geofenceEvent');
     _nameController.dispose();
     super.dispose();
   }

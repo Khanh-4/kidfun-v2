@@ -83,12 +83,15 @@ exports.deleteGeofence = async (req, res) => {
 exports.getGeofenceEvents = async (req, res) => {
   try {
     const profileId = parseInt(req.params.id);
-    const dateStr = req.query.date || new Date().toISOString().split('T')[0];
 
-    const startOfDay = new Date(dateStr);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
+    // Dùng múi giờ Việt Nam (UTC+7) để tính đầu/cuối ngày
+    const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const todayVN = new Date(Date.now() + VN_OFFSET_MS).toISOString().split('T')[0];
+    const dateStr = req.query.date || todayVN;
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - VN_OFFSET_MS);
+    const endOfDay   = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0) - VN_OFFSET_MS);
 
     const events = await prisma.geofenceEvent.findMany({
       where: {
