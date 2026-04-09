@@ -54,4 +54,22 @@ router.put('/:id/time-limits/gradual', timeLimitController.setGradualReduction);
 // PUT /api/profiles/:id/time-limits/gradual/disable — tắt gradual reduction
 router.put('/:id/time-limits/gradual/disable', timeLimitController.disableGradualReduction);
 
+const locationController = require('../controllers/locationController');
+// GET /api/profiles/:id/location/current — vị trí GPS mới nhất
+router.get('/:id/location/current', locationController.getCurrentLocation);
+// GET /api/profiles/:id/location/history?date=YYYY-MM-DD — lịch sử GPS theo ngày
+router.get('/:id/location/history', locationController.getLocationHistory);
+
+const geofenceController = require('../controllers/geofenceController');
+// GET  /api/profiles/:id/geofences — danh sách geofences
+// PHẢI đặt /:id/geofences/events TRƯỚC /:id/geofences để tránh conflict
+router.get('/:id/geofences/events', geofenceController.getGeofenceEvents);
+router.get('/:id/geofences', geofenceController.getGeofences);
+// POST /api/profiles/:id/geofences — tạo geofence mới
+router.post('/:id/geofences', geofenceController.createGeofence);
+
+const sosController = require('../controllers/sosController');
+// GET /api/profiles/:id/sos — lịch sử SOS alerts
+router.get('/:id/sos', sosController.getSOSHistory);
+
 module.exports = router;

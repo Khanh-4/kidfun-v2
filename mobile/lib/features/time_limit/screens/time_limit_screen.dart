@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/time_limit_provider.dart';
 import '../../../shared/models/time_limit_model.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
-// BUG 1 FIX: Converted to ConsumerStatefulWidget so TextEditingControllers
-// persist across rebuilds. Previously, controllers were created inline in
-// build() — every Slider move triggered a rebuild + controller reset, which
-// discarded in-progress typing and caused the UI to appear glitchy.
+// BUG 1 FIX: ConsumerStatefulWidget so TextEditingControllers persist
+// across rebuilds. Inline-created controllers got reset on every Slider move.
 class TimeLimitScreen extends ConsumerStatefulWidget {
   final int profileId;
   final String profileName;
@@ -34,8 +35,7 @@ class _TimeLimitScreenState extends ConsumerState<TimeLimitScreen> {
   }
 
   /// Keep controllers in sync when state changes externally (e.g. "Apply All")
-  /// but only update the text if the field doesn't currently have focus —
-  /// this preserves in-progress typing.
+  /// but only update text if the field doesn't have focus — preserves typing.
   void _syncControllers(List<TimeLimitModel> limits) {
     for (final limit in limits) {
       final ctrl = _controllers[limit.dayOfWeek];
@@ -58,191 +58,270 @@ class _TimeLimitScreenState extends ConsumerState<TimeLimitScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(timeLimitProvider(widget.profileId));
-    final notifier = ref.read(timeLimitProvider(widget.profileId).notifier);
+    final notifier =
+        ref.read(timeLimitProvider(widget.profileId).notifier);
 
-    // Sync text controllers whenever state changes
     if (state is TimeLimitLoaded) {
       _syncControllers(state.limits);
     }
 
     return Scaffold(
+      backgroundColor: AppColors.slate50,
       appBar: AppBar(
-        title: Text('Giới hạn thời gian — ${widget.profileName}'),
+        title: Text('Giới hạn — ${widget.profileName}',
+            overflow: TextOverflow.ellipsis),
       ),
-      body: state is TimeLimitLoading || state is TimeLimitInitial
-          ? const Center(child: CircularProgressIndicator())
-          : state is TimeLimitError
-              ? _buildErrorPlaceholder(state.message, notifier)
-              : state is TimeLimitLoaded
-                  ? _buildLimitList(context, state, notifier)
-                  : const SizedBox.shrink(),
+      body: _buildBody(state, notifier),
       bottomNavigationBar: state is TimeLimitLoaded
-          ? _buildBottomButton(context, state, notifier)
+          ? _buildSaveBar(context, state, notifier)
           : null,
     );
   }
 
-  Widget _buildErrorPlaceholder(String message, TimeLimitNotifier notifier) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('Lỗi: $message', style: const TextStyle(color: Colors.red)),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => notifier.fetchTimeLimits(),
-            child: const Text('Thử lại'),
+  Widget _buildBody(TimeLimitState state, TimeLimitNotifier notifier) {
+    if (state is TimeLimitLoading || state is TimeLimitInitial) {
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.indigo600));
+    }
+    if (state is TimeLimitError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline,
+                  size: 48, color: AppColors.danger),
+              const SizedBox(height: 12),
+              Text(state.message,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                      color: AppColors.danger, fontSize: 14)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => notifier.fetchTimeLimits(),
+                child: Text('Thử lại',
+                    style: GoogleFonts.nunito(
+                        fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
+        ),
+      );
+    }
+    if (state is TimeLimitLoaded) {
+      return _buildLimitList(state, notifier);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildLimitList(
+      TimeLimitLoaded state, TimeLimitNotifier notifier) {
+    return Column(
+      children: [
+        if (state.limits.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppTheme.screenPadding, 12, AppTheme.screenPadding, 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Thiết lập từng ngày',
+                    style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.slate500)),
+                TextButton.icon(
+                  onPressed: () {
+                    final value = state.limits[0].limitMinutes;
+                    for (int i = 0; i < 7; i++) {
+                      notifier.updateDayLimit(
+                          state.limits[i].dayOfWeek, value, state.limits[i].isActive);
+                    }
+                  },
+                  icon: const Icon(Icons.copy_all_rounded,
+                      size: 16, color: AppColors.indigo600),
+                  label: Text('Áp dụng tất cả',
+                      style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.indigo600)),
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.screenPadding, vertical: 8),
+            itemCount: state.limits.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) =>
+                _buildDayCard(state.limits[index], notifier),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDayCard(TimeLimitModel limit, TimeLimitNotifier notifier) {
+    final controller = _controllers[limit.dayOfWeek]!;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
+        border: Border.all(
+          color: limit.isActive ? AppColors.indigo600.withOpacity(0.3) : AppColors.slate200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.slate900.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                limit.dayName,
+                style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.slate800),
+              ),
+              Row(
+                children: [
+                  if (limit.isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.requestBg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        limit.formattedTime,
+                        style: GoogleFonts.nunito(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.indigo600),
+                      ),
+                    )
+                  else
+                    Text('Tắt',
+                        style: GoogleFonts.nunito(
+                            fontSize: 13, color: AppColors.slate400)),
+                  const SizedBox(width: 8),
+                  Switch(
+                    value: limit.isActive,
+                    activeColor: AppColors.indigo600,
+                    onChanged: (val) => notifier.updateDayLimit(
+                        limit.dayOfWeek, limit.limitMinutes, val),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (limit.isActive) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: AppColors.indigo600,
+                      thumbColor: AppColors.indigo600,
+                      inactiveTrackColor: AppColors.slate200,
+                      trackHeight: 4,
+                      thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 10),
+                    ),
+                    child: Slider(
+                      value: limit.limitMinutes.toDouble(),
+                      min: 0,
+                      max: 720,
+                      divisions: 720 ~/ 5,
+                      onChanged: (val) => notifier.updateDayLimit(
+                          limit.dayOfWeek, val.toInt(), true),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // BUG 1 FIX: widened to 90 so "720 ph" fits without clipping
+                SizedBox(
+                  width: 90,
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    controller: controller,
+                    onSubmitted: (v) {
+                      final mins = int.tryParse(v) ?? 0;
+                      notifier.updateDayLimit(
+                          limit.dayOfWeek, mins.clamp(0, 720), true);
+                    },
+                    style: GoogleFonts.nunito(
+                        fontSize: 13, color: AppColors.slate800),
+                    decoration: InputDecoration(
+                      suffixText: 'ph',
+                      suffixStyle: GoogleFonts.nunito(
+                          fontSize: 12, color: AppColors.slate400),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildLimitList(BuildContext context, TimeLimitLoaded state, TimeLimitNotifier notifier) {
-    return Column(
-      children: [
-        if (state.limits.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  final value = state.limits[0].limitMinutes;
-                  for (int i = 0; i < 7; i++) {
-                    notifier.updateDayLimit(state.limits[i].dayOfWeek, value, state.limits[i].isActive);
-                  }
-                },
-                icon: const Icon(Icons.copy_all, size: 18),
-                label: const Text('Áp dụng cho tất cả'),
-                style: ElevatedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
-          ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: state.limits.length,
-            separatorBuilder: (_, __) => const Divider(height: 32),
-            itemBuilder: (context, index) {
-              final limit = state.limits[index];
-              return _buildDayRow(limit, notifier);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDayRow(TimeLimitModel limit, TimeLimitNotifier notifier) {
-    // Retrieve the persistent controller for this day
-    final controller = _controllers[limit.dayOfWeek]!;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              limit.dayName,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Row(
-              children: [
-                Text(
-                  limit.isActive ? limit.formattedTime : 'Tắt',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: limit.isActive ? Colors.blue : Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Switch(
-                  value: limit.isActive,
-                  onChanged: (val) {
-                    notifier.updateDayLimit(limit.dayOfWeek, limit.limitMinutes, val);
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-        if (limit.isActive)
-          Row(
-            children: [
-              Expanded(
-                child: Slider(
-                  value: limit.limitMinutes.toDouble(),
-                  min: 0,
-                  max: 720,
-                  divisions: 720 ~/ 5, // Step 5 minutes
-                  onChanged: (val) {
-                    // BUG 1 FIX: calls notifier.updateDayLimit (in-memory only).
-                    // Server save only happens when the "Lưu thay đổi" button is tapped.
-                    notifier.updateDayLimit(limit.dayOfWeek, val.toInt(), true);
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              // BUG 1 FIX: widened from 70 → 90 so "720 ph" fits without clipping.
-              // Also uses the persistent controller (not an inline-created one).
-              SizedBox(
-                width: 100, // Widened to 100 to ensure 3-digit numbers + ' ph' fit comfortably
-                child: TextField(
-                  keyboardType: TextInputType.number,
-                  controller: controller,
-                  onSubmitted: (v) {
-                    final mins = int.tryParse(v) ?? 0;
-                    notifier.updateDayLimit(limit.dayOfWeek, mins.clamp(0, 720), true);
-                  },
-                  decoration: const InputDecoration(
-                    suffixText: 'ph',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildBottomButton(BuildContext context, TimeLimitLoaded state, TimeLimitNotifier notifier) {
+  Widget _buildSaveBar(BuildContext context, TimeLimitLoaded state,
+      TimeLimitNotifier notifier) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: state.isSaving
-              ? null
-              : () async {
-                  final success = await notifier.saveChanges();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(success ? '✅ Đã lưu thay đổi thành công' : '❌ Lỗi khi lưu thay đổi'),
-                        backgroundColor: success ? Colors.green : Colors.red,
-                      ),
-                    );
-                  }
-                },
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.all(AppTheme.screenPadding),
+        child: SizedBox(
+          height: AppTheme.btnHeightLg,
+          child: ElevatedButton(
+            onPressed: state.isSaving
+                ? null
+                : () async {
+                    final success = await notifier.saveChanges();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(
+                          success
+                              ? 'Đã lưu thay đổi thành công'
+                              : 'Lỗi khi lưu thay đổi',
+                          style: GoogleFonts.nunito(),
+                        ),
+                        backgroundColor:
+                            success ? AppColors.success : AppColors.danger,
+                      ));
+                    }
+                  },
+            child: state.isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : Text('Lưu thay đổi',
+                    style: GoogleFonts.nunito(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
           ),
-          child: state.isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Text(
-                  '💾 LƯU THAY ĐỔI',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
         ),
       ),
     );

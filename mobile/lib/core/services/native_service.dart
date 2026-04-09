@@ -93,4 +93,10 @@ class NativeService {
   static Future<bool> isInLockedState() async {
     return await _channel.invokeMethod('isInLockedState') as bool;
   }
+
+  /// Kiểm tra trạng thái màn hình: true = đang bật, false = đang tắt/khoá
+  /// (dùng để pause/resume timer khi màn hình tắt)
+  static Future<bool> isScreenOn() async {
+    return await _channel.invokeMethod('isScreenOn') as bool;
+  }
 }

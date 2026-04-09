@@ -23,6 +23,12 @@ router.post('/session/heartbeat', childController.heartbeat);
 // POST /api/child/session/end - Kết thúc session
 router.post('/session/end', childController.endSession);
 
+// POST /api/child/session/pause - Tạm dừng session (màn hình tắt)
+router.post('/session/pause', childController.pauseSession);
+
+// POST /api/child/session/resume - Tiếp tục session (màn hình bật)
+router.post('/session/resume', childController.resumeSession);
+
 // POST /api/child/bonus - Lưu bonus minutes khi Parent duyệt
 router.post('/bonus', childController.addBonus);
 
@@ -42,5 +48,14 @@ router.post('/app-usage', appUsageController.syncAppUsage);
 const blockedAppController = require('../controllers/blockedAppController');
 // GET /api/child/blocked-apps?deviceCode=XXX - Child lấy danh sách app bị chặn
 router.get('/blocked-apps', blockedAppController.getBlockedAppsForChild);
+
+const locationController = require('../controllers/locationController');
+// POST /api/child/location - Child gửi GPS (no auth)
+router.post('/location', locationController.postLocation);
+
+const { uploadAudio } = require('../middleware/uploadMiddleware');
+const sosController = require('../controllers/sosController');
+// POST /api/child/sos - Child gửi SOS với audio (multipart/form-data, no auth)
+router.post('/sos', uploadAudio.single('audio'), sosController.createSOS);
 
 module.exports = router;

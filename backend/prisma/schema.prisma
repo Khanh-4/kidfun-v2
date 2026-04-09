@@ -46,6 +46,10 @@ model Profile {
   timeExtensionRequests TimeExtensionRequest[]
   appUsageLogs  AppUsageLog[]
   blockedApps   BlockedApp[]
+  locationLogs  LocationLog[]
+  geofences     Geofence[]
+  geofenceEvents GeofenceEvent[]
+  sosAlerts     SOSAlert[]
 }
 
 model Device {
@@ -69,6 +73,8 @@ model Device {
   usageSessions UsageSession[]
   timeExtensionRequests TimeExtensionRequest[]
   appUsageLogs  AppUsageLog[]
+  locationLogs  LocationLog[]
+  sosAlerts     SOSAlert[]
 }
 
 model TimeLimit {
@@ -236,4 +242,71 @@ model AppUsageLog {
   device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, deviceId, packageName, date])
+}
+
+model LocationLog {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  deviceId  Int
+  latitude  Float
+  longitude Float
+  accuracy  Float?   // Độ chính xác GPS (mét)
+  address   String?  // Optional, reverse geocode sau
+  source    String   @default("GPS") // GPS, NETWORK, FUSED
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+model Geofence {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  name      String   // "Nhà", "Trường học", "Công viên"
+  latitude  Float
+  longitude Float
+  radius    Int      // Bán kính (mét)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  events  GeofenceEvent[]
+}
+
+model GeofenceEvent {
+  id         Int      @id @default(autoincrement())
+  geofenceId Int
+  profileId  Int
+  type       String   // "ENTER" | "EXIT"
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime @default(now())
+
+  geofence Geofence @relation(fields: [geofenceId], references: [id], onDelete: Cascade)
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+model SOSAlert {
+  id             Int       @id @default(autoincrement())
+  profileId      Int
+  deviceId       Int
+  latitude       Float
+  longitude      Float
+  address        String?
+  audioUrl       String?   // URL file ghi âm (local /uploads/sos-audio/)
+  message        String?   // Optional message từ Child
+  status         String    @default("ACTIVE") // ACTIVE | ACKNOWLEDGED | RESOLVED
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
 }

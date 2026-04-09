@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/role_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +18,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _login() {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -29,7 +40,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Chỉ dùng ref.listen để navigate khi đăng nhập thành công
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next is AuthAuthenticated) {
         context.go('/home');
@@ -37,100 +47,227 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final authState = ref.watch(authProvider);
-    final _isLoading = authState is AuthLoading;
-    final _errorMessage = authState is AuthError ? (authState as AuthError).message : null;
+    final isLoading = authState is AuthLoading;
+    final errorMessage = authState is AuthError ? authState.message : null;
+
     return Scaffold(
+      backgroundColor: AppColors.slate50,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.screenPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 60),
-              const Icon(Icons.child_care, size: 80, color: Colors.blue),
-              const SizedBox(height: 16),
-              const Text(
-                'KidFun',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-              const SizedBox(height: 48),
-              if (_errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage,
-                          style: TextStyle(color: Colors.red.shade700, fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(hintText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  hintText: 'Mật khẩu',
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                child: _isLoading 
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                  : const Text('Đăng nhập'),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  context.push('/forgot-password');
-                },
-                child: const Text('Quên mật khẩu?'),
-              ),
-              TextButton(
-                onPressed: () {
-                  context.push('/register');
-                },
-                child: const Text('Chưa có tài khoản? Đăng ký'),
-              ),
-              const Divider(height: 32),
-              TextButton.icon(
-                onPressed: () {
-                  ref.read(roleProvider.notifier).clearRole();
-                },
-                icon: const Icon(Icons.swap_horiz, color: Colors.grey),
-                label: const Text('Đổi vai trò (Phụ huynh / Trẻ em)', style: TextStyle(color: Colors.grey)),
-              ),
+              _buildLogo(),
+              _buildFormCard(isLoading, errorMessage),
+              _buildFooterLinks(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Column(
+      children: [
+        const SizedBox(height: 48),
+        Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: AppColors.linkDeviceGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.indigo600.withOpacity(0.30),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.shield_outlined, size: 40, color: Colors.white),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'KidFun',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: AppColors.slate800,
+          ),
+        ),
+        Text(
+          'Bảo vệ con yêu của bạn',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(fontSize: 13, color: AppColors.slate500),
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildFormCard(bool isLoading, String? errorMessage) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppColors.slate200),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.slate900.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(AppTheme.cardPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Đăng nhập',
+            style: GoogleFonts.nunito(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.slate800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Chào mừng trở lại!',
+            style: GoogleFonts.nunito(fontSize: 13, color: AppColors.slate500),
+          ),
+          const SizedBox(height: 24),
+          if (errorMessage != null) ...[
+            _buildErrorBanner(errorMessage),
+            const SizedBox(height: 16),
+          ],
+          _buildLabel('Email'),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              hintText: 'you@example.com',
+              prefixIcon: const Icon(Icons.email_outlined, color: AppColors.slate400, size: 20),
+              hintStyle: GoogleFonts.nunito(color: AppColors.slate400),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildLabel('Mật khẩu'),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
+              hintText: '••••••••',
+              prefixIcon: const Icon(Icons.lock_outline, color: AppColors.slate400, size: 20),
+              hintStyle: GoogleFonts.nunito(color: AppColors.slate400),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: AppColors.slate400,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: AppTheme.btnHeightLg,
+            child: ElevatedButton(
+              onPressed: isLoading ? null : _login,
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text(
+                      'Đăng nhập',
+                      style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterLinks() {
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: () => context.push('/forgot-password'),
+          child: Text(
+            'Quên mật khẩu?',
+            style: GoogleFonts.nunito(
+              color: AppColors.indigo600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => context.push('/register'),
+          child: Text(
+            'Chưa có tài khoản? Đăng ký ngay',
+            style: GoogleFonts.nunito(color: AppColors.slate500, fontSize: 13),
+          ),
+        ),
+        Divider(height: 32, color: AppColors.slate200),
+        TextButton.icon(
+          onPressed: () => ref.read(roleProvider.notifier).clearRole(),
+          icon: const Icon(Icons.swap_horiz, color: AppColors.slate400, size: 18),
+          label: Text(
+            'Đổi vai trò',
+            style: GoogleFonts.nunito(color: AppColors.slate400, fontSize: 13),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.nunito(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.slate700,
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.dangerBg,
+        border: Border.all(color: AppColors.dangerBorder),
+        borderRadius: BorderRadius.circular(AppTheme.radiusBtnSm),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.danger, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.nunito(color: AppColors.danger, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }

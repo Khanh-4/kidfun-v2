@@ -43,6 +43,7 @@ function ChildDashboard({ device }) {
     const [warningLevel, setWarningLevel] = useState('warning');
     const [showRequestDialog, setShowRequestDialog] = useState(false);
     const [requestReason, setRequestReason] = useState('');
+    const [requestMinutes, setRequestMinutes] = useState(15);
     const [requestSent, setRequestSent] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -341,13 +342,13 @@ function ChildDashboard({ device }) {
         // Use REST API for reliability (creates DB record + emits socket + FCM push)
         try {
             await api.post('/child/extension-request', {
-                requestMinutes: 30,
+                requestMinutes,
                 reason: requestReason,
             });
         } catch (err) {
             // Fallback to socket if REST fails
             console.error('REST extension request failed, falling back to socket:', err);
-            socketService.requestTimeExtension(deviceCode, 30, requestReason);
+            socketService.requestTimeExtension(deviceCode, requestMinutes, requestReason);
         }
 
         setRequestSent(true);
@@ -355,6 +356,7 @@ function ChildDashboard({ device }) {
             setShowRequestDialog(false);
             setRequestSent(false);
             setRequestReason('');
+            setRequestMinutes(15);
         }, 2000);
     };
 
@@ -583,7 +585,12 @@ function ChildDashboard({ device }) {
             {/* Request More Time Dialog */}
             <Dialog
                 open={showRequestDialog}
-                onClose={() => !requestSent && setShowRequestDialog(false)}
+                onClose={() => {
+                    if (!requestSent) {
+                        setShowRequestDialog(false);
+                        setRequestMinutes(15);
+                    }
+                }}
                 maxWidth="sm"
                 fullWidth
                 sx={{ zIndex: 10000 }}
@@ -602,6 +609,19 @@ function ChildDashboard({ device }) {
                         </Box>
                     ) : (
                         <>
+                            <Typography sx={{ mb: 1 }}>Con muốn xin thêm bao nhiêu phút?</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                                {[15, 30, 45, 60].map((min) => (
+                                    <Chip
+                                        key={min}
+                                        label={`${min} phút`}
+                                        clickable
+                                        color={requestMinutes === min ? 'primary' : 'default'}
+                                        variant={requestMinutes === min ? 'filled' : 'outlined'}
+                                        onClick={() => setRequestMinutes(min)}
+                                    />
+                                ))}
+                            </Box>
                             <Typography sx={{ mb: 2 }}>
                                 Cho bố mẹ biết lý do bạn cần thêm thời gian nhé:
                             </Typography>
@@ -618,13 +638,13 @@ function ChildDashboard({ device }) {
                 </DialogContent>
                 {!requestSent && (
                     <DialogActions sx={{ px: 3, pb: 2 }}>
-                        <Button onClick={() => setShowRequestDialog(false)}>Hủy</Button>
+                        <Button onClick={() => { setShowRequestDialog(false); setRequestMinutes(15); }}>Hủy</Button>
                         <Button
                             variant="contained"
                             onClick={handleRequestTime}
                             disabled={!requestReason.trim()}
                         >
-                            Gửi yêu cầu
+                            Gửi yêu cầu ({requestMinutes} phút)
                         </Button>
                     </DialogActions>
                 )}
