@@ -28,6 +28,7 @@ This project is indexed by GitNexus as **kidfun-v2** (744 symbols, 1281 relation
 
 ## Never Do
 
+- NEVER commit changes directly to the `develop` or `main` branches. All development, fixes, and features MUST be committed to an appropriate `feature/*` or `fix/*` branch, and then merged via Pull Request.
 - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
 - NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
