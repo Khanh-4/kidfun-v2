@@ -82,6 +82,40 @@ class _MapScreenState extends State<MapScreen> {
         _updateChildMarker(data['latitude'] as double, data['longitude'] as double);
       }
     });
+
+    SocketService.instance.socket.on('geofenceEvent', (data) {
+      if (!mounted) return;
+      final type = data['type'] as String? ?? '';
+      final geofenceName = data['geofenceName'] as String? ?? '';
+      final isEnter = type == 'ENTER';
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(isEnter ? Icons.login : Icons.logout,
+                  color: isEnter ? Colors.green : Colors.orange),
+              const SizedBox(width: 8),
+              Text(
+                isEnter ? 'Đã vào vùng an toàn' : 'Đã rời vùng an toàn',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Text(
+            '${widget.profileName} ${isEnter ? 'đã vào' : 'đã rời'} vùng "$geofenceName"',
+            style: GoogleFonts.nunito(fontSize: 15),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> _updateChildMarker(double lat, double lng) async {
@@ -162,10 +196,16 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _drawTempGeofence() async {
     if (_polygonManager == null || _circleManager == null || _tempLat == null || _tempLng == null) return;
-    
-    // Clear old temp
-    if (_tempCenterMarker != null) await _circleManager!.delete(_tempCenterMarker!);
-    if (_tempGeofencePolygon != null) await _polygonManager!.delete(_tempGeofencePolygon!);
+
+    // Clear old temp — set to null immediately after delete to prevent double-delete on next call
+    if (_tempCenterMarker != null) {
+      await _circleManager!.delete(_tempCenterMarker!);
+      _tempCenterMarker = null;
+    }
+    if (_tempGeofencePolygon != null) {
+      await _polygonManager!.delete(_tempGeofencePolygon!);
+      _tempGeofencePolygon = null;
+    }
 
     // Draw marker
     final point = Point(coordinates: Position(_tempLng!, _tempLat!));
@@ -197,51 +237,75 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showSaveGeofenceDialog() {
-    if (_tempLat == null || _tempLng == null) return;
-    
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: Text("Lưu Vùng an toàn", style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-      content: TextField(
-        controller: _nameController,
-        decoration: InputDecoration(
-          labelText: 'Tên vùng (VD: Trường học, Nhà)',
-          border: const OutlineInputBorder(),
+    if (_tempLat == null || _tempLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Vui lòng chọn một điểm trên bản đồ trước")),
+      );
+      return;
+    }
+
+    final nameError = ValueNotifier<String?>(null);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Lưu Vùng an toàn", style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+        content: ValueListenableBuilder<String?>(
+          valueListenable: nameError,
+          builder: (_, error, __) => TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              labelText: 'Tên vùng (VD: Trường học, Nhà)',
+              border: const OutlineInputBorder(),
+              errorText: error,
+            ),
+          ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
+          ElevatedButton(
+            onPressed: () async {
+              if (_nameController.text.trim().isEmpty) {
+                nameError.value = "Bắt buộc thêm tên vùng an toàn";
+                return;
+              }
+              Navigator.pop(ctx);
+
+              try {
+                await _locationRepo.createGeofence(
+                  profileId: widget.profileId,
+                  name: _nameController.text.trim(),
+                  latitude: _tempLat!,
+                  longitude: _tempLng!,
+                  radius: _newRadius,
+                );
+                _nameController.clear();
+
+                if (_tempCenterMarker != null) {
+                  await _circleManager!.delete(_tempCenterMarker!);
+                  _tempCenterMarker = null;
+                }
+                if (_tempGeofencePolygon != null) {
+                  await _polygonManager!.delete(_tempGeofencePolygon!);
+                  _tempGeofencePolygon = null;
+                }
+
+                setState(() {
+                  _isAddingMode = false;
+                  _tempLat = null;
+                  _tempLng = null;
+                });
+
+                _fetchGeofences();
+              } catch (e) {
+                print("Lỗi lưu vùng an toàn: $e");
+              }
+            },
+            child: const Text("Lưu"),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
-        ElevatedButton(
-          onPressed: () async {
-            if (_nameController.text.trim().isEmpty) return;
-            Navigator.pop(ctx);
-            
-            try {
-              await _locationRepo.createGeofence(
-                profileId: widget.profileId,
-                name: _nameController.text.trim(),
-                latitude: _tempLat!,
-                longitude: _tempLng!,
-                radius: _newRadius,
-              );
-              _nameController.clear();
-              setState(() {
-                _isAddingMode = false;
-                _tempLat = null;
-                _tempLng = null;
-              });
-              
-              if (_tempCenterMarker != null) await _circleManager!.delete(_tempCenterMarker!);
-              if (_tempGeofencePolygon != null) await _polygonManager!.delete(_tempGeofencePolygon!);
-              
-              _fetchGeofences();
-            } catch (e) {
-              print("Lỗi lưu vùng an toàn: $e");
-            }
-          },
-          child: const Text("Lưu"),
-        )
-      ],
-    ));
+    );
   }
 
   void _showDeleteGeofenceDialog(PolygonAnnotation annotation) {
@@ -251,31 +315,48 @@ class _MapScreenState extends State<MapScreen> {
     final gf = _geofences.firstWhere((g) => g['id'] == geofenceId, orElse: () => null);
     if (gf == null) return;
 
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: Text("Xóa Vùng an toàn?", style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-      content: Text('Bạn có chắc muốn xóa vùng "${gf['name']}" không?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            try {
-              await _locationRepo.deleteGeofence(widget.profileId, geofenceId);
-              _fetchGeofences();
-            } catch (e) {
-              print('Lỗi xóa vùng an toàn: $e');
-            }
-          },
-          child: const Text("Xóa", style: TextStyle(color: Colors.white)),
-        )
-      ],
-    ));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Xóa Vùng an toàn?",
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+        content: Text('Bạn có chắc muốn xóa vùng "${gf['name']}" không?'),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Hủy"),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await _locationRepo.deleteGeofence(widget.profileId, geofenceId);
+                      _fetchGeofences();
+                    } catch (e) {
+                      print('Lỗi xóa vùng an toàn: $e');
+                    }
+                  },
+                  child: const Text("Xóa", style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
     SocketService.instance.socket.off('locationUpdated');
+    SocketService.instance.socket.off('geofenceEvent');
     _nameController.dispose();
     super.dispose();
   }
@@ -291,10 +372,18 @@ class _MapScreenState extends State<MapScreen> {
              onPressed: () {
                setState(() => _isAddingMode = !_isAddingMode);
                if (!_isAddingMode) {
-                 if (_tempCenterMarker != null) _circleManager?.delete(_tempCenterMarker!);
-                 if (_tempGeofencePolygon != null) _polygonManager?.delete(_tempGeofencePolygon!);
-                 _tempLat = null;
-                 _tempLng = null;
+                 if (_tempCenterMarker != null) {
+                   _circleManager?.delete(_tempCenterMarker!);
+                   _tempCenterMarker = null;
+                 }
+                 if (_tempGeofencePolygon != null) {
+                   _polygonManager?.delete(_tempGeofencePolygon!);
+                   _tempGeofencePolygon = null;
+                 }
+                 setState(() {
+                   _tempLat = null;
+                   _tempLng = null;
+                 });
                } else {
                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                    content: Text("Chạm lên bản đồ để chọn tâm vùng an toàn"),
@@ -370,7 +459,18 @@ class _MapScreenState extends State<MapScreen> {
              Positioned(
                bottom: 20, right: 20,
                child: FloatingActionButton(
-                 onPressed: _fetchCurrentLocation,
+                 tooltip: 'Yêu cầu cập nhật vị trí ngay',
+                 onPressed: () {
+                   SocketService.instance.socket
+                       .emit('requestLocation', {'profileId': widget.profileId});
+                   ScaffoldMessenger.of(context).showSnackBar(
+                     const SnackBar(
+                       content: Text("Đã gửi yêu cầu cập nhật vị trí"),
+                       duration: Duration(seconds: 2),
+                     ),
+                   );
+                   _fetchCurrentLocation();
+                 },
                  child: const Icon(Icons.my_location),
                ),
              )

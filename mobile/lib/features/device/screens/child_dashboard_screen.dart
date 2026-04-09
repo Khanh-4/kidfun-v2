@@ -773,6 +773,26 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       await _syncBlockedApps();
     });
 
+    socket.off('locationRequested');
+    socket.on('locationRequested', (data) async {
+      print('📍 [SOCKET] locationRequested from parent — sending location now');
+      if (_deviceCode == null) return;
+      try {
+        final position = await LocationService.instance.getCurrentLocation();
+        if (position != null) {
+          await _locationRepo.syncLocation(
+            deviceCode: _deviceCode!,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
+          );
+          print('✅ [SOCKET] Location sent on request');
+        }
+      } catch (e) {
+        print('❌ [SOCKET] locationRequested handler error: $e');
+      }
+    });
+
     socket.off('timeExtensionResponse');
     socket.on('timeExtensionResponse', (data) async {
       print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
