@@ -88,15 +88,14 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
         }),
       ));
 
-      final lineLayer = LineLayer(
+      await _mapboxMap!.style.addLayer(LineLayer(
         id: 'history-line',
         sourceId: 'history-route',
+        lineColor: '#0066FF',
         lineWidth: 3.0,
         lineCap: LineCap.ROUND,
         lineJoin: LineJoin.ROUND,
-      );
-      lineLayer.lineColorInt = Colors.blue.value;
-      await _mapboxMap!.style.addLayer(lineLayer);
+      ));
     }
 
     // Start marker (green) and end marker (red)
