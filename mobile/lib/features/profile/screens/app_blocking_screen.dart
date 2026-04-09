@@ -150,11 +150,6 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
           ),
         ],
       ),
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.indigo600))
-          : _knownApps.isEmpty
-              ? _buildEmptyState()
-              : _buildAppList(),
     );
   }
 
