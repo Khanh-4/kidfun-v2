@@ -68,6 +68,7 @@ dependencies:
   path_provider: ^2.1.2
   audioplayers: ^6.6.0
   url_launcher: ^6.3.2
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -117,3 +118,5 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  assets:
+    - .env
