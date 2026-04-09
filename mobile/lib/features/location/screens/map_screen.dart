@@ -29,9 +29,9 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   MapboxMap? _mapboxMap;
-  PointAnnotationManager? _annotationManager;
+  CircleAnnotationManager? _circleManager;
   PolygonAnnotationManager? _polygonManager;
-  PointAnnotation? _childMarker;
+  CircleAnnotation? _childMarker;
   double? _lastLat;
   double? _lastLng;
   final _locationRepo = LocationRepository(DioClient.instance);
@@ -40,7 +40,7 @@ class _MapScreenState extends State<MapScreen> {
   Map<String, int> _annotationGeofenceMap = {};
   bool _isAddingMode = false;
   double _newRadius = 500.0;
-  PointAnnotation? _tempCenterMarker;
+  CircleAnnotation? _tempCenterMarker;
   PolygonAnnotation? _tempGeofencePolygon;
   double? _tempLat;
   double? _tempLng;
@@ -88,17 +88,19 @@ class _MapScreenState extends State<MapScreen> {
     _lastLat = lat;
     _lastLng = lng;
     
-    if (_mapboxMap == null || _annotationManager == null) return;
+    if (_mapboxMap == null || _circleManager == null) return;
 
     final point = Point(coordinates: Position(lng, lat));
     
     if (_childMarker == null) {
       try {
-        _childMarker = await _annotationManager!.create(
-          PointAnnotationOptions(
+        _childMarker = await _circleManager!.create(
+          CircleAnnotationOptions(
             geometry: point,
-            iconSize: 1.5,
-            iconImage: 'marker-15', // Default Mapbox marker
+            circleRadius: 8.0,
+            circleColor: Colors.blue.value,
+            circleStrokeWidth: 2.0,
+            circleStrokeColor: Colors.white.value,
           ),
         );
       } catch (e) {
@@ -106,7 +108,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     } else {
       _childMarker!.geometry = point;
-      await _annotationManager!.update(_childMarker!);
+      await _circleManager!.update(_childMarker!);
     }
 
     // Center map
@@ -159,17 +161,20 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _drawTempGeofence() async {
-    if (_polygonManager == null || _annotationManager == null || _tempLat == null || _tempLng == null) return;
+    if (_polygonManager == null || _circleManager == null || _tempLat == null || _tempLng == null) return;
     
     // Clear old temp
-    if (_tempCenterMarker != null) await _annotationManager!.delete(_tempCenterMarker!);
+    if (_tempCenterMarker != null) await _circleManager!.delete(_tempCenterMarker!);
     if (_tempGeofencePolygon != null) await _polygonManager!.delete(_tempGeofencePolygon!);
 
     // Draw marker
     final point = Point(coordinates: Position(_tempLng!, _tempLat!));
-    _tempCenterMarker = await _annotationManager!.create(PointAnnotationOptions(
+    _tempCenterMarker = await _circleManager!.create(CircleAnnotationOptions(
       geometry: point,
-      iconImage: 'marker-15',
+      circleRadius: 6.0,
+      circleColor: Colors.red.value,
+      circleStrokeWidth: 2.0,
+      circleStrokeColor: Colors.white.value,
     ));
 
     // Draw polygon
@@ -225,7 +230,7 @@ class _MapScreenState extends State<MapScreen> {
                 _tempLng = null;
               });
               
-              if (_tempCenterMarker != null) await _annotationManager!.delete(_tempCenterMarker!);
+              if (_tempCenterMarker != null) await _circleManager!.delete(_tempCenterMarker!);
               if (_tempGeofencePolygon != null) await _polygonManager!.delete(_tempGeofencePolygon!);
               
               _fetchGeofences();
@@ -286,7 +291,7 @@ class _MapScreenState extends State<MapScreen> {
              onPressed: () {
                setState(() => _isAddingMode = !_isAddingMode);
                if (!_isAddingMode) {
-                 if (_tempCenterMarker != null) _annotationManager?.delete(_tempCenterMarker!);
+                 if (_tempCenterMarker != null) _circleManager?.delete(_tempCenterMarker!);
                  if (_tempGeofencePolygon != null) _polygonManager?.delete(_tempGeofencePolygon!);
                  _tempLat = null;
                  _tempLng = null;
@@ -314,7 +319,7 @@ class _MapScreenState extends State<MapScreen> {
             onTapListener: _onMapTap,
             onMapCreated: (MapboxMap mapboxMap) async {
               _mapboxMap = mapboxMap;
-              _annotationManager = await mapboxMap.annotations.createPointAnnotationManager();
+              _circleManager = await mapboxMap.annotations.createCircleAnnotationManager();
               _polygonManager = await mapboxMap.annotations.createPolygonAnnotationManager();
               
               _polygonManager!.addOnPolygonAnnotationClickListener(_MyPolygonClickListener((annotation) {
