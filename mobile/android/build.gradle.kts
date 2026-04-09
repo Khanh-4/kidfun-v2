@@ -19,7 +19,25 @@ allprojects {
             }
             credentials {
                 username = "mapbox"
-                password = providers.gradleProperty("MAPBOX_DOWNLOADS_TOKEN").get()
+                
+                // Try to load Mapbox token from .env file first
+                var mapboxToken = ""
+                val envFile = file("../.env")
+                if (envFile.exists()) {
+                    envFile.readLines().forEach {
+                        val parts = it.split("=")
+                        if (parts.size >= 2 && parts[0].trim() == "MAPBOX_DOWNLOADS_TOKEN") {
+                            mapboxToken = parts[1].trim()
+                        }
+                    }
+                }
+                
+                // Fallback to gradle.properties if not found
+                if (mapboxToken.isEmpty() && providers.gradleProperty("MAPBOX_DOWNLOADS_TOKEN").isPresent) {
+                    mapboxToken = providers.gradleProperty("MAPBOX_DOWNLOADS_TOKEN").get()
+                }
+                
+                password = mapboxToken
             }
         }
     }
