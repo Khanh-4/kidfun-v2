@@ -24,6 +24,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
   List<AppUsageEntry> _knownApps = [];
   Set<String> _blockedPackages = {};
   bool _isLoading = true;
+  String? _errorMessage;
   final Map<String, bool> _pendingToggle = {};
 
   @override
@@ -33,7 +34,10 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final results = await Future.wait([
         _repo.getAllApps(widget.profileId),
@@ -64,6 +68,10 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _errorMessage = e.toString());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải dữ liệu: $e'), backgroundColor: Colors.red),
+        );
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Lỗi tải dữ liệu: $e', style: GoogleFonts.nunito()),
           backgroundColor: AppColors.danger,
@@ -115,6 +123,33 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
         ],
       ),
       body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? _buildErrorPlaceholder()
+              : _knownApps.isEmpty
+                  ? _buildEmptyState()
+                  : _buildAppList(),
+    );
+  }
+
+  Widget _buildErrorPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          Text('Lỗi: $_errorMessage', 
+               textAlign: TextAlign.center,
+               style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+          ),
+        ],
+      ),
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.indigo600))
           : _knownApps.isEmpty
