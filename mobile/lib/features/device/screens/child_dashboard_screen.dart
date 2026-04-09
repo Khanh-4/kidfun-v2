@@ -712,22 +712,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             _endTime = null;
             _remainingSeconds = newRemainingSeconds;
           } else {
-            // ONLY apply delta to preserve exact local seconds played, do NOT overwrite with backend remainingSeconds
-            if (wasUnlimited) {
-              _remainingSeconds = (_pausedRemainingSeconds ?? newRemainingSeconds) + (deltaMinutes * 60);
-              _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
-              _pausedRemainingSeconds = null;
-            } else {
-              final isExpired = _remainingSeconds <= 0 || _endTime!.isBefore(DateTime.now());
-              if (isExpired) {
-                _endTime = DateTime.now().add(Duration(minutes: deltaMinutes));
-              } else {
-                _endTime = _endTime!.add(Duration(minutes: deltaMinutes));
-              }
-            }
-            
-            final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
-            _remainingSeconds = secs > 0 ? secs : 0;
+            // Because the parent manually updated the limit, we should strictly trust 
+            // the server's remainingSeconds instead of attempting a complex delta calculation 
+            // which can cause the timer to get stuck at 0.
+            _remainingSeconds = newRemainingSeconds;
+            _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+            _pausedRemainingSeconds = null;
             
             if (_remainingSeconds > 30 * 60) _hasShown30m = false;
             if (_remainingSeconds > 15 * 60) _hasShown15m = false;
