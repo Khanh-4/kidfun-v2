@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/network/socket_service.dart';
 import '../../core/network/dio_client.dart';
 
@@ -25,6 +26,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     super.initState();
     _setupSocketListener();
     _checkPendingRequests();
+    _checkActiveSOS();
 
     // BUG 3 FIX: Store named reference so we can remove it in dispose().
     // Previously the raw socket.on('connect', ...) was never cleaned up, causing
@@ -36,12 +38,16 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   void _onSocketReconnect(_) {
     print('🔄 [SOCKET] Reconnected. Checking pending extension requests...');
     _checkPendingRequests();
+    _checkActiveSOS();
   }
 
   void _setupSocketListener() {
     SocketService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequest);
-    // TC-09-10: Lắng nghe geofenceEvent toàn cục để hiển thị dialog dù parent đang ở màn nào
-    SocketService.instance.socket.on('geofenceEvent', _onGeofenceEvent);
+    // TC-09-10: Route through list system — raw socket.on() was unreliable because type
+    // errors in the callback silently swallowed exceptions before showDialog was reached
+    SocketService.instance.addGeofenceEventListener(_onGeofenceEvent);
+    // TC-21: Global sosAlert listener so parent sees SOS from any screen
+    SocketService.instance.addSosAlertListener(_onSosAlert);
   }
 
   Future<void> _checkPendingRequests() async {
@@ -67,8 +73,10 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     }
   }
 
-  // TC-09-10: Named handler — phải là method reference để off() có thể xóa đúng handler
-  void _onGeofenceEvent(dynamic data) {
+  // TC-09-10: Receives Map<String, dynamic> (SocketService converts raw Map before dispatching)
+  // Uses addPostFrameCallback so showDialog is never called mid-frame (socket callbacks
+  // can fire during setState/layout and cause showDialog to fail silently).
+  void _onGeofenceEvent(Map<String, dynamic> data) {
     if (!mounted) return;
 
     final type = data['type'] as String? ?? '';
@@ -81,27 +89,99 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     final action = isEnter ? 'đã vào' : 'đã rời khỏi';
     final title = isEnter ? 'Bé vào vùng an toàn' : 'Bé rời vùng an toàn';
 
-    final dialogContext = widget.navigatorKey?.currentContext ?? context;
-
-    showDialog(
-      context: dialogContext,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title)),
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final dialogContext = widget.navigatorKey?.currentContext ?? context;
+      showDialog(
+        context: dialogContext,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title)),
+            ],
+          ),
+          content: Text('$profileName $action "$geofenceName"'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
           ],
         ),
-        content: Text('$profileName $action "$geofenceName"'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+      );
+    });
+  }
+
+  // TC-21: Global sosAlert handler — active from any screen, not just ProfileListScreen
+  void _onSosAlert(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final profileName = data['profileName'] as String? ?? 'Bé';
+    final lat = (data['latitude'] as num?)?.toDouble() ?? 0.0;
+    final lng = (data['longitude'] as num?)?.toDouble() ?? 0.0;
+    final audioUrl = data['audioUrl'] as String?;
+    final sosTime = data['timestamp']?.toString();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = widget.navigatorKey?.currentContext;
+      if (ctx == null) return;
+      ctx.push('/sos-alert', extra: {
+        'profileName': profileName,
+        'latitude': lat,
+        'longitude': lng,
+        'audioUrl': audioUrl,
+        'phone': null,
+        'sosTime': sosTime,
+      });
+    });
+  }
+
+  // TC-21 Step 4: REST check for ACTIVE SOS missed while parent was offline.
+  // Checks the most recent SOS for each profile — if status=ACTIVE and within
+  // the last 10 minutes, navigate to the SOS alert screen.
+  Future<void> _checkActiveSOS() async {
+    try {
+      final profilesResponse = await DioClient.instance.get('/api/profiles');
+      final profiles = profilesResponse.data['data'] as List? ?? [];
+
+      final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
+
+      for (final profile in profiles) {
+        final profileId = profile['id'];
+        final profileName = profile['profileName'] as String? ?? 'Bé';
+
+        final sosResponse = await DioClient.instance.get('/api/profiles/$profileId/sos');
+        final alerts = sosResponse.data['data']['alerts'] as List? ?? [];
+
+        if (alerts.isEmpty) continue;
+        final latest = alerts.first; // Ordered by createdAt desc
+        if (latest['status'] != 'ACTIVE') continue;
+
+        final createdAt = DateTime.tryParse(latest['createdAt']?.toString() ?? '');
+        if (createdAt == null || !createdAt.isAfter(cutoff)) continue;
+
+        print('🆘 [REST] Found active SOS for profile $profileName — navigating to alert');
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final ctx = widget.navigatorKey?.currentContext;
+          if (ctx == null) return;
+          ctx.push('/sos-alert', extra: {
+            'profileName': profileName,
+            'latitude': (latest['latitude'] as num?)?.toDouble() ?? 0.0,
+            'longitude': (latest['longitude'] as num?)?.toDouble() ?? 0.0,
+            'audioUrl': latest['audioUrl'] as String?,
+            'phone': null,
+            'sosTime': latest['createdAt']?.toString(),
+          });
+        });
+        return; // Show only the first active SOS found
+      }
+    } catch (e) {
+      print('❌ [REST] Error checking active SOS: $e');
+    }
   }
 
   void _onTimeExtensionRequest(Map<String, dynamic> data) {
@@ -202,10 +282,10 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   @override
   void dispose() {
     SocketService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequest);
+    SocketService.instance.removeGeofenceEventListener(_onGeofenceEvent);
+    SocketService.instance.removeSosAlertListener(_onSosAlert);
     // BUG 3 FIX: Remove the named connect handler to prevent stacking
     SocketService.instance.socket.off('connect', _onSocketReconnect);
-    // TC-09-10: Remove specific geofence handler (not all handlers for the event)
-    SocketService.instance.socket.off('geofenceEvent', _onGeofenceEvent);
     super.dispose();
   }
 

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/profile_provider.dart';
 import '../../../shared/models/profile_model.dart';
-import '../../../core/network/socket_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -16,36 +15,11 @@ class ProfileListScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _listenForSOS();
-  }
-
-  void _listenForSOS() {
-    SocketService.instance.socket.on('sosAlert', (data) {
-      if (!mounted) return;
-      
-      final profileName = data['profileName'] as String?;
-      final lat = data['latitude'] as num?;
-      final lng = data['longitude'] as num?;
-      final audioUrl = data['audioUrl'] as String?;
-      final sosTime = data['timestamp']?.toString(); // ISO 8601 from server
-      
-      context.push('/sos-alert', extra: {
-        'profileName': profileName,
-        'latitude': lat,
-        'longitude': lng,
-        'audioUrl': audioUrl,
-        'phone': null,
-        'sosTime': sosTime,
-      });
-    });
-  }
+  // TC-21: sosAlert is now handled globally in TimeExtensionListener so
+  // the parent receives SOS dialogs from any screen, not just this one.
 
   @override
   void dispose() {
-    SocketService.instance.socket.off('sosAlert');
     super.dispose();
   }
 
