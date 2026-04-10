@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/network/socket_service.dart';
 import '../../core/network/dio_client.dart';
+import '../../core/services/notification_service.dart';
 
 class TimeExtensionListener extends ConsumerStatefulWidget {
   final Widget child;
@@ -74,8 +76,10 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   }
 
   // TC-09-10: Receives Map<String, dynamic> (SocketService converts raw Map before dispatching)
-  // Uses addPostFrameCallback so showDialog is never called mid-frame (socket callbacks
-  // can fire during setState/layout and cause showDialog to fail silently).
+  // Uses Timer.run() so showDialog is deferred to the next event loop tick —
+  // this avoids calling showDialog mid-frame AND avoids the addPostFrameCallback
+  // trap where callbacks only fire when Flutter renders a new frame (causing the
+  // dialog to appear only after the user touches the screen).
   void _onGeofenceEvent(Map<String, dynamic> data) {
     if (!mounted) return;
 
@@ -89,7 +93,16 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     final action = isEnter ? 'đã vào' : 'đã rời khỏi';
     final title = isEnter ? 'Bé vào vùng an toàn' : 'Bé rời vùng an toàn';
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // TC-09/10 Push Notification: show local notification regardless of app state
+    NotificationService.instance.showGeofenceNotification(
+      profileName: profileName,
+      geofenceName: geofenceName,
+      isEnter: isEnter,
+    );
+
+    // TC-09/10 Foreground Dialog: Timer.run defers to next event loop tick,
+    // which is sufficient to avoid build-phase conflicts without waiting for a frame.
+    Timer.run(() {
       if (!mounted) return;
       final dialogContext = widget.navigatorKey?.currentContext ?? context;
       showDialog(
@@ -114,7 +127,15 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     });
   }
 
-  // TC-21: Global sosAlert handler — active from any screen, not just ProfileListScreen
+  // TC-21: Global sosAlert handler — active from any screen, not just ProfileListScreen.
+  // L2 FIX: Use showDialog directly (via Timer.run) instead of ctx.push + addPostFrameCallback.
+  //
+  // Root cause of original bug: addPostFrameCallback only fires when Flutter schedules
+  // a new frame. When the parent app is open but idle (no animation/scroll), no new
+  // frame is scheduled — so the callback never runs until the user touches the screen.
+  //
+  // Fix: showDialog is called immediately on the next event loop tick (Timer.run),
+  // which works even when the app is completely idle.
   void _onSosAlert(Map<String, dynamic> data) {
     if (!mounted) return;
     final profileName = data['profileName'] as String? ?? 'Bé';
@@ -123,24 +144,25 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     final audioUrl = data['audioUrl'] as String?;
     final sosTime = data['timestamp']?.toString();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Timer.run(() {
       if (!mounted) return;
-      final ctx = widget.navigatorKey?.currentContext;
-      if (ctx == null) return;
-      ctx.push('/sos-alert', extra: {
-        'profileName': profileName,
-        'latitude': lat,
-        'longitude': lng,
-        'audioUrl': audioUrl,
-        'phone': null,
-        'sosTime': sosTime,
-      });
+      final ctx = widget.navigatorKey?.currentContext ?? context;
+      showDialog(
+        context: ctx,
+        barrierDismissible: false,
+        builder: (_) => _SOSAlertDialog(
+          profileName: profileName,
+          lat: lat,
+          lng: lng,
+          audioUrl: audioUrl,
+          sosTime: sosTime,
+          navigatorKey: widget.navigatorKey,
+        ),
+      );
     });
   }
 
   // TC-21 Step 4: REST check for ACTIVE SOS missed while parent was offline.
-  // Checks the most recent SOS for each profile — if status=ACTIVE and within
-  // the last 10 minutes, navigate to the SOS alert screen.
   Future<void> _checkActiveSOS() async {
     try {
       final profilesResponse = await DioClient.instance.get('/api/profiles');
@@ -162,20 +184,25 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
         final createdAt = DateTime.tryParse(latest['createdAt']?.toString() ?? '');
         if (createdAt == null || !createdAt.isAfter(cutoff)) continue;
 
-        print('🆘 [REST] Found active SOS for profile $profileName — navigating to alert');
+        print('🆘 [REST] Found active SOS for profile $profileName — showing alert dialog');
         if (!mounted) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+
+        // L2 FIX: Use Timer.run — same fix as _onSosAlert
+        Timer.run(() {
           if (!mounted) return;
-          final ctx = widget.navigatorKey?.currentContext;
-          if (ctx == null) return;
-          ctx.push('/sos-alert', extra: {
-            'profileName': profileName,
-            'latitude': (latest['latitude'] as num?)?.toDouble() ?? 0.0,
-            'longitude': (latest['longitude'] as num?)?.toDouble() ?? 0.0,
-            'audioUrl': latest['audioUrl'] as String?,
-            'phone': null,
-            'sosTime': latest['createdAt']?.toString(),
-          });
+          final ctx = widget.navigatorKey?.currentContext ?? context;
+          showDialog(
+            context: ctx,
+            barrierDismissible: false,
+            builder: (_) => _SOSAlertDialog(
+              profileName: profileName,
+              lat: (latest['latitude'] as num?)?.toDouble() ?? 0.0,
+              lng: (latest['longitude'] as num?)?.toDouble() ?? 0.0,
+              audioUrl: latest['audioUrl'] as String?,
+              sosTime: latest['createdAt']?.toString(),
+              navigatorKey: widget.navigatorKey,
+            ),
+          );
         });
         return; // Show only the first active SOS found
       }
@@ -295,3 +322,127 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _SOSAlertDialog: Inline SOS alert dialog shown via showDialog (not navigate).
+// Benefit: shows immediately without needing a Navigator route transition,
+// works even when app is idle with no pending frames.
+// ─────────────────────────────────────────────────────────────────────────────
+class _SOSAlertDialog extends StatelessWidget {
+  final String profileName;
+  final double lat;
+  final double lng;
+  final String? audioUrl;
+  final String? sosTime;
+  final GlobalKey<NavigatorState>? navigatorKey;
+
+  const _SOSAlertDialog({
+    required this.profileName,
+    required this.lat,
+    required this.lng,
+    this.audioUrl,
+    this.sosTime,
+    this.navigatorKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    String formattedTime = 'Vừa xảy ra';
+    if (sosTime != null) {
+      final dt = DateTime.tryParse(sosTime!);
+      if (dt != null) {
+        final local = dt.toLocal();
+        formattedTime =
+            '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')} '
+            '${local.day}/${local.month}/${local.year}';
+      }
+    }
+
+    return AlertDialog(
+      backgroundColor: Colors.red.shade50,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 36),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🆘 SOS KHẨN CẤP',
+                    style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18)),
+                Text(profileName,
+                    style: TextStyle(
+                        color: Colors.red.shade700, fontSize: 14)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('⏰ $formattedTime',
+              style: const TextStyle(fontSize: 14, color: Colors.black54)),
+          const SizedBox(height: 8),
+          if (lat != 0.0 || lng != 0.0)
+            Text('📌 Vị trí: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          if (audioUrl != null) ...[
+            const SizedBox(height: 8),
+            const Text('🎤 Có file ghi âm',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.indigo)),
+          ],
+        ],
+      ),
+      actions: [
+        // View on map
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              final ctx = navigatorKey?.currentContext ?? context;
+              ctx.push('/sos-alert', extra: {
+                'profileName': profileName,
+                'latitude': lat,
+                'longitude': lng,
+                'audioUrl': audioUrl,
+                'phone': null,
+                'sosTime': sosTime,
+              });
+            },
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Xem chi tiết'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Đã nhận được'),
+          ),
+        ),
+      ],
+    );
+  }
+}
