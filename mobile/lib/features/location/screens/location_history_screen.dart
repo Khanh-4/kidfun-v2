@@ -92,7 +92,6 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
         id: 'history-line',
         sourceId: 'history-route',
         lineColor: const Color(0xFF0066FF).value,
-        lineColor: '#0066FF',
         lineWidth: 3.0,
         lineCap: LineCap.ROUND,
         lineJoin: LineJoin.ROUND,
@@ -127,10 +126,6 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
     // Fit camera to show all points
     final lats = locationPoints.map((p) => p['latitude'] as double).toList();
     final lngs = locationPoints.map((p) => p['longitude'] as double).toList();
-    final lats =
-        locationPoints.map((p) => p['latitude'] as double).toList();
-    final lngs =
-        locationPoints.map((p) => p['longitude'] as double).toList();
 
     if (locationPoints.length == 1) {
       await _mapboxMap!.setCamera(CameraOptions(
@@ -152,11 +147,6 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
                 coordinates: Position(minLng - padLng, minLat - padLat)),
             northeast: Point(
                 coordinates: Position(maxLng + padLng, maxLat + padLat)),
-                coordinates:
-                    Position(minLng - padLng, minLat - padLat)),
-            northeast: Point(
-                coordinates:
-                    Position(maxLng + padLng, maxLat + padLat)),
             infiniteBounds: false,
           ),
           MbxEdgeInsets(top: 60, left: 40, bottom: 40, right: 40),
