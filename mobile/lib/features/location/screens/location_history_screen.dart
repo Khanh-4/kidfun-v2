@@ -39,13 +39,13 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
     super.initState();
     _fetchHistory();
     // Auto-refresh when a real-time geofence event (ENTER/EXIT) is received
-    // so the user doesn't have to manually re-select today's date (TC-12 fix)
-    SocketService.instance.socket.on('geofenceEvent', _onGeofenceEvent);
+    // so the user doesn't have to manually re-select today's date (TC-12 fix).
+    // Uses SocketService list system (not raw socket.on) so removal via
+    // removeGeofenceEventListener never touches the global TimeExtensionListener handler.
+    SocketService.instance.addGeofenceEventListener(_onGeofenceEvent);
   }
 
-  // Named handler — required so dispose() can remove only THIS handler
-  // without wiping the global one registered in TimeExtensionListener (TC-09-10)
-  void _onGeofenceEvent(dynamic data) {
+  void _onGeofenceEvent(Map<String, dynamic> data) {
     if (!mounted) return;
     // Only refresh if viewing today (the event belongs to today)
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -55,9 +55,7 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
 
   @override
   void dispose() {
-    // Remove only this screen's handler — do NOT call off('geofenceEvent') without
-    // a handler reference, as that would also remove the global handler in TimeExtensionListener
-    SocketService.instance.socket.off('geofenceEvent', _onGeofenceEvent);
+    SocketService.instance.removeGeofenceEventListener(_onGeofenceEvent);
     super.dispose();
   }
 

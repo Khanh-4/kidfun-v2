@@ -22,6 +22,8 @@ class SocketService {
   final List<SocketCallback> _deviceOnlineListeners = [];
   final List<SocketCallback> _deviceOfflineListeners = [];
   final List<SocketCallback> _timeExtensionRequestListeners = [];
+  final List<SocketCallback> _geofenceEventListeners = [];
+  final List<SocketCallback> _sosAlertListeners = [];
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -55,6 +57,15 @@ class SocketService {
   // timeExtensionRequest listeners
   void addTimeExtensionRequestListener(SocketCallback callback) => _timeExtensionRequestListeners.add(callback);
   void removeTimeExtensionRequestListener(SocketCallback callback) => _timeExtensionRequestListeners.remove(callback);
+
+  // geofenceEvent listeners — TC-09-10: routed through list system so multiple screens
+  // can subscribe independently without raw socket.off() wiping each other's handlers
+  void addGeofenceEventListener(SocketCallback callback) => _geofenceEventListeners.add(callback);
+  void removeGeofenceEventListener(SocketCallback callback) => _geofenceEventListeners.remove(callback);
+
+  // sosAlert listeners — TC-21: global handler so any screen receives SOS
+  void addSosAlertListener(SocketCallback callback) => _sosAlertListeners.add(callback);
+  void removeSosAlertListener(SocketCallback callback) => _sosAlertListeners.remove(callback);
 
   // ★★★ DEPRECATED: kept for backward compat but now just proxy to list-based listeners
   // These are no-op setters; do NOT use them for new code.
@@ -148,6 +159,24 @@ class SocketService {
         print('⏰ [SOCKET] RECEIVED timeExtensionRequest: $data (listeners: ${_timeExtensionRequestListeners.length})');
         final mapData = Map<String, dynamic>.from(data as Map);
         for (final cb in List.from(_timeExtensionRequestListeners)) {
+          cb(mapData);
+        }
+      });
+
+      // TC-09-10: geofenceEvent routed through list system — avoids socket.off() wipe issues
+      _socket!.on('geofenceEvent', (data) {
+        print('🌍 [SOCKET] RECEIVED geofenceEvent: $data (listeners: ${_geofenceEventListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_geofenceEventListeners)) {
+          cb(mapData);
+        }
+      });
+
+      // TC-21: sosAlert routed through list system — global handler active from any screen
+      _socket!.on('sosAlert', (data) {
+        print('🆘 [SOCKET] RECEIVED sosAlert: $data (listeners: ${_sosAlertListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_sosAlertListeners)) {
           cb(mapData);
         }
       });
