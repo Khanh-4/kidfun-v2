@@ -97,17 +97,21 @@ class ChildRepository {
   }
 
   /// POST /api/child/sos — Gởi tín hiệu SOS
+  /// [audioPath] là nullable — nếu null (ví dụ khi không có quyền micro), gửi SOS mà không kèm file âm thanh
   Future<void> sendSOS({
     required String deviceCode,
     required double lat,
     required double lng,
-    required String audioPath,
+    String? audioPath,
   }) async {
-    final formData = FormData.fromMap({
+    final Map<String, dynamic> fields = {
       'latitude': lat,
       'longitude': lng,
-      'audio': await MultipartFile.fromFile(audioPath, filename: 'sos_audio.m4a'),
-    });
+    };
+    if (audioPath != null) {
+      fields['audio'] = await MultipartFile.fromFile(audioPath, filename: 'sos_audio.m4a');
+    }
+    final formData = FormData.fromMap(fields);
 
     await _dio.post(
       '/api/child/sos',
