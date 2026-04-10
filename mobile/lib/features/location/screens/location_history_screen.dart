@@ -7,6 +7,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../data/location_repository.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/socket_service.dart';
 
 class LocationHistoryScreen extends StatefulWidget {
   final int profileId;
@@ -37,6 +38,21 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
   void initState() {
     super.initState();
     _fetchHistory();
+    // Auto-refresh when a real-time geofence event (ENTER/EXIT) is received
+    // so the user doesn't have to manually re-select today's date (TC-12 fix)
+    SocketService.instance.socket.on('geofenceEvent', (data) {
+      if (!mounted) return;
+      // Only refresh if the event belongs to today (the currently viewed date)
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final selected = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      if (selected == today) _fetchHistory();
+    });
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.socket.off('geofenceEvent');
+    super.dispose();
   }
 
   Future<void> _fetchHistory() async {
@@ -44,6 +60,7 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final data = await _locationRepo.getHistory(widget.profileId, dateStr);
+      if (!mounted) return;
       setState(() {
         _events = data;
         _isLoading = false;
@@ -51,6 +68,7 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
       if (_mapReady) await _drawPolyline();
     } catch (e) {
       print('Error fetching history: $e');
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
