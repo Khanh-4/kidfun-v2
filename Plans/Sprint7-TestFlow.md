@@ -463,6 +463,9 @@
 |---|----|-----------|--------|-----------|--------|
 | 1 | TC-01 | Marker vị trí không hiển thị trên bản đồ (do thiếu asset icon) | 🟠 High | Antigravity | RESOLVED |
 | 2 | N/A | Lỗi đếm ngược thời gian bị kẹt mức 0 khi parent cập nhật time limit (lỗi delta logic) | 🔴 Critical | Antigravity | RESOLVED |
+| 3 | TC-06 | UI Dialog "Lưu vùng an toàn": nút "Hủy" (TextButton) nhỏ hơn nút "Lưu" (ElevatedButton) — UX không đồng nhất | 🟡 Medium | Antigravity | RESOLVED |
+| 4 | TC-08 | UI Dialog "Xóa vùng an toàn": Row Expanded bị OverflowBar co nhỏ nên 2 nút không bằng nhau | 🟡 Medium | Antigravity | RESOLVED |
+| 5 | TC-12 | Màn hình Lịch sử di chuyển không tự cập nhật Geofence Event khi có ENTER/EXIT real-time — phải chọn lại ngày mới hiện | 🟠 High | Antigravity | RESOLVED |
 
 > **Mức độ:** 🔴 Critical / 🟠 High / 🟡 Medium / 🟢 Low
 

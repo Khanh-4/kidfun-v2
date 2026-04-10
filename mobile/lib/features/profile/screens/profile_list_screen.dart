@@ -30,12 +30,15 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
       final lat = data['latitude'] as num?;
       final lng = data['longitude'] as num?;
       final audioUrl = data['audioUrl'] as String?;
+      final sosTime = data['timestamp']?.toString(); // ISO 8601 from server
       
       context.push('/sos-alert', extra: {
         'profileName': profileName,
         'latitude': lat,
         'longitude': lng,
         'audioUrl': audioUrl,
+        'phone': null,
+        'sosTime': sosTime,
       });
     });
   }

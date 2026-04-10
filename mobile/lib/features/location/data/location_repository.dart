@@ -19,48 +19,76 @@ class LocationRepository {
     });
   }
 
-  // Task 4: Get current location for Parent App MapScreen
+  // Get current location for Parent App MapScreen
   Future<dynamic> getCurrentLocation(int profileId) async {
-    final response = await _dio.get('/api/parent/profiles/$profileId/location');
-    return response.data;
+    final response = await _dio.get('/api/profiles/$profileId/location/current');
+    return response.data['data']['location'];
   }
 
-  // Task 5: Geofence endpoints
+  // Geofence endpoints
   Future<List<dynamic>> getGeofences(int profileId) async {
-    final response = await _dio.get('/api/parent/profiles/$profileId/geofences');
-    return response.data['data'] ?? [];
+    final response = await _dio.get('/api/profiles/$profileId/geofences');
+    return (response.data['data']['geofences'] as List?) ?? [];
   }
 
   Future<dynamic> createGeofence({
-    required int profileId, 
-    required String name, 
-    required double latitude, 
-    required double longitude, 
+    required int profileId,
+    required String name,
+    required double latitude,
+    required double longitude,
     required double radius,
   }) async {
     final response = await _dio.post(
-      '/api/parent/profiles/$profileId/geofences',
+      '/api/profiles/$profileId/geofences',
       data: {
         'name': name,
         'latitude': latitude,
         'longitude': longitude,
         'radius': radius,
-      }
+      },
     );
-    return response.data['data'];
+    return response.data['data']['geofence'];
   }
 
   Future<void> deleteGeofence(int profileId, int geofenceId) async {
-    await _dio.delete('/api/parent/profiles/$profileId/geofences/$geofenceId');
+    await _dio.delete('/api/geofences/$geofenceId');
   }
 
-  // Task 6: History
+  // History: merge location logs + geofence events for the day
   Future<List<dynamic>> getHistory(int profileId, String date) async {
-    final response = await _dio.get(
-      '/api/parent/profiles/$profileId/location-events',
-      queryParameters: {'date': date},
-    );
-    return response.data['data'] ?? [];
+    final results = await Future.wait([
+      _dio.get('/api/profiles/$profileId/location/history',
+          queryParameters: {'date': date}),
+      _dio.get('/api/profiles/$profileId/geofences/events',
+          queryParameters: {'date': date}),
+    ]);
+
+    final locationLogs = (results[0].data['data']['history'] as List?) ?? [];
+    final geofenceEvents = (results[1].data['data']['events'] as List?) ?? [];
+
+    final combined = <Map<String, dynamic>>[
+      ...locationLogs.map((item) => {
+            'type': 'LOCATION',
+            'timestamp': item['createdAt'] as String,
+            'latitude': item['latitude'],
+            'longitude': item['longitude'],
+          }),
+      ...geofenceEvents.map((item) => {
+            'type': item['type'] as String, // ENTER hoặc EXIT
+            'timestamp': item['createdAt'] as String,
+            'latitude': item['latitude'],
+            'longitude': item['longitude'],
+            'geofenceName': (item['geofence'] as Map?)?['name'] ?? '',
+          }),
+    ];
+
+    // Sắp xếp theo thời gian tăng dần
+    combined.sort((a, b) {
+      final ta = DateTime.tryParse(a['timestamp'] as String) ?? DateTime(0);
+      final tb = DateTime.tryParse(b['timestamp'] as String) ?? DateTime(0);
+      return ta.compareTo(tb);
+    });
+
+    return combined;
   }
 }
-

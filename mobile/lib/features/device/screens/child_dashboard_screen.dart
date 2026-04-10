@@ -523,8 +523,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       final serverSeconds = await _childRepo.resumeSession(_deviceCode!);
 
       if (mounted) {
+        // BUG #7 FIX: Server may return 0 seconds due to heartbeat gap while screen was off.
+        // If _endTime is still in the future, trust it over the server response to
+        // avoid a false lock-trigger when < 30 min remaining.
+        final localSecsRemaining = _endTime != null
+            ? (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round()
+            : 0;
+        final effectiveSeconds = (serverSeconds > 0)
+            ? serverSeconds
+            : (localSecsRemaining > 30 ? localSecsRemaining : serverSeconds);
+
         setState(() {
-          _remainingSeconds = serverSeconds > 0 ? serverSeconds : 0;
+          _remainingSeconds = effectiveSeconds > 0 ? effectiveSeconds : 0;
           _endTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
         });
         _saveEndTime();
@@ -773,6 +783,26 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       await _syncBlockedApps();
     });
 
+    socket.off('locationRequested');
+    socket.on('locationRequested', (data) async {
+      print('📍 [SOCKET] locationRequested from parent — sending location now');
+      if (_deviceCode == null) return;
+      try {
+        final position = await LocationService.instance.getCurrentLocation();
+        if (position != null) {
+          await _locationRepo.syncLocation(
+            deviceCode: _deviceCode!,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
+          );
+          print('✅ [SOCKET] Location sent on request');
+        }
+      } catch (e) {
+        print('❌ [SOCKET] locationRequested handler error: $e');
+      }
+    });
+
     socket.off('timeExtensionResponse');
     socket.on('timeExtensionResponse', (data) async {
       print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
@@ -879,8 +909,70 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     super.dispose();
   }
 
+  void _showSOSConfirmDialog() {
+    if (_isSOSing) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.red.shade50,
+        title: Row(
+          children: [
+            const Icon(Icons.sos_rounded, color: Colors.red, size: 32),
+            const SizedBox(width: 8),
+            Text('Gửi SOS?',
+                style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.bold, color: Colors.red.shade800)),
+          ],
+        ),
+        content: Text(
+          'Hệ thống sẽ ghi âm 15 giây và gửi cảnh báo khẩn tới phụ huynh ngay lập tức.',
+          style: GoogleFonts.nunito(fontSize: 15),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Hủy',
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _triggerSOS();
+                  },
+                  child: Text('🆘 GỬI SOS',
+                      style: GoogleFonts.nunito(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _triggerSOS() async {
     if (_deviceCode == null || _isSOSing) return;
+
 
     final hasMic = await Permission.microphone.request().isGranted;
     if (!hasMic) {
@@ -1031,7 +1123,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               label: Text("Đang ghi âm $_sosCountdown s...", style: const TextStyle(color: Colors.white)),
             )
           : FloatingActionButton(
-              onPressed: _triggerSOS,
+              onPressed: _showSOSConfirmDialog,
               backgroundColor: Colors.red,
               child: const Icon(Icons.sos_rounded, color: Colors.white, size: 32),
             ),
