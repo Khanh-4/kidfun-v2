@@ -426,6 +426,15 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/location-history?name=$name'),
           ),
+          Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.sos_rounded,
+            iconBg: const Color(0xFFFFEEEE),
+            iconColor: Colors.red,
+            label: 'Lịch sử SOS',
+            onTap: () => context.push(
+                '/profiles/$pid/sos-history?name=$name'),
+          ),
         ],
       ),
     );
