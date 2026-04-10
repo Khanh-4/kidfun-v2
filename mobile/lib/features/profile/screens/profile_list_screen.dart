@@ -258,7 +258,18 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
+            // TC-20: SOS history button
+            IconButton(
+              icon: const Icon(Icons.sos_rounded, color: Colors.red, size: 22),
+              tooltip: 'Lịch sử SOS',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => context.push(
+                '/profiles/${profile.id}/sos-history?name=${Uri.encodeComponent(profile.profileName)}',
+              ),
+            ),
+            const SizedBox(width: 4),
             const Icon(Icons.chevron_right_rounded,
                 color: AppColors.slate400, size: 22),
           ],

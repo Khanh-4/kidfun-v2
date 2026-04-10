@@ -225,14 +225,15 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             ? DateTime.fromMillisecondsSinceEpoch(savedEpoch)
             : null;
 
-        // Use saved value only if still in the future AND within 120s of server.
-        // A larger gap means the parent changed the limit — trust server in that case.
+        // Prefer whichever end time gives the child MORE time remaining:
+        // - Socket extension applied → savedEndTime > serverEndTime → keep saved
+        // - Parent reduced limit → serverEndTime < savedEndTime → keep server (min of two)
+        // - Parent increased limit → serverEndTime > savedEndTime → keep server (max)
+        // Rule: always take the later of the two when savedEndTime is still in the future.
+        // This avoids the old 120s threshold which broke socket-applied extensions.
         DateTime chosenEndTime;
-        if (savedEndTime != null &&
-            savedEndTime.isAfter(DateTime.now()) &&
-            savedEndTime.difference(serverEndTime).inSeconds.abs() <= 120) {
-          // Small drift — take the more conservative (earlier) value
-          chosenEndTime = savedEndTime.isBefore(serverEndTime) ? savedEndTime : serverEndTime;
+        if (savedEndTime != null && savedEndTime.isAfter(DateTime.now())) {
+          chosenEndTime = savedEndTime.isAfter(serverEndTime) ? savedEndTime : serverEndTime;
         } else {
           chosenEndTime = serverEndTime;
         }
@@ -973,14 +974,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   Future<void> _triggerSOS() async {
     if (_deviceCode == null || _isSOSing) return;
 
-
     final hasMic = await Permission.microphone.request().isGranted;
     if (!hasMic) {
+      // TC-16: Không có quyền micro → bỏ qua bước ghi âm, vẫn gửi SOS vị trí
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("KidFun cần quyền Micro để ghi âm cảnh báo SOS."),
+          content: Text("Không có quyền micro — gửi SOS không có ghi âm."),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
         ));
       }
+      setState(() => _isSOSing = true);
+      await _finishSOS(withAudio: false);
       return;
     }
 
@@ -1006,7 +1011,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
         if (_sosCountdown <= 0) {
           timer.cancel();
-          await _finishSOS(path);
+          await _finishSOS();
         }
       });
     } catch (e) {
@@ -1015,10 +1020,15 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     }
   }
 
-  Future<void> _finishSOS(String audioPath) async {
+  /// Kết thúc SOS: dừng ghi âm (nếu có) và gửi lên server.
+  /// [withAudio] = false → bỏ qua dừng recorder và gửi không kèm audio (TC-16).
+  Future<void> _finishSOS({bool withAudio = true}) async {
     try {
-      final recordedPath = await _audioRecorder.stop();
-      if (recordedPath == null) throw Exception("Recording failed");
+      String? recordedPath;
+      if (withAudio) {
+        recordedPath = await _audioRecorder.stop();
+        if (recordedPath == null) throw Exception("Recording failed");
+      }
 
       final position = await LocationService.instance.getCurrentLocation();
       double lat = position?.latitude ?? 0;
@@ -1028,9 +1038,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         deviceCode: _deviceCode!,
         lat: lat,
         lng: lng,
-        audioPath: recordedPath,
+        audioPath: recordedPath, // null when withAudio=false
       );
-      print('✅ SOS sent');
+      print('✅ SOS sent (audio: $withAudio)');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Đã gửi cảnh báo SOS đến phụ huynh!"),

@@ -42,8 +42,10 @@ void _navigateToSOSFromFCM(RemoteMessage message) {
 
   final lat = double.tryParse(message.data['latitude'] ?? '') ?? 0.0;
   final lng = double.tryParse(message.data['longitude'] ?? '') ?? 0.0;
+  // TC-14: Use timestamp from FCM payload if present, otherwise approximate with now()
+  final sosTime = message.data['timestamp'] ?? message.sentTime?.toIso8601String() ?? DateTime.now().toIso8601String();
 
-  print('[FCM] 🆘 Navigating to SOS alert screen. lat=$lat, lng=$lng');
+  print('[FCM] 🆘 Navigating to SOS alert screen. lat=$lat, lng=$lng, time=$sosTime');
 
   final ctx = navigatorKey.currentContext;
   if (ctx == null) {
@@ -55,8 +57,9 @@ void _navigateToSOSFromFCM(RemoteMessage message) {
     'profileName': 'Bé', // FCM payload doesn't carry profileName — show generic label
     'latitude': lat,
     'longitude': lng,
-    'audioUrl': null,
+    'audioUrl': message.data['audioUrl'],
     'phone': null,
+    'sosTime': sosTime, // TC-14: show timestamp on SOS alert screen
   });
 }
 
@@ -114,7 +117,11 @@ void main() async {
    // === TC-13 B5 + TC-21 B4: Handle notification tap when app is in background ===
    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
      print('[FCM] 🔔 Opened from background notification: ${message.data}');
-     _navigateToSOSFromFCM(message);
+     // TC-13: Add delay so GoRouter finishes its initial navigation before we push.
+     // Without this, navigatorKey.currentContext may not yet be bound to a Navigator.
+     Future.delayed(const Duration(milliseconds: 1200), () {
+       _navigateToSOSFromFCM(message);
+     });
    });
 
    // === Handle notification tap when app was killed (cold start) ===

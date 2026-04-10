@@ -40,6 +40,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
 
   void _setupSocketListener() {
     SocketService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequest);
+    // TC-09-10: Lắng nghe geofenceEvent toàn cục để hiển thị dialog dù parent đang ở màn nào
+    SocketService.instance.socket.on('geofenceEvent', _onGeofenceEvent);
   }
 
   Future<void> _checkPendingRequests() async {
@@ -63,6 +65,43 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     } catch (e) {
       print('❌ [REST] Error checking pending requests: $e');
     }
+  }
+
+  // TC-09-10: Named handler — phải là method reference để off() có thể xóa đúng handler
+  void _onGeofenceEvent(dynamic data) {
+    if (!mounted) return;
+
+    final type = data['type'] as String? ?? '';
+    final geofenceName = data['geofenceName'] as String? ?? 'Khu vực';
+    final profileName = data['profileName'] as String? ?? 'Bé';
+
+    final isEnter = type == 'ENTER';
+    final icon = isEnter ? Icons.login_rounded : Icons.logout_rounded;
+    final color = isEnter ? Colors.green : Colors.orange;
+    final action = isEnter ? 'đã vào' : 'đã rời khỏi';
+    final title = isEnter ? 'Bé vào vùng an toàn' : 'Bé rời vùng an toàn';
+
+    final dialogContext = widget.navigatorKey?.currentContext ?? context;
+
+    showDialog(
+      context: dialogContext,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title)),
+          ],
+        ),
+        content: Text('$profileName $action "$geofenceName"'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onTimeExtensionRequest(Map<String, dynamic> data) {
@@ -165,6 +204,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     SocketService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequest);
     // BUG 3 FIX: Remove the named connect handler to prevent stacking
     SocketService.instance.socket.off('connect', _onSocketReconnect);
+    // TC-09-10: Remove specific geofence handler (not all handlers for the event)
+    SocketService.instance.socket.off('geofenceEvent', _onGeofenceEvent);
     super.dispose();
   }
 
