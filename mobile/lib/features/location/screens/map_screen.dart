@@ -177,6 +177,8 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _drawGeofences() async {
     if (_polygonManager == null) return;
     await _polygonManager!.deleteAll();
+    // deleteAll() wiped any temp polygon too — reset stale reference
+    _tempGeofencePolygon = null;
     _annotationGeofenceMap.clear();
 
     for (final gf in _geofences) {
@@ -192,18 +194,28 @@ class _MapScreenState extends State<MapScreen> {
       ));
       _annotationGeofenceMap[polygon.id] = gf['id'] as int;
     }
+
+    // Redraw temp polygon if user is in adding mode
+    if (_isAddingMode && _tempLat != null && _tempLng != null) {
+      await _drawTempGeofence();
+    }
   }
 
   Future<void> _drawTempGeofence() async {
     if (_polygonManager == null || _circleManager == null || _tempLat == null || _tempLng == null) return;
 
-    // Clear old temp — set to null immediately after delete to prevent double-delete on next call
+    // Clear old temp — guard with try/catch since deleteAll() in _drawGeofences
+    // may have already removed these annotations
     if (_tempCenterMarker != null) {
-      await _circleManager!.delete(_tempCenterMarker!);
+      try {
+        await _circleManager!.delete(_tempCenterMarker!);
+      } catch (_) {}
       _tempCenterMarker = null;
     }
     if (_tempGeofencePolygon != null) {
-      await _polygonManager!.delete(_tempGeofencePolygon!);
+      try {
+        await _polygonManager!.delete(_tempGeofencePolygon!);
+      } catch (_) {}
       _tempGeofencePolygon = null;
     }
 
@@ -226,14 +238,14 @@ class _MapScreenState extends State<MapScreen> {
     ));
   }
 
-  void _onMapTap(MapContentGestureContext context) {
+  void _onMapTap(MapContentGestureContext context) async {
     if (!_isAddingMode) return;
     final pos = context.point.coordinates;
     setState(() {
       _tempLat = pos.lat.toDouble();
       _tempLng = pos.lng.toDouble();
     });
-    _drawTempGeofence();
+    await _drawTempGeofence();
   }
 
   void _showSaveGeofenceDialog() {
@@ -299,6 +311,14 @@ class _MapScreenState extends State<MapScreen> {
                 _fetchGeofences();
               } catch (e) {
                 print("Lỗi lưu vùng an toàn: $e");
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Lưu vùng an toàn thất bại. Vui lòng thử lại."),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text("Lưu"),
