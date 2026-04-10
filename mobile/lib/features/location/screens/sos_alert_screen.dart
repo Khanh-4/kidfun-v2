@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 
 class SOSAlertScreen extends StatefulWidget {
@@ -11,6 +12,8 @@ class SOSAlertScreen extends StatefulWidget {
   final double longitude;
   final String? audioUrl;
   final String? phone;
+  /// ISO 8601 timestamp string from server (e.g. createdAt). Optional.
+  final String? sosTime;
 
   const SOSAlertScreen({
     super.key,
@@ -19,6 +22,7 @@ class SOSAlertScreen extends StatefulWidget {
     required this.longitude,
     this.audioUrl,
     this.phone,
+    this.sosTime,
   });
 
   @override
@@ -29,7 +33,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   MapboxMap? _mapboxMap;
-  PointAnnotationManager? _annotationManager;
+  CircleAnnotationManager? _circleManager;
 
   @override
   void initState() {
@@ -70,6 +74,17 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
     }
   }
 
+  /// TC-14 B4: Format the ISO timestamp from server to a human-readable string.
+  String get _formattedTime {
+    if (widget.sosTime == null) return '';
+    try {
+      final dt = DateTime.parse(widget.sosTime!).toLocal();
+      return DateFormat('HH:mm  dd/MM/yyyy').format(dt);
+    } catch (_) {
+      return widget.sosTime!;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,6 +107,21 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                   style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
+                // TC-14 B4: Show SOS timestamp
+                if (_formattedTime.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.access_time, color: Colors.white70, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formattedTime,
+                        style: GoogleFonts.nunito(fontSize: 14, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
                 if (widget.audioUrl != null && widget.audioUrl!.isNotEmpty)
                   ElevatedButton.icon(
@@ -134,10 +164,15 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                 ),
                 onMapCreated: (MapboxMap mapboxMap) async {
                   _mapboxMap = mapboxMap;
-                  _annotationManager = await mapboxMap.annotations.createPointAnnotationManager();
-                  await _annotationManager!.create(PointAnnotationOptions(
+                  // TC-14 B5 + TC-17: Use CircleAnnotation (same approach as map_screen.dart)
+                  // so the marker is always visible regardless of Mapbox style sprite availability.
+                  _circleManager = await mapboxMap.annotations.createCircleAnnotationManager();
+                  await _circleManager!.create(CircleAnnotationOptions(
                     geometry: Point(coordinates: Position(widget.longitude, widget.latitude)),
-                    iconImage: 'marker-15',
+                    circleRadius: 14.0,
+                    circleColor: Colors.red.value,
+                    circleStrokeWidth: 3.0,
+                    circleStrokeColor: Colors.white.value,
                   ));
                 },
               ),
