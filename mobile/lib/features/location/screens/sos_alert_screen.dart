@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 
@@ -32,8 +32,8 @@ class SOSAlertScreen extends StatefulWidget {
 class _SOSAlertScreenState extends State<SOSAlertScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
-  MapboxMap? _mapboxMap;
-  CircleAnnotationManager? _circleManager;
+  mapbox.MapboxMap? _mapboxMap;
+  mapbox.CircleAnnotationManager? _circleManager;
 
   @override
   void initState() {
@@ -61,7 +61,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
   }
 
   Future<void> _callChild() async {
-    final phone = widget.phone ?? '1234567890'; // Placeholder
+    final phone = widget.phone ?? '1234567890';
     final url = Uri.parse('tel:$phone');
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
@@ -90,7 +90,8 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
     return Scaffold(
       backgroundColor: Colors.red.shade900,
       appBar: AppBar(
-        title: Text('SOS CẢNH BÁO!', style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text('SOS CẢNH BÁO!',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.red.shade900,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -104,7 +105,8 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                 const SizedBox(height: 8),
                 Text(
                   '${widget.profileName} đang gặp nguy hiểm!',
-                  style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: GoogleFonts.nunito(
+                      fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
                 // TC-14 B4: Show SOS timestamp
@@ -131,8 +133,13 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: _playAudio,
-                    icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
-                    label: Text(_isPlaying ? 'Tạm dừng ghi âm' : 'Nghe ghi âm 15s', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    icon: Icon(_isPlaying
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_fill),
+                    label: Text(
+                      _isPlaying ? 'Tạm dừng ghi âm' : 'Nghe ghi âm 15s',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
@@ -143,7 +150,8 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                   ),
                   onPressed: _callChild,
                   icon: const Icon(Icons.call),
-                  label: const Text('Gọi điện cho bé', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text('Gọi điện cho bé',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -154,21 +162,24 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
               decoration: const BoxDecoration(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: MapWidget(
+              child: mapbox.MapWidget(
                 key: const ValueKey("sosMapWidget"),
                 textureView: true,
-                styleUri: MapboxStyles.MAPBOX_STREETS,
-                cameraOptions: CameraOptions(
-                  center: Point(coordinates: Position(widget.longitude, widget.latitude)),
+                styleUri: mapbox.MapboxStyles.MAPBOX_STREETS,
+                cameraOptions: mapbox.CameraOptions(
+                  center: mapbox.Point(
+                      coordinates: mapbox.Position(widget.longitude, widget.latitude)),
                   zoom: 16.0,
                 ),
-                onMapCreated: (MapboxMap mapboxMap) async {
+                onMapCreated: (mapbox.MapboxMap mapboxMap) async {
                   _mapboxMap = mapboxMap;
-                  // TC-14 B5 + TC-17: Use CircleAnnotation (same approach as map_screen.dart)
-                  // so the marker is always visible regardless of Mapbox style sprite availability.
-                  _circleManager = await mapboxMap.annotations.createCircleAnnotationManager();
-                  await _circleManager!.create(CircleAnnotationOptions(
-                    geometry: Point(coordinates: Position(widget.longitude, widget.latitude)),
+                  // TC-14 B5 + TC-17: CircleAnnotation always renders regardless of sprite
+                  _circleManager =
+                      await mapboxMap.annotations.createCircleAnnotationManager();
+                  await _circleManager!.create(mapbox.CircleAnnotationOptions(
+                    geometry: mapbox.Point(
+                        coordinates:
+                            mapbox.Position(widget.longitude, widget.latitude)),
                     circleRadius: 14.0,
                     circleColor: Colors.red.value,
                     circleStrokeWidth: 3.0,
@@ -177,7 +188,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                 },
               ),
             ),
-          )
+          ),
         ],
       ),
     );
