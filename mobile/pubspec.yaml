@@ -47,6 +47,7 @@ dependencies:
   # Firebase
   firebase_core: ^2.25.0
   firebase_messaging: ^14.7.0
+  flutter_local_notifications: ^17.2.2
 
   # UI
   google_fonts: ^8.0.2

@@ -9,15 +9,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'core/services/native_service.dart';
+import 'core/services/notification_service.dart';
 import 'app.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('[FCM] Received background message: ${message.messageId}');
-  
-  // Handle blocked apps update from parent — works even when Flutter is in background
+
   final type = message.data['type'];
+
+  // Handle blocked apps update from parent — works even when Flutter is in background
   if (type == 'blocked_apps_update') {
     final packageNamesJson = message.data['packageNames'];
     if (packageNamesJson != null) {
@@ -31,6 +33,30 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         print('[FCM] ❌ Failed to update blocked apps: $e');
       }
     }
+  }
+
+  // TC-21: data-only SOS message — show local notification since Android won't auto-show
+  if (type == 'SOS_ALERT') {
+    await NotificationService.instance.init();
+    final profileName = message.data['profileName'] ?? 'Bé';
+    await NotificationService.instance.showSOSNotification(
+      profileName: profileName,
+      payload: 'SOS_ALERT',
+    );
+  }
+
+  // TC-09/10: data-only Geofence message — show local notification
+  if (type == 'GEOFENCE_EVENT') {
+    await NotificationService.instance.init();
+    final profileName = message.data['profileName'] ?? 'Bé';
+    final geofenceName = message.data['geofenceName'] ?? 'Khu vực';
+    final isEnter = message.data['eventType'] == 'ENTER';
+    await NotificationService.instance.showGeofenceNotification(
+      profileName: profileName,
+      geofenceName: geofenceName,
+      isEnter: isEnter,
+      payload: 'GEOFENCE_EVENT',
+    );
   }
 }
 
@@ -92,12 +118,35 @@ void main() async {
      print('[FCM] Device token: $fcmToken');
    }
 
+   // === Init local notifications (foreground + data-only background) ===
+   await NotificationService.instance.init();
+   // When parent taps a local notification, navigate based on payload
+   NotificationService.instance.onNotificationTap = (payload) {
+     if (payload == null) return;
+     final ctx = navigatorKey.currentContext;
+     if (ctx == null) return;
+     if (payload == 'SOS_ALERT') {
+       // Navigate to SOS alert with minimal data — full data loaded via REST
+       Future.delayed(const Duration(milliseconds: 300), () {
+         ctx.push('/sos-alert', extra: {
+           'profileName': 'Bé',
+           'latitude': 0.0,
+           'longitude': 0.0,
+           'audioUrl': null,
+           'phone': null,
+           'sosTime': DateTime.now().toIso8601String(),
+         });
+       });
+     }
+   };
+
    // === Handle foreground notifications ===
    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
      print('[FCM] Received foreground message: ${message.notification?.title}');
      
-     // Handle blocked apps update in foreground too
      final type = message.data['type'];
+
+     // Blocked apps update
      if (type == 'blocked_apps_update') {
        final packageNamesJson = message.data['packageNames'];
        if (packageNamesJson != null) {
@@ -111,6 +160,29 @@ void main() async {
            print('[FCM] ❌ Failed to update blocked apps: $e');
          }
        }
+     }
+
+     // TC-21: SOS foreground — Android suppresses FCM notification when app is open,
+     // so we must manually show a local notification to alert the parent.
+     if (type == 'SOS_ALERT') {
+       final profileName = message.data['profileName'] ?? message.notification?.title ?? 'Bé';
+       NotificationService.instance.showSOSNotification(
+         profileName: profileName,
+         payload: 'SOS_ALERT',
+       );
+     }
+
+     // TC-09/10: Geofence foreground notification
+     if (type == 'GEOFENCE_EVENT') {
+       final profileName = message.data['profileName'] ?? 'Bé';
+       final geofenceName = message.data['geofenceName'] ?? 'Khu vực';
+       final isEnter = message.data['eventType'] == 'ENTER';
+       NotificationService.instance.showGeofenceNotification(
+         profileName: profileName,
+         geofenceName: geofenceName,
+         isEnter: isEnter,
+         payload: 'GEOFENCE_EVENT',
+       );
      }
    });
 

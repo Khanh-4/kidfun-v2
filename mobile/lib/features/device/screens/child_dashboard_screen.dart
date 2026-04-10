@@ -937,7 +937,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
+                    minimumSize: Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -951,7 +951,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    minimumSize: const Size(double.infinity, 50),
+                    minimumSize: Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -974,9 +974,13 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   Future<void> _triggerSOS() async {
     if (_deviceCode == null || _isSOSing) return;
 
-    final hasMic = await Permission.microphone.request().isGranted;
-    if (!hasMic) {
-      // TC-16: Không có quyền micro → bỏ qua bước ghi âm, vẫn gửi SOS vị trí
+    // TC-16 FIX: Check mic status without requesting permission.
+    // Using .request() forces a permission popup even when permission was already denied,
+    // which blocks the SOS flow. We check the current status instead and only request
+    // if the status is "undetermined" (never asked before).
+    PermissionStatus micStatus = await Permission.microphone.status;
+    if (micStatus.isDenied || micStatus.isPermanentlyDenied) {
+      // No mic permission — send SOS without audio (TC-16 fallback)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Không có quyền micro — gửi SOS không có ghi âm."),
@@ -987,6 +991,16 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       setState(() => _isSOSing = true);
       await _finishSOS(withAudio: false);
       return;
+    }
+
+    // Permission not yet determined — request it once
+    if (!micStatus.isGranted) {
+      micStatus = await Permission.microphone.request();
+      if (!micStatus.isGranted) {
+        setState(() => _isSOSing = true);
+        await _finishSOS(withAudio: false);
+        return;
+      }
     }
 
     setState(() {
