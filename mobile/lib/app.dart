@@ -29,6 +29,7 @@ import 'features/time_limit/screens/time_limit_screen.dart';
 import 'features/location/screens/map_screen.dart';
 import 'features/location/screens/location_history_screen.dart';
 import 'features/location/screens/sos_alert_screen.dart';
+import 'features/location/screens/sos_history_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -663,6 +664,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               return LocationHistoryScreen(profileId: id, profileName: name);
             },
           ),
+          GoRoute(
+            path: ':id/sos-history',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return SosHistoryScreen(profileId: id, profileName: name);
+            },
+          ),
         ],
       ),
       GoRoute(
@@ -675,6 +684,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             longitude: (extras['longitude'] as num?)?.toDouble() ?? 0.0,
             audioUrl: extras['audioUrl'],
             phone: extras['phone'],
+            sosTime: extras['sosTime'],
           );
         },
       ),
