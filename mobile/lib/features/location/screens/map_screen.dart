@@ -5,7 +5,6 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/location_repository.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_colors.dart';
 
 class _MyPolygonClickListener extends OnPolygonAnnotationClickListener {
@@ -249,6 +248,108 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showSaveGeofenceDialog() {
+    if (_tempLat == null || _tempLng == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String? nameError;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) => AlertDialog(
+            title: Text("Lưu Vùng an toàn",
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Tên vùng (VD: Trường học, Nhà)',
+                    border: const OutlineInputBorder(),
+                    errorText: nameError,
+                  ),
+                ),
+              ],
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("Hủy"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () async {
+                        if (_nameController.text.trim().isEmpty) {
+                          setStateDialog(() => nameError = "Bắt buộc thêm tên vùng an toàn");
+                          return;
+                        }
+                        Navigator.pop(ctx);
+
+                        try {
+                          await _locationRepo.createGeofence(
+                            profileId: widget.profileId,
+                            name: _nameController.text.trim(),
+                            latitude: _tempLat!,
+                            longitude: _tempLng!,
+                            radius: _newRadius,
+                          );
+                          _nameController.clear();
+
+                          if (_tempCenterMarker != null) {
+                            await _circleManager!.delete(_tempCenterMarker!);
+                            _tempCenterMarker = null;
+                          }
+                          if (_tempGeofencePolygon != null) {
+                            await _polygonManager!.delete(_tempGeofencePolygon!);
+                            _tempGeofencePolygon = null;
+                          }
+
+                          setState(() {
+                            _isAddingMode = false;
+                            _tempLat = null;
+                            _tempLng = null;
+                          });
+
+                          _fetchGeofences();
+                        } catch (e) {
+                          print("Lỗi lưu vùng an toàn: $e");
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Lưu vùng an toàn thất bại. Vui lòng thử lại."),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text("Lưu"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     if (_tempLat == null || _tempLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Vui lòng chọn một điểm trên bản đồ trước")),
@@ -373,6 +474,7 @@ class _MapScreenState extends State<MapScreen> {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
+                    minimumSize: Size(double.infinity, 50),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -387,6 +489,7 @@ class _MapScreenState extends State<MapScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
+                    minimumSize: Size(double.infinity, 50),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
