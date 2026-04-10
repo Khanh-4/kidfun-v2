@@ -1,17 +1,17 @@
 import 'dart:math' as math;
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import '../../../core/network/socket_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/location_repository.dart';
 import '../../../core/constants/app_colors.dart';
 
-class _MyPolygonClickListener extends OnPolygonAnnotationClickListener {
-  final Function(PolygonAnnotation) onClick;
+class _MyPolygonClickListener extends mapbox.OnPolygonAnnotationClickListener {
+  final Function(mapbox.PolygonAnnotation) onClick;
   _MyPolygonClickListener(this.onClick);
   @override
-  void onPolygonAnnotationClick(PolygonAnnotation annotation) {
+  void onPolygonAnnotationClick(mapbox.PolygonAnnotation annotation) {
     onClick(annotation);
   }
 }
@@ -27,10 +27,10 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  MapboxMap? _mapboxMap;
-  CircleAnnotationManager? _circleManager;
-  PolygonAnnotationManager? _polygonManager;
-  CircleAnnotation? _childMarker;
+  mapbox.MapboxMap? _mapboxMap;
+  mapbox.CircleAnnotationManager? _circleManager;
+  mapbox.PolygonAnnotationManager? _polygonManager;
+  mapbox.CircleAnnotation? _childMarker;
   double? _lastLat;
   double? _lastLng;
   final _locationRepo = LocationRepository(DioClient.instance);
@@ -39,8 +39,8 @@ class _MapScreenState extends State<MapScreen> {
   Map<String, int> _annotationGeofenceMap = {};
   bool _isAddingMode = false;
   double _newRadius = 500.0;
-  CircleAnnotation? _tempCenterMarker;
-  PolygonAnnotation? _tempGeofencePolygon;
+  mapbox.CircleAnnotation? _tempCenterMarker;
+  mapbox.PolygonAnnotation? _tempGeofencePolygon;
   double? _tempLat;
   double? _tempLng;
   
@@ -123,12 +123,12 @@ class _MapScreenState extends State<MapScreen> {
     
     if (_mapboxMap == null || _circleManager == null) return;
 
-    final point = Point(coordinates: Position(lng, lat));
+    final point = mapbox.Point(coordinates: mapbox.Position(lng, lat));
     
     if (_childMarker == null) {
       try {
         _childMarker = await _circleManager!.create(
-          CircleAnnotationOptions(
+          mapbox.CircleAnnotationOptions(
             geometry: point,
             circleRadius: 8.0,
             circleColor: Colors.blue.value,
@@ -145,15 +145,15 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     // Center map
-    _mapboxMap!.setCamera(CameraOptions(
+    _mapboxMap!.setCamera(mapbox.CameraOptions(
       center: point,
       zoom: 15.0,
     ));
   }
 
-  List<Position> _createCirclePolygon(double lat, double lng, double radiusInMeters) {
+  List<mapbox.Position> _createCirclePolygon(double lat, double lng, double radiusInMeters) {
     const int points = 64;
-    final List<Position> coordinates = [];
+    final List<mapbox.Position> coordinates = [];
     const earthRadius = 6378137.0;
 
     final latRad = lat * math.pi / 180.0;
@@ -168,7 +168,7 @@ class _MapScreenState extends State<MapScreen> {
             math.atan2(math.sin(bearing) * math.sin(d) * math.cos(latRad),
                 math.cos(d) - math.sin(latRad) * math.sin(pointLatRad));
         
-        coordinates.add(Position(pointLngRad * 180.0 / math.pi, pointLatRad * 180.0 / math.pi));
+        coordinates.add(mapbox.Position(pointLngRad * 180.0 / math.pi, pointLatRad * 180.0 / math.pi));
     }
     return coordinates;
   }
@@ -176,7 +176,6 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _drawGeofences() async {
     if (_polygonManager == null) return;
     await _polygonManager!.deleteAll();
-    // deleteAll() wiped any temp polygon too — reset stale reference
     _tempGeofencePolygon = null;
     _annotationGeofenceMap.clear();
 
@@ -186,15 +185,14 @@ class _MapScreenState extends State<MapScreen> {
       final rad = gf['radius'] is int ? (gf['radius'] as int).toDouble() : gf['radius'] as double;
 
       final coords = _createCirclePolygon(lat, lng, rad);
-      final polygon = await _polygonManager!.create(PolygonAnnotationOptions(
-        geometry: Polygon(coordinates: [coords]),
+      final polygon = await _polygonManager!.create(mapbox.PolygonAnnotationOptions(
+        geometry: mapbox.Polygon(coordinates: [coords]),
         fillColor: Colors.blue.withOpacity(0.3).value,
         fillOutlineColor: Colors.blue.value,
       ));
       _annotationGeofenceMap[polygon.id] = gf['id'] as int;
     }
 
-    // Redraw temp polygon if user is in adding mode
     if (_isAddingMode && _tempLat != null && _tempLng != null) {
       await _drawTempGeofence();
     }
@@ -203,24 +201,17 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _drawTempGeofence() async {
     if (_polygonManager == null || _circleManager == null || _tempLat == null || _tempLng == null) return;
 
-    // Clear old temp — guard with try/catch since deleteAll() in _drawGeofences
-    // may have already removed these annotations
     if (_tempCenterMarker != null) {
-      try {
-        await _circleManager!.delete(_tempCenterMarker!);
-      } catch (_) {}
+      try { await _circleManager!.delete(_tempCenterMarker!); } catch (_) {}
       _tempCenterMarker = null;
     }
     if (_tempGeofencePolygon != null) {
-      try {
-        await _polygonManager!.delete(_tempGeofencePolygon!);
-      } catch (_) {}
+      try { await _polygonManager!.delete(_tempGeofencePolygon!); } catch (_) {}
       _tempGeofencePolygon = null;
     }
 
-    // Draw marker
-    final point = Point(coordinates: Position(_tempLng!, _tempLat!));
-    _tempCenterMarker = await _circleManager!.create(CircleAnnotationOptions(
+    final point = mapbox.Point(coordinates: mapbox.Position(_tempLng!, _tempLat!));
+    _tempCenterMarker = await _circleManager!.create(mapbox.CircleAnnotationOptions(
       geometry: point,
       circleRadius: 6.0,
       circleColor: Colors.red.value,
@@ -228,16 +219,15 @@ class _MapScreenState extends State<MapScreen> {
       circleStrokeColor: Colors.white.value,
     ));
 
-    // Draw polygon
     final coords = _createCirclePolygon(_tempLat!, _tempLng!, _newRadius);
-    _tempGeofencePolygon = await _polygonManager!.create(PolygonAnnotationOptions(
-      geometry: Polygon(coordinates: [coords]),
+    _tempGeofencePolygon = await _polygonManager!.create(mapbox.PolygonAnnotationOptions(
+      geometry: mapbox.Polygon(coordinates: [coords]),
       fillColor: Colors.green.withOpacity(0.4).value,
       fillOutlineColor: Colors.green.value,
     ));
   }
 
-  void _onMapTap(MapContentGestureContext context) async {
+  void _onMapTap(mapbox.MapContentGestureContext context) async {
     if (!_isAddingMode) return;
     final pos = context.point.coordinates;
     setState(() {
@@ -249,7 +239,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _showSaveGeofenceDialog() {
     if (_tempLat == null || _tempLng == null) return;
-    
+
     showDialog(
       context: context,
       builder: (ctx) {
@@ -278,10 +268,9 @@ class _MapScreenState extends State<MapScreen> {
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 50),
+                        minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => Navigator.pop(ctx),
                       child: const Text("Hủy"),
@@ -291,10 +280,9 @@ class _MapScreenState extends State<MapScreen> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 50),
+                        minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () async {
                         if (_nameController.text.trim().isEmpty) {
@@ -350,111 +338,10 @@ class _MapScreenState extends State<MapScreen> {
           ),
         );
       },
-    if (_tempLat == null || _tempLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Vui lòng chọn một điểm trên bản đồ trước")),
-      );
-      return;
-    }
-
-    final nameError = ValueNotifier<String?>(null);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("Lưu Vùng an toàn", style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-        content: ValueListenableBuilder<String?>(
-          valueListenable: nameError,
-          builder: (_, error, __) => TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: 'Tên vùng (VD: Trường học, Nhà)',
-              border: const OutlineInputBorder(),
-              errorText: error,
-            ),
-          ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text("Hủy"),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () async {
-                    if (_nameController.text.trim().isEmpty) {
-                      nameError.value = "Bắt buộc thêm tên vùng an toàn";
-                      return;
-                    }
-                    Navigator.pop(ctx);
-
-                    try {
-                      await _locationRepo.createGeofence(
-                        profileId: widget.profileId,
-                        name: _nameController.text.trim(),
-                        latitude: _tempLat!,
-                        longitude: _tempLng!,
-                        radius: _newRadius,
-                      );
-                      _nameController.clear();
-
-                      if (_tempCenterMarker != null) {
-                        await _circleManager!.delete(_tempCenterMarker!);
-                        _tempCenterMarker = null;
-                      }
-                      if (_tempGeofencePolygon != null) {
-                        await _polygonManager!.delete(_tempGeofencePolygon!);
-                        _tempGeofencePolygon = null;
-                      }
-
-                      setState(() {
-                        _isAddingMode = false;
-                        _tempLat = null;
-                        _tempLng = null;
-                      });
-
-                      _fetchGeofences();
-                    } catch (e) {
-                      print("Lỗi lưu vùng an toàn: $e");
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Lưu vùng an toàn thất bại. Vui lòng thử lại."),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text("Lưu"),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
-  void _showDeleteGeofenceDialog(PolygonAnnotation annotation) {
+  void _showDeleteGeofenceDialog(mapbox.PolygonAnnotation annotation) {
     final geofenceId = _annotationGeofenceMap[annotation.id];
     if (geofenceId == null) return;
 
@@ -477,8 +364,7 @@ class _MapScreenState extends State<MapScreen> {
                     minimumSize: Size(double.infinity, 50),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text("Hủy"),
@@ -492,8 +378,7 @@ class _MapScreenState extends State<MapScreen> {
                     minimumSize: Size(double.infinity, 50),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () async {
                     Navigator.pop(ctx);
@@ -558,16 +443,16 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: Stack(
         children: [
-          MapWidget(
+          mapbox.MapWidget(
             key: const ValueKey("mapWidget"),
             textureView: true,
-            styleUri: MapboxStyles.MAPBOX_STREETS,
-            cameraOptions: CameraOptions(
-              center: Point(coordinates: Position(106.660172, 10.762622)), // HCM default
+            styleUri: mapbox.MapboxStyles.MAPBOX_STREETS,
+            cameraOptions: mapbox.CameraOptions(
+              center: mapbox.Point(coordinates: mapbox.Position(106.660172, 10.762622)),
               zoom: 12.0,
             ),
             onTapListener: _onMapTap,
-            onMapCreated: (MapboxMap mapboxMap) async {
+            onMapCreated: (mapbox.MapboxMap mapboxMap) async {
               _mapboxMap = mapboxMap;
               _circleManager = await mapboxMap.annotations.createCircleAnnotationManager();
               _polygonManager = await mapboxMap.annotations.createPolygonAnnotationManager();
@@ -594,7 +479,8 @@ class _MapScreenState extends State<MapScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("Bán kính: ${_newRadius.toInt()} mét", style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+                      Text("Bán kính: ${_newRadius.toInt()} mét",
+                          style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
                       Slider(
                         value: _newRadius,
                         min: 100, max: 2000, divisions: 19,
@@ -608,8 +494,8 @@ class _MapScreenState extends State<MapScreen> {
                         child: ElevatedButton(
                           onPressed: _showSaveGeofenceDialog,
                           child: const Text('Tiếp tục'),
-                        )
-                      )
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -634,7 +520,7 @@ class _MapScreenState extends State<MapScreen> {
                  },
                  child: const Icon(Icons.my_location),
                ),
-             )
+             ),
         ],
       ),
     );
