@@ -81,40 +81,8 @@ class _MapScreenState extends State<MapScreen> {
         _updateChildMarker(data['latitude'] as double, data['longitude'] as double);
       }
     });
-
-    SocketService.instance.socket.on('geofenceEvent', (data) {
-      if (!mounted) return;
-      final type = data['type'] as String? ?? '';
-      final geofenceName = data['geofenceName'] as String? ?? '';
-      final isEnter = type == 'ENTER';
-
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(isEnter ? Icons.login : Icons.logout,
-                  color: isEnter ? Colors.green : Colors.orange),
-              const SizedBox(width: 8),
-              Text(
-                isEnter ? 'Đã vào vùng an toàn' : 'Đã rời vùng an toàn',
-                style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ],
-          ),
-          content: Text(
-            '${widget.profileName} ${isEnter ? 'đã vào' : 'đã rời'} vùng "$geofenceName"',
-            style: GoogleFonts.nunito(fontSize: 15),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Đóng'),
-            ),
-          ],
-        ),
-      );
-    });
+    // geofenceEvent dialog is now handled globally in TimeExtensionListener (TC-09-10).
+    // Registering it here caused dispose() to wipe the global handler via socket.off().
   }
 
   Future<void> _updateChildMarker(double lat, double lng) async {
@@ -400,7 +368,6 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     SocketService.instance.socket.off('locationUpdated');
-    SocketService.instance.socket.off('geofenceEvent');
     _nameController.dispose();
     super.dispose();
   }

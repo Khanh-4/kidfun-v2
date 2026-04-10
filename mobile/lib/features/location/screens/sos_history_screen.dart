@@ -38,7 +38,7 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
     });
     try {
       final resp = await DioClient.instance.get(
-        '/profiles/${widget.profileId}/sos',
+        '/api/profiles/${widget.profileId}/sos',
       );
       final data = resp.data as Map<String, dynamic>;
       final list = (data['data']?['alerts'] ?? data['alerts'] ?? []) as List<dynamic>;
