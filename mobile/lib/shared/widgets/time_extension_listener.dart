@@ -53,6 +53,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   }
 
   Future<void> _checkPendingRequests() async {
+    // Only parents check pending extension requests
+    if (SocketService.instance.currentRole != 'parent') return;
     try {
       final response = await DioClient.instance.get('/api/extension-requests/pending');
       final requests = response.data['data']['requests'] as List?;
@@ -138,6 +140,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   // which works even when the app is completely idle.
   void _onSosAlert(Map<String, dynamic> data) {
     if (!mounted) return;
+    // Only parents handle SOS alerts — child app must not show this dialog
+    if (SocketService.instance.currentRole != 'parent') return;
     final profileName = data['profileName'] as String? ?? 'Bé';
     final lat = (data['latitude'] as num?)?.toDouble() ?? 0.0;
     final lng = (data['longitude'] as num?)?.toDouble() ?? 0.0;
@@ -163,7 +167,14 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   }
 
   // TC-21 Step 4: REST check for ACTIVE SOS missed while parent was offline.
+  // Guards: (1) Only runs if current socket role is 'parent' — prevents child
+  // devices (which share the parent JWT) from showing parent-only SOS dialogs.
+  // (2) Skips dialog if the user is already viewing /sos-alert (e.g. arrived via
+  // notification tap), preventing a duplicate dialog stacked on top of the screen.
   Future<void> _checkActiveSOS() async {
+    // Guard 1: Parent-only — child devices must not show SOS dialogs
+    if (SocketService.instance.currentRole != 'parent') return;
+
     try {
       final profilesResponse = await DioClient.instance.get('/api/profiles');
       final profiles = profilesResponse.data['data'] as List? ?? [];
@@ -190,7 +201,12 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
         // L2 FIX: Use Timer.run — same fix as _onSosAlert
         Timer.run(() {
           if (!mounted) return;
+          // Guard 2: Skip dialog if already on /sos-alert (arrived via notification tap)
           final ctx = widget.navigatorKey?.currentContext ?? context;
+          try {
+            final path = GoRouter.of(ctx).routerDelegate.currentConfiguration.uri.path;
+            if (path == '/sos-alert') return;
+          } catch (_) {}
           showDialog(
             context: ctx,
             barrierDismissible: false,
@@ -213,6 +229,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
 
   void _onTimeExtensionRequest(Map<String, dynamic> data) {
     if (!mounted) return;
+    // Only parents approve/deny time extension requests
+    if (SocketService.instance.currentRole != 'parent') return;
 
     final requestId = data['requestId'] as int?;
     if (requestId == null || _activeRequestIds.contains(requestId)) return;
