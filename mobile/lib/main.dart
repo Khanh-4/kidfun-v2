@@ -55,6 +55,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       profileName: profileName,
       geofenceName: geofenceName,
       isEnter: isEnter,
+    );
+  }
 }
 
 void safelyNavigate(String location, Object? extra) {

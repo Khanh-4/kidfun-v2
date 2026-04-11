@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **kidfun-v2** (744 symbols, 1281 relationships, 23 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **kidfun-v2** (774 symbols, 1283 relationships, 28 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -28,7 +28,6 @@ This project is indexed by GitNexus as **kidfun-v2** (744 symbols, 1281 relation
 
 ## Never Do
 
-- NEVER commit changes directly to the `develop` or `main` branches. All development, fixes, and features MUST be committed to an appropriate `feature/*` or `fix/*` branch, and then merged via Pull Request.
 - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
 - NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
