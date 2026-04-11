@@ -685,6 +685,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             audioUrl: extras['audioUrl'],
             phone: extras['phone'],
             sosTime: extras['sosTime'],
+            sosId: extras['sosId'] as int?,
+            status: extras['status'] as String?,
           );
         },
       ),
