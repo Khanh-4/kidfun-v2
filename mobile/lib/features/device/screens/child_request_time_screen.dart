@@ -77,7 +77,7 @@ class _ChildRequestTimeScreenState extends State<ChildRequestTimeScreen>
 
   String get _selectedReasonLabel =>
       _selectedReasonIndex != null
-          ? _reasons[_selectedReasonIndex!]['label']! as String
+          ? _reasons[_selectedReasonIndex!]['label']!
           : '';
 
   void _submit() {
@@ -195,8 +195,8 @@ class _ChildRequestTimeScreenState extends State<ChildRequestTimeScreen>
                   ),
                   itemCount: _reasons.length,
                   itemBuilder: (ctx, i) => _ReasonChip(
-                    emoji: _reasons[i]['emoji']! as String,
-                    label: _reasons[i]['label']! as String,
+                    emoji: _reasons[i]['emoji']!,
+                    label: _reasons[i]['label']!,
                     selected: _selectedReasonIndex == i,
                     onTap: () => setState(() => _selectedReasonIndex = i),
                   ),

@@ -160,7 +160,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
           child: Container(
             width: 96,
             height: 96,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.successBg,
               shape: BoxShape.circle,
             ),
@@ -258,8 +258,8 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
                     prefixIcon: const Icon(Icons.child_care_rounded,
                         color: AppColors.slate400, size: 20),
                   ),
-                  value: _selectedProfile,
-                  items: (profileState as ProfileLoaded)
+                  initialValue: _selectedProfile,
+                  items: (profileState)
                       .profiles
                       .map((p) => DropdownMenuItem<ProfileModel>(
                             value: p,

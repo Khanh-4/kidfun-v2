@@ -471,7 +471,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               children: [
                 for (int i = 0; i < devices.length; i++) ...[
-                  if (i > 0) Divider(height: 1, color: AppColors.slate100),
+                  if (i > 0) const Divider(height: 1, color: AppColors.slate100),
                   _buildDeviceRow(devices[i]),
                 ],
               ],

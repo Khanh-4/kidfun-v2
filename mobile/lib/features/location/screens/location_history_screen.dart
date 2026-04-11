@@ -263,15 +263,15 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
           ),
 
           // Map legend
-          Padding(
+          const Padding(
             padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
                 _LegendDot(color: Colors.green, label: 'Bắt đầu'),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 _LegendDot(color: Colors.red, label: 'Kết thúc'),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 _LegendDot(color: Colors.blue, label: 'Đường đi'),
               ],
             ),

@@ -372,7 +372,7 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
       child: Column(
         children: [
           for (int i = 0; i < items.length; i++) ...[
-            if (i > 0) Divider(height: 1, color: AppColors.slate100),
+            if (i > 0) const Divider(height: 1, color: AppColors.slate100),
             _buildAppRow(items[i], i, maxSeconds, totalSeconds),
           ],
         ],
@@ -480,7 +480,7 @@ class _AppUsageReportScreenState extends State<AppUsageReportScreen>
             Container(
               width: 80,
               height: 80,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                   color: AppColors.slate100, shape: BoxShape.circle),
               child: const Icon(Icons.phone_android_rounded,
                   size: 40, color: AppColors.slate400),

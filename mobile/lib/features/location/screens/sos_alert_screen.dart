@@ -4,7 +4,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import 'package:intl/intl.dart';
-import '../../../core/constants/app_colors.dart';
 
 class SOSAlertScreen extends StatefulWidget {
   final String profileName;
