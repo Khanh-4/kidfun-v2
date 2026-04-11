@@ -64,7 +64,7 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
   }
 
   Color _statusColor(String? status) {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'RESOLVED':
         return AppColors.emerald400;
       case 'ACKNOWLEDGED':
@@ -75,7 +75,7 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
   }
 
   String _statusLabel(String? status) {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'RESOLVED':
         return 'Đã giải quyết';
       case 'ACKNOWLEDGED':

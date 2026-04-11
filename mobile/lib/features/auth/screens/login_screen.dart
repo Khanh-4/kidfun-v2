@@ -224,7 +224,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: GoogleFonts.nunito(color: AppColors.slate500, fontSize: 13),
           ),
         ),
-        Divider(height: 32, color: AppColors.slate200),
+        const Divider(height: 32, color: AppColors.slate200),
         TextButton.icon(
           onPressed: () => ref.read(roleProvider.notifier).clearRole(),
           icon: const Icon(Icons.swap_horiz, color: AppColors.slate400, size: 18),

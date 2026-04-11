@@ -5,7 +5,6 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import '../../../core/network/socket_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/location_repository.dart';
-import '../../../core/constants/app_colors.dart';
 
 class _MyPolygonClickListener extends mapbox.OnPolygonAnnotationClickListener {
   final Function(mapbox.PolygonAnnotation) onClick;
@@ -36,7 +35,7 @@ class _MapScreenState extends State<MapScreen> {
   final _locationRepo = LocationRepository(DioClient.instance);
 
   List<dynamic> _geofences = [];
-  Map<String, int> _annotationGeofenceMap = {};
+  final Map<String, int> _annotationGeofenceMap = {};
   bool _isAddingMode = false;
   double _newRadius = 500.0;
   mapbox.CircleAnnotation? _tempCenterMarker;

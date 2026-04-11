@@ -55,14 +55,38 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       profileName: profileName,
       geofenceName: geofenceName,
       isEnter: isEnter,
-      payload: 'GEOFENCE_EVENT',
-    );
+}
+
+void safelyNavigate(String location, Object? extra) {
+  void tryPush(int attempts) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      try {
+        final currentPath = GoRouter.of(ctx).routerDelegate.currentConfiguration.uri.path;
+        // Do not push yet if we are still on the splash loader
+        if (currentPath == '/splash') {
+          print('[FCM] ⏳ Still on splash, waiting...');
+        } else {
+          ctx.push(location, extra: extra);
+          return;
+        }
+      } catch (e) {
+        print('[FCM] ⚠️ Navigation failed, retrying... $e');
+      }
+    }
+    
+    if (attempts > 0) {
+      Future.delayed(const Duration(milliseconds: 300), () => tryPush(attempts - 1));
+    } else {
+      print('[FCM] ❌ Cannot navigate, context not available or timeout after retries');
+    }
   }
+  tryPush(25); // Try for up to 7.5 seconds
 }
 
 /// TC-13 B5 + TC-21 B4: Navigate to /sos-alert screen from an FCM RemoteMessage.
 /// Used by onMessageOpenedApp (background) and getInitialMessage (killed) handlers.
-void _navigateToSOSFromFCM(RemoteMessage message) {
+void navigateToSOSFromFCM(RemoteMessage message) {
   final type = message.data['type'];
   if (type != 'SOS_ALERT') return;
 
@@ -73,13 +97,7 @@ void _navigateToSOSFromFCM(RemoteMessage message) {
 
   print('[FCM] 🆘 Navigating to SOS alert screen. lat=$lat, lng=$lng, time=$sosTime');
 
-  final ctx = navigatorKey.currentContext;
-  if (ctx == null) {
-    print('[FCM] ⚠️ navigatorKey context not ready, skipping navigation');
-    return;
-  }
-
-  ctx.push('/sos-alert', extra: {
+  safelyNavigate('/sos-alert', {
     'profileName': 'Bé', // FCM payload doesn't carry profileName — show generic label
     'latitude': lat,
     'longitude': lng,
@@ -119,16 +137,14 @@ void main() async {
    }
 
    // === Init local notifications (foreground + data-only background) ===
-   await NotificationService.instance.init();
-   // When parent taps a local notification, navigate based on payload
-   NotificationService.instance.onNotificationTap = (payload) {
-     if (payload == null) return;
-     final ctx = navigatorKey.currentContext;
-     if (ctx == null) return;
-     if (payload == 'SOS_ALERT') {
-       // Navigate to SOS alert with minimal data — full data loaded via REST
-       Future.delayed(const Duration(milliseconds: 300), () {
-         ctx.push('/sos-alert', extra: {
+   // Passed onNotificationTap directly to init() to handle cold-start taps
+   await NotificationService.instance.init(
+     onNotificationTap: (payload) {
+       if (payload == null) return;
+       
+       if (payload == 'SOS_ALERT') {
+         // Navigate to SOS alert with minimal data — full data loaded via REST
+         safelyNavigate('/sos-alert', {
            'profileName': 'Bé',
            'latitude': 0.0,
            'longitude': 0.0,
@@ -136,9 +152,13 @@ void main() async {
            'phone': null,
            'sosTime': DateTime.now().toIso8601String(),
          });
-       });
+       }
+
+       if (payload == 'TIME_EXTENSION') {
+          safelyNavigate('/home', null);
+       }
      }
-   };
+   );
 
    // === Handle foreground notifications ===
    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -184,26 +204,30 @@ void main() async {
          payload: 'GEOFENCE_EVENT',
        );
      }
+
+      // Time Extension foreground
+      if (type == 'time_extension') {
+        final title = message.notification?.title ?? 'Xin thêm thời gian';
+        final body = message.notification?.body ?? 'Trẻ vừa gửi yêu cầu xin thêm thời gian sử dụng';
+        NotificationService.instance.showTimeExtensionNotification(
+          title: title,
+          body: body,
+          payload: 'TIME_EXTENSION',
+        );
+      }
    });
 
    // === TC-13 B5 + TC-21 B4: Handle notification tap when app is in background ===
    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
      print('[FCM] 🔔 Opened from background notification: ${message.data}');
-     // TC-13: Add delay so GoRouter finishes its initial navigation before we push.
-     // Without this, navigatorKey.currentContext may not yet be bound to a Navigator.
-     Future.delayed(const Duration(milliseconds: 1200), () {
-       _navigateToSOSFromFCM(message);
-     });
+     navigateToSOSFromFCM(message);
    });
 
    // === Handle notification tap when app was killed (cold start) ===
    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
    if (initialMessage != null) {
      print('[FCM] 🔔 Cold start via notification: ${initialMessage.data}');
-     // Delay to allow GoRouter to fully initialize before navigating
-     Future.delayed(const Duration(milliseconds: 1200), () {
-       _navigateToSOSFromFCM(initialMessage);
-     });
+     navigateToSOSFromFCM(initialMessage);
    }
 
   runApp(

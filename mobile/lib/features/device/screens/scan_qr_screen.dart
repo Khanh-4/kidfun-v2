@@ -53,8 +53,12 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
   void dispose() {
     _pulseCtrl.dispose();
     _controller.dispose();
-    for (final c in _codeControllers) c.dispose();
-    for (final f in _focusNodes) f.dispose();
+    for (final c in _codeControllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -119,7 +123,9 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
   String get _fullCode => _codeControllers.map((c) => c.text).join();
 
   void _clearCode() {
-    for (final c in _codeControllers) c.clear();
+    for (final c in _codeControllers) {
+      c.clear();
+    }
     _focusNodes.first.requestFocus();
     setState(() {});
   }
@@ -744,7 +750,9 @@ class _BouncingDotsState extends State<_BouncingDots>
 
   @override
   void dispose() {
-    for (final c in _ctrls) c.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 

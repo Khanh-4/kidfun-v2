@@ -163,7 +163,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
             Container(
               width: 80,
               height: 80,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                   color: AppColors.requestBg, shape: BoxShape.circle),
               child: const Icon(Icons.apps_rounded,
                   size: 40, color: AppColors.indigo600),
@@ -298,7 +298,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
       child: Column(
         children: [
           for (int i = 0; i < apps.length; i++) ...[
-            if (i > 0) Divider(height: 1, color: AppColors.slate100),
+            if (i > 0) const Divider(height: 1, color: AppColors.slate100),
             _buildAppTile(apps[i]),
           ],
         ],
@@ -364,7 +364,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
                 )
               : Switch(
                   value: isBlocked,
-                  activeColor: AppColors.danger,
+                  activeThumbColor: AppColors.danger,
                   inactiveThumbColor: AppColors.slate400,
                   onChanged: (_) => _toggleBlock(app),
                 ),

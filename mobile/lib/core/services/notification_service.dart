@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// NotificationService: wraps flutter_local_notifications for KidFun.
@@ -23,14 +22,20 @@ class NotificationService {
   static const String _sosChannelName = 'Cảnh báo SOS';
   static const String _geofenceChannelId = 'geofence_channel';
   static const String _geofenceChannelName = 'Geofence Events';
+  static const String _extensionChannelId = 'extension_channel';
+  static const String _extensionChannelName = 'Yêu cầu thời gian';
 
   // ── Notification IDs ───────────────────────────────────────────────────────
   static const int sosNotificationId = 1000;
   static const int geofenceNotificationId = 1001;
+  static const int extensionNotificationId = 1002;
 
   // ── Init ───────────────────────────────────────────────────────────────────
 
-  Future<void> init() async {
+  Future<void> init({Function(String?)? onNotificationTap}) async {
+    if (onNotificationTap != null) {
+      this.onNotificationTap = onNotificationTap;
+    }
     // Android: use @mipmap/launcher_icon (default Flutter icon)
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -50,7 +55,7 @@ class NotificationService {
     await _plugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (details) {
-        onNotificationTap?.call(details.payload);
+        this.onNotificationTap?.call(details.payload);
       },
     );
 
@@ -58,6 +63,7 @@ class NotificationService {
     if (Platform.isAndroid) {
       await _createSOSChannel();
       await _createGeofenceChannel();
+      await _createExtensionChannel();
     }
 
     print('🔔 [NOTIFICATION] NotificationService initialized');
@@ -84,6 +90,21 @@ class NotificationService {
       _geofenceChannelId,
       _geofenceChannelName,
       description: 'Thông báo khi trẻ vào hoặc rời vùng an toàn',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+  }
+
+  Future<void> _createExtensionChannel() async {
+    const channel = AndroidNotificationChannel(
+      _extensionChannelId,
+      _extensionChannelName,
+      description: 'Thông báo khi trẻ xin thêm thời gian sử dụng',
       importance: Importance.high,
       playSound: true,
       enableVibration: true,
@@ -182,5 +203,43 @@ class NotificationService {
     );
 
     print('🌍 [NOTIFICATION] Geofence notification shown: $title');
+  }
+
+  /// Khung hiển thị thông báo "Xin thêm giờ"
+  Future<void> showTimeExtensionNotification({
+    required String title,
+    required String body,
+    String payload = 'TIME_EXTENSION',
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      _extensionChannelId,
+      _extensionChannelName,
+      channelDescription: 'Thông báo khi trẻ xin thêm thời gian sử dụng',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _plugin.show(
+      extensionNotificationId,
+      title,
+      body,
+      details,
+      payload: payload,
+    );
+
+    print('⏳ [NOTIFICATION] Time extension notification shown: $title');
   }
 }

@@ -195,10 +195,12 @@ class _CreateProfileScreenState
               hintStyle: GoogleFonts.nunito(color: AppColors.slate400),
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'Vui lòng nhập tên';
-              if (value.trim().length > 50)
+              }
+              if (value.trim().length > 50) {
                 return 'Tên không được quá 50 ký tự';
+              }
               return null;
             },
           ),

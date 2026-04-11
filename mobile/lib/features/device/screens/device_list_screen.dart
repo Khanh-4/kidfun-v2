@@ -193,7 +193,7 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
                       Container(
                         width: 80,
                         height: 80,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.requestBg,
                           shape: BoxShape.circle,
                         ),
@@ -490,7 +490,7 @@ class _DeviceOptionsSheetState extends State<_DeviceOptionsSheet> {
             ],
           ),
           const SizedBox(height: 20),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           const SizedBox(height: 16),
           // Profile assignment
           Text('Gán hồ sơ',
@@ -521,7 +521,7 @@ class _DeviceOptionsSheetState extends State<_DeviceOptionsSheet> {
                 prefixIcon: const Icon(Icons.person_outline,
                     color: AppColors.slate400, size: 20),
               ),
-              value: _selectedProfileId,
+              initialValue: _selectedProfileId,
               items: widget.profiles
                   .map((p) => DropdownMenuItem<int>(
                         value: p.id,
@@ -554,7 +554,7 @@ class _DeviceOptionsSheetState extends State<_DeviceOptionsSheet> {
             ),
           ],
           const SizedBox(height: 20),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           const SizedBox(height: 12),
           SizedBox(
             height: AppTheme.btnHeightSm,

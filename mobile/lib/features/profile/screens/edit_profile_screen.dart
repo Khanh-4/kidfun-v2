@@ -298,10 +298,12 @@ class _EditProfileScreenState
               hintStyle: GoogleFonts.nunito(color: AppColors.slate400),
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'Vui lòng nhập tên';
-              if (value.trim().length > 50)
+              }
+              if (value.trim().length > 50) {
                 return 'Tên không được quá 50 ký tự';
+              }
               return null;
             },
           ),
@@ -381,7 +383,7 @@ class _EditProfileScreenState
                     fontWeight: FontWeight.w600,
                     color: AppColors.slate500)),
           ),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
             icon: Icons.timer_outlined,
             iconBg: AppColors.requestBg,
@@ -390,7 +392,7 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/time-limit?name=$name'),
           ),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
             icon: Icons.block_rounded,
             iconBg: AppColors.dangerBg,
@@ -399,7 +401,7 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/app-blocking?name=$name'),
           ),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
             icon: Icons.bar_chart_rounded,
             iconBg: const Color(0xFFF5F3FF),
@@ -408,7 +410,7 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/app-usage?name=$name'),
           ),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
             icon: Icons.map_outlined,
             iconBg: const Color(0xFFE0F2FE),
@@ -417,7 +419,7 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/location?name=$name'),
           ),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
             icon: Icons.history_rounded,
             iconBg: const Color(0xFFF1F5F9), // slate 100
@@ -426,7 +428,7 @@ class _EditProfileScreenState
             onTap: () => context.push(
                 '/profiles/$pid/location-history?name=$name'),
           ),
-          Divider(height: 1, color: AppColors.slate100),
+          const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
             icon: Icons.sos_rounded,
             iconBg: const Color(0xFFFFEEEE),

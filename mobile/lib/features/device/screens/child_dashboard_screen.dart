@@ -937,7 +937,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: Size(double.infinity, 50),
+                    minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -951,7 +951,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    minimumSize: Size(double.infinity, 50),
+                    minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -1534,7 +1534,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                         ],
                       )
                     : Text(
-                        '${used}/${max}ph',
+                        '$used/${max}ph',
                         style: GoogleFonts.nunito(
                           fontSize: 11,
                           color: Colors.white.withOpacity(0.60),

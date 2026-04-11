@@ -97,7 +97,7 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
                       Container(
                         width: 80,
                         height: 80,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.requestBg,
                           shape: BoxShape.circle,
                         ),

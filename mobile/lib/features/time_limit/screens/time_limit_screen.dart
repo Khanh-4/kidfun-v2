@@ -223,7 +223,7 @@ class _TimeLimitScreenState extends ConsumerState<TimeLimitScreen> {
                   const SizedBox(width: 8),
                   Switch(
                     value: limit.isActive,
-                    activeColor: AppColors.indigo600,
+                    activeThumbColor: AppColors.indigo600,
                     onChanged: (val) => notifier.updateDayLimit(
                         limit.dayOfWeek, limit.limitMinutes, val),
                   ),

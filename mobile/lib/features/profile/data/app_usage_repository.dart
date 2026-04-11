@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_constants.dart';
 
@@ -31,7 +30,7 @@ class AppUsageEntry {
     final h = usageSeconds ~/ 3600;
     final m = (usageSeconds % 3600) ~/ 60;
     if (h > 0) return '${h}g ${m}p';
-    if (m > 0) return '${m} phút';
+    if (m > 0) return '$m phút';
     return '${usageSeconds}s';
   }
 }
@@ -83,10 +82,11 @@ class AppUsageRepository {
     final dailyTotalsMap = data['dailyTotals'] as Map<String, dynamic>? ?? {};
     
     int totalWeeklySeconds = 0;
-    dailyTotalsMap.values.forEach((val) {
-      if (val is int) totalWeeklySeconds += val;
-      else if (val is double) totalWeeklySeconds += val.toInt();
-    });
+    for (var val in dailyTotalsMap.values) {
+      if (val is int) {
+        totalWeeklySeconds += val;
+      } else if (val is double) totalWeeklySeconds += val.toInt();
+    }
     
     final int dailyAverageSeconds = totalWeeklySeconds ~/ 7;
 

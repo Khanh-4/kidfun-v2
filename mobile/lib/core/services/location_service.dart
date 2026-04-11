@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter/widgets.dart';
 
 class LocationService {
   static final LocationService instance = LocationService._();
