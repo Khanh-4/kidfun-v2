@@ -449,11 +449,11 @@
 
 | Module | Tổng TC | Pass | Fail | Ghi chú |
 |--------|---------|------|------|---------|
-| GPS Tracking | 5 | | | |
-| Geofence | 7 | | | |
-| SOS | 9 | | | |
-| API Validation | 3 | | | |
-| **Tổng** | **24** | | | |
+| GPS Tracking | 5 | 5 | 0 | Đã test ✅ |
+| Geofence | 7 | 7 | 0 | Đã test ✅ |
+| SOS | 9 | 9 | 0 | Đã test ✅ (Bao gồm fix duplicate notification) |
+| API Validation | 3 | 3 | 0 | Đã test ✅ (Fix xong lỗi 500 audio upload) |
+| **Tổng** | **24** | **24** | **0** | **Hoàn tất Sprint 7** |
 
 ---
 
@@ -466,6 +466,7 @@
 | 3 | TC-06 | UI Dialog "Lưu vùng an toàn": nút "Hủy" (TextButton) nhỏ hơn nút "Lưu" (ElevatedButton) — UX không đồng nhất | 🟡 Medium | Antigravity | RESOLVED |
 | 4 | TC-08 | UI Dialog "Xóa vùng an toàn": Row Expanded bị OverflowBar co nhỏ nên 2 nút không bằng nhau | 🟡 Medium | Antigravity | RESOLVED |
 | 5 | TC-12 | Màn hình Lịch sử di chuyển không tự cập nhật Geofence Event khi có ENTER/EXIT real-time — phải chọn lại ngày mới hiện | 🟠 High | Antigravity | RESOLVED |
+| 6 | TC-24 | API `POST /api/child/sos` ném 500 error khi file upload bị sai định dạng (.jpg) hoặc quá dung lượng (Multer error không được catch) | 🟠 High | Antigravity | RESOLVED |
 
 > **Mức độ:** 🔴 Critical / 🟠 High / 🟡 Medium / 🟢 Low
 

@@ -56,6 +56,6 @@ router.post('/location', locationController.postLocation);
 const { uploadAudio } = require('../middleware/uploadMiddleware');
 const sosController = require('../controllers/sosController');
 // POST /api/child/sos - Child gửi SOS với audio (multipart/form-data, no auth)
-router.post('/sos', uploadAudio.single('audio'), sosController.createSOS);
+router.post('/sos', uploadAudio, sosController.createSOS);
 
 module.exports = router;
