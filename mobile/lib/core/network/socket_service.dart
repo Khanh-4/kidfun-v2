@@ -74,6 +74,9 @@ class SocketService {
 
   bool get isConnected => _socket?.connected ?? false;
 
+  /// 'parent' | 'child' | null — used to gate parent-only UI (SOS dialog, etc.)
+  String? get currentRole => _currentRole;
+
   IO.Socket get socket {
     if (_socket == null) {
       print('🚀 [SOCKET] Creating new IO.socket instance for ${ApiConstants.baseUrl}');
