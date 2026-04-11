@@ -180,7 +180,7 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
 
     return GestureDetector(
       onTap: () {
-        // TC-15 B6: Tap to open SOS detail with audio playback + map
+        // TC-15 B6 / TC-20 B4: Tap to open SOS detail with audio playback + map
         context.push('/sos-alert', extra: {
           'profileName': widget.profileName,
           'latitude': lat,
@@ -188,6 +188,8 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
           'audioUrl': audioUrl,
           'phone': null,
           'sosTime': createdAt,
+          'sosId': alert['id'],
+          'status': status,
         });
       },
       child: Container(

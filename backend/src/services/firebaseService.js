@@ -161,7 +161,15 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
     if (tokens.length === 0) return;
 
     const tokenStrings = tokens.map(t => t.token);
-    await sendToMultipleTokens(tokenStrings, title, body, data);
+    const result = await sendToMultipleTokens(tokenStrings, title, body, data);
+
+    // Cleanup stale tokens reported by FCM as invalid
+    if (result?.invalidTokens?.length > 0) {
+      await prisma.fCMToken.deleteMany({
+        where: { token: { in: result.invalidTokens } },
+      });
+      console.log(`🧹 [FCM] Cleaned ${result.invalidTokens.length} stale token(s) for userId ${userId}`);
+    }
   } catch (err) {
     console.error('Push to user failed:', err.message);
   }

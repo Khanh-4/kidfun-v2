@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import 'package:intl/intl.dart';
+import '../../../core/network/dio_client.dart';
 
 class SOSAlertScreen extends StatefulWidget {
   final String profileName;
@@ -13,6 +14,10 @@ class SOSAlertScreen extends StatefulWidget {
   final String? phone;
   /// ISO 8601 timestamp string from server (e.g. createdAt). Optional.
   final String? sosTime;
+  /// SOS alert ID từ server — dùng để acknowledge/resolve.
+  final int? sosId;
+  /// Trạng thái hiện tại: 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED'
+  final String? status;
 
   const SOSAlertScreen({
     super.key,
@@ -22,6 +27,8 @@ class SOSAlertScreen extends StatefulWidget {
     this.audioUrl,
     this.phone,
     this.sosTime,
+    this.sosId,
+    this.status,
   });
 
   @override
@@ -33,10 +40,13 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
   bool _isPlaying = false;
   mapbox.MapboxMap? _mapboxMap;
   mapbox.CircleAnnotationManager? _circleManager;
+  bool _isUpdating = false;
+  late String _currentStatus;
 
   @override
   void initState() {
     super.initState();
+    _currentStatus = widget.status ?? 'ACTIVE';
     _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() => _isPlaying = state == PlayerState.playing);
@@ -56,6 +66,39 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
       await _audioPlayer.pause();
     } else {
       await _audioPlayer.play(UrlSource(widget.audioUrl!));
+    }
+  }
+
+  Future<void> _updateSOSStatus(String action) async {
+    if (widget.sosId == null || _isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      await DioClient.instance.put('/api/sos/${widget.sosId}/$action');
+      final newStatus = action == 'acknowledge' ? 'ACKNOWLEDGED' : 'RESOLVED';
+      setState(() => _currentStatus = newStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newStatus == 'ACKNOWLEDGED' ? 'Đã xác nhận SOS' : 'Đã giải quyết SOS',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: newStatus == 'ACKNOWLEDGED' ? Colors.orange : Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi cập nhật trạng thái: $e',
+                style: GoogleFonts.nunito()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
     }
   }
 
@@ -152,6 +195,38 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                   label: const Text('Gọi điện cho bé',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
+                if (widget.sosId != null && _currentStatus == 'ACTIVE') ...[
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: _isUpdating ? null : () => _updateSOSStatus('acknowledge'),
+                    icon: _isUpdating
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.check_circle_outline),
+                    label: const Text('Đã nhận được SOS',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+                if (widget.sosId != null && _currentStatus == 'ACKNOWLEDGED') ...[
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: _isUpdating ? null : () => _updateSOSStatus('resolve'),
+                    icon: _isUpdating
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.task_alt),
+                    label: const Text('Đã giải quyết xong',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ],
             ),
           ),

@@ -51,7 +51,7 @@ exports.sendSOSPushNotification = async (user, profile, sos) => {
     const tokenStrings = tokens.map(t => t.token);
 
     // Override android channel sang sos_critical cho SOS
-    await sendToMultipleTokens(
+    const result = await sendToMultipleTokens(
       tokenStrings,
       `🆘 SOS KHẨN CẤP từ ${profile.profileName}`,
       'Con đang cần giúp đỡ! Nhấn để xem vị trí.',
@@ -59,6 +59,7 @@ exports.sendSOSPushNotification = async (user, profile, sos) => {
         type: 'SOS_ALERT',
         sosId: String(sos.id),
         profileId: String(profile.id),
+        profileName: profile.profileName,
         latitude: String(sos.latitude),
         longitude: String(sos.longitude),
       },
@@ -66,6 +67,14 @@ exports.sendSOSPushNotification = async (user, profile, sos) => {
 
     // Log riêng để dễ debug SOS
     console.log(`🆘 [FCM SOS] Sent to ${tokenStrings.length} token(s) for profile ${profile.profileName}`);
+
+    // Cleanup stale tokens reported by FCM as invalid
+    if (result?.invalidTokens?.length > 0) {
+      await prisma.fCMToken.deleteMany({
+        where: { token: { in: result.invalidTokens } },
+      });
+      console.log(`🧹 [FCM SOS] Cleaned ${result.invalidTokens.length} stale token(s) for userId ${user.id}`);
+    }
   } catch (err) {
     console.error('❌ [FCM SOS] Error:', err.message);
   }

@@ -138,6 +138,12 @@ void main() async {
      print('[FCM] Device token: $fcmToken');
    }
 
+   // Tự động cập nhật khi Firebase xoay vòng token (tránh stale tokens trên server)
+   FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+     await SecureStorage.saveFcmToken(newToken);
+     print('[FCM] Token refreshed, saved to storage: $newToken');
+   });
+
    // === Init local notifications (foreground + data-only background) ===
    // Passed onNotificationTap directly to init() to handle cold-start taps
    await NotificationService.instance.init(
