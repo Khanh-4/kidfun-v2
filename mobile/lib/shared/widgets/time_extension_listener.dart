@@ -198,8 +198,12 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
         print('🆘 [REST] Found active SOS for profile $profileName — showing alert dialog');
         if (!mounted) return;
 
-        // L2 FIX: Use Timer.run — same fix as _onSosAlert
-        Timer.run(() {
+        // TC-21 RACE FIX: Use a 1-second delay (instead of Timer.run / next-tick)
+        // so that the FCM notification navigation (safelyNavigate → ctx.push) has
+        // time to push '/sos-alert' onto the stack BEFORE the guard check runs.
+        // Without the delay, path was still '/home' at check time → dialog showed ON
+        // TOP of the SOS screen that was being pushed in parallel (race condition).
+        Timer(const Duration(milliseconds: 1000), () {
           if (!mounted) return;
           // Guard 2: Skip dialog if already on /sos-alert (arrived via notification tap)
           final ctx = widget.navigatorKey?.currentContext ?? context;
