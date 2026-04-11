@@ -27,6 +27,10 @@ exports.sendGeofencePushNotification = async (profile, geofence, eventType) => {
         eventType,
         profileId: String(profile.id),
         geofenceId: String(geofence.id),
+        // TC-09/10 FIX: include name fields so mobile handlers can build
+        // correct local notification text without falling back to 'Khu vực'
+        geofenceName: geofence.name,
+        profileName: profile.profileName,
       },
     });
   } catch (err) {

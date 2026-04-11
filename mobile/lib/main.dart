@@ -35,28 +35,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
   }
 
-  // TC-21: data-only SOS message — show local notification since Android won't auto-show
-  if (type == 'SOS_ALERT') {
-    await NotificationService.instance.init();
-    final profileName = message.data['profileName'] ?? 'Bé';
-    await NotificationService.instance.showSOSNotification(
-      profileName: profileName,
-      payload: 'SOS_ALERT',
-    );
-  }
-
-  // TC-09/10: data-only Geofence message — show local notification
-  if (type == 'GEOFENCE_EVENT') {
-    await NotificationService.instance.init();
-    final profileName = message.data['profileName'] ?? 'Bé';
-    final geofenceName = message.data['geofenceName'] ?? 'Khu vực';
-    final isEnter = message.data['eventType'] == 'ENTER';
-    await NotificationService.instance.showGeofenceNotification(
-      profileName: profileName,
-      geofenceName: geofenceName,
-      isEnter: isEnter,
-    );
-  }
+  // TC-21 / TC-09/10 NOTE: SOS_ALERT and GEOFENCE_EVENT notifications are intentionally
+  // NOT handled here. The FCM backend sends messages with a `notification` field, so
+  // Android/iOS auto-displays exactly 1 notification when the app is in background.
+  // Adding a local notification here would create a duplicate (2 notifications for 1 event).
+  // Foreground cases are handled in the FirebaseMessaging.onMessage listener in main().
 }
 
 void safelyNavigate(String location, Object? extra) {
