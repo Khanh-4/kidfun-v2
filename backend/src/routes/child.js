@@ -49,6 +49,10 @@ const blockedAppController = require('../controllers/blockedAppController');
 // GET /api/child/blocked-apps?deviceCode=XXX - Child lấy danh sách app bị chặn
 router.get('/blocked-apps', blockedAppController.getBlockedAppsForChild);
 
+const appTimeLimitController = require('../controllers/appTimeLimitController');
+// GET /api/child/app-time-limits?deviceCode=XXX — per-app limits với remaining hôm nay
+router.get('/app-time-limits', appTimeLimitController.getChildAppTimeLimits);
+
 const locationController = require('../controllers/locationController');
 // POST /api/child/location - Child gửi GPS (no auth)
 router.post('/location', locationController.postLocation);
