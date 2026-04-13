@@ -11,6 +11,8 @@ import io.flutter.plugin.common.MethodChannel
 import com.kidfun.mobile.helpers.UsageStatsHelper
 import com.kidfun.mobile.services.AppBlockerService
 import com.kidfun.mobile.services.KidFunService
+import com.kidfun.mobile.services.AppLimitChecker
+import com.kidfun.mobile.services.AppLimitInfo
 import com.kidfun.mobile.receivers.KidFunDeviceAdminReceiver
 
 class MainActivity : FlutterActivity() {
@@ -140,6 +142,24 @@ class MainActivity : FlutterActivity() {
                         AppBlockerService.blockedDomains.clear()
                         AppBlockerService.blockedDomains.addAll(domains.map { it.lowercase() })
                         android.util.Log.d("WebFilter", "🌐 Updated blocked domains: ${domains.size}")
+                        result.success(null)
+                    }
+
+                    "setAppTimeLimits" -> {
+                        val limits = call.argument<List<Map<String, Any>>>("limits") ?: emptyList()
+                        AppLimitChecker.limits.clear()
+                        AppLimitChecker.warnedApps.clear()
+                        for (l in limits) {
+                            val pkg = l["packageName"] as String
+                            AppLimitChecker.limits[pkg] = AppLimitInfo(
+                                packageName = pkg,
+                                appName = (l["appName"] as? String) ?: pkg,
+                                dailyLimitMinutes = (l["dailyLimitMinutes"] as Number).toInt(),
+                                usedSeconds = (l["usedSeconds"] as? Number)?.toInt() ?: 0,
+                                remainingSeconds = (l["remainingSeconds"] as? Number)?.toInt() ?: 0,
+                            )
+                        }
+                        android.util.Log.d("AppLimit", "⏰ Updated app limits: ${limits.size}")
                         result.success(null)
                     }
 

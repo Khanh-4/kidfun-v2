@@ -82,6 +82,24 @@ class AppBlockerService : AccessibilityService() {
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 return
             }
+
+            // 2. Per-app time limit check (Sprint 8)
+            if (AppLimitChecker.limits.containsKey(packageName)) {
+                val checker = AppLimitChecker(this)
+                when (checker.checkStatus(packageName)) {
+                    "BLOCKED" -> {
+                        android.util.Log.d("AppBlocker", "⏰ App time limit exceeded: $packageName")
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        return
+                    }
+                    "WARNING" -> {
+                        if (!AppLimitChecker.warnedApps.contains(packageName)) {
+                            AppLimitChecker.warnedApps.add(packageName)
+                            android.util.Log.d("AppBlocker", "⚠️ App time limit warning: $packageName")
+                        }
+                    }
+                }
+            }
         }
 
         // 2. Web URL blocking — monitor browser URL bar content
