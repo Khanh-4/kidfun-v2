@@ -50,6 +50,10 @@ model Profile {
   geofences     Geofence[]
   geofenceEvents GeofenceEvent[]
   sosAlerts     SOSAlert[]
+  appTimeLimits         AppTimeLimit[]
+  blockedCategories     BlockedCategory[]
+  customBlockedDomains  CustomBlockedDomain[]
+  schoolSchedule        SchoolSchedule?
 }
 
 model Device {
@@ -259,6 +263,124 @@ model LocationLog {
   device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@index([profileId, createdAt])
+}
+
+// ── Sprint 8: Per-app Time Limit ───────────────────────────────────────────
+
+model AppTimeLimit {
+  id                Int      @id @default(autoincrement())
+  profileId         Int
+  packageName       String
+  appName           String?
+  dailyLimitMinutes Int
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, packageName])
+}
+
+// ── Sprint 8: Web Filtering ────────────────────────────────────────────────
+
+model WebCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  displayName String
+  description String?
+
+  domains   WebCategoryDomain[]
+  blockedBy BlockedCategory[]
+}
+
+model WebCategoryDomain {
+  id         Int         @id @default(autoincrement())
+  categoryId Int
+  domain     String
+
+  category WebCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, domain])
+}
+
+model BlockedCategory {
+  id         Int      @id @default(autoincrement())
+  profileId  Int
+  categoryId Int
+  isBlocked  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category  WebCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  overrides CategoryOverride[]
+
+  @@unique([profileId, categoryId])
+}
+
+model CategoryOverride {
+  id                Int    @id @default(autoincrement())
+  blockedCategoryId Int
+  domain            String
+
+  blockedCategory BlockedCategory @relation(fields: [blockedCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([blockedCategoryId, domain])
+}
+
+model CustomBlockedDomain {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  domain    String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, domain])
+}
+
+// ── Sprint 8: School Mode ──────────────────────────────────────────────────
+
+model SchoolSchedule {
+  id                Int       @id @default(autoincrement())
+  profileId         Int       @unique
+  isEnabled         Boolean   @default(true)
+  templateStartTime String?
+  templateEndTime   String?
+  manualOverride    String?
+  overrideUntil     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  profile      Profile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  daySchedules SchoolDaySchedule[]
+  allowedApps  AllowedSchoolApp[]
+}
+
+model SchoolDaySchedule {
+  id         Int     @id @default(autoincrement())
+  scheduleId Int
+  dayOfWeek  Int
+  isEnabled  Boolean @default(true)
+  startTime  String
+  endTime    String
+
+  schedule SchoolSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, dayOfWeek])
+}
+
+model AllowedSchoolApp {
+  id          Int      @id @default(autoincrement())
+  scheduleId  Int
+  packageName String
+  appName     String?
+  createdAt   DateTime @default(now())
+
+  schedule SchoolSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, packageName])
 }
 
 model Geofence {
