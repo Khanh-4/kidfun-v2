@@ -102,6 +102,15 @@ class AppBlockerService : AccessibilityService() {
             }
         }
 
+        // 3. School Mode check (Sprint 8)
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            if (SchoolModeChecker.isActive && !SchoolModeChecker.isAppAllowed(packageName)) {
+                android.util.Log.d("AppBlocker", "📚 School mode blocked: $packageName")
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                return
+            }
+        }
+
         // 2. Web URL blocking — monitor browser URL bar content
         if (BROWSER_PACKAGES.contains(packageName) && blockedDomains.isNotEmpty()) {
             val root = rootInActiveWindow ?: return
