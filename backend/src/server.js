@@ -52,6 +52,7 @@ const fcmRoutes = require('./routes/fcm');
 const extensionRequestRoutes = require('./routes/extensionRequests');
 const geofenceRoutes = require('./routes/geofences');
 const sosRoutes = require('./routes/sos');
+const webFilteringRoutes = require('./routes/webFiltering');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -64,6 +65,7 @@ app.use('/api/fcm-tokens', fcmRoutes);
 app.use('/api/extension-requests', extensionRequestRoutes);
 app.use('/api/geofences', geofenceRoutes);
 app.use('/api/sos', sosRoutes);
+app.use('/api/web-categories', webFilteringRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
