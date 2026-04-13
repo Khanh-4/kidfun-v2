@@ -57,6 +57,10 @@ const webFilteringController = require('../controllers/webFilteringController');
 // GET /api/child/blocked-domains?deviceCode=XXX — danh sách blocked domains cuối cùng
 router.get('/blocked-domains', webFilteringController.getChildBlockedDomains);
 
+const schoolScheduleController = require('../controllers/schoolScheduleController');
+// GET /api/child/school-mode?deviceCode=XXX — trạng thái School Mode hiện tại
+router.get('/school-mode', schoolScheduleController.getChildSchoolMode);
+
 const locationController = require('../controllers/locationController');
 // POST /api/child/location - Child gửi GPS (no auth)
 router.post('/location', locationController.postLocation);

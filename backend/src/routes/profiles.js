@@ -80,6 +80,14 @@ router.post('/:id/app-time-limits', appTimeLimitController.upsertAppTimeLimit);
 // DELETE /api/profiles/:id/app-time-limits/:packageName
 router.delete('/:id/app-time-limits/:packageName', appTimeLimitController.deleteAppTimeLimit);
 
+const schoolScheduleController = require('../controllers/schoolScheduleController');
+// GET /api/profiles/:id/school-schedule
+router.get('/:id/school-schedule', schoolScheduleController.getSchedule);
+// PUT /api/profiles/:id/school-schedule — upsert template + overrides + allowed apps
+router.put('/:id/school-schedule', schoolScheduleController.upsertSchedule);
+// POST /api/profiles/:id/school-schedule/override — manual override (FORCE_ON/FORCE_OFF/CLEAR)
+router.post('/:id/school-schedule/override', schoolScheduleController.manualOverride);
+
 const webFilteringController = require('../controllers/webFilteringController');
 // GET  /api/profiles/:id/blocked-categories
 router.get('/:id/blocked-categories', webFilteringController.getBlockedCategories);
