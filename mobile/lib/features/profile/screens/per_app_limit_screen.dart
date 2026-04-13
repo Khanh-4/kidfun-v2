@@ -248,7 +248,7 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -268,7 +268,7 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
         border: Border.all(color: AppColors.slate200),
         boxShadow: [
           BoxShadow(
-            color: AppColors.slate900.withOpacity(0.04),
+            color: AppColors.slate900.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

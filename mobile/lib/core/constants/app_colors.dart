@@ -20,6 +20,7 @@ class AppColors {
   static const Color successBorder = Color(0xFFA7F3D0); // emerald-100
 
   static const Color warning       = Color(0xFFD97706); // amber-600
+  static const Color warningDark   = Color(0xFFB45309); // amber-700
   static const Color warningBg     = Color(0xFFFFFBEB); // amber-50
   static const Color warningBorder = Color(0xFFFDE68A); // amber-100
 
@@ -39,6 +40,7 @@ class AppColors {
   static const Color slate50  = Color(0xFFF8FAFC);
   static const Color slate100 = Color(0xFFF1F5F9);
   static const Color slate200 = Color(0xFFE2E8F0);
+  static const Color slate300 = Color(0xFFCBD5E1);
   static const Color slate400 = Color(0xFF94A3B8);
   static const Color slate500 = Color(0xFF64748B);
   static const Color slate600 = Color(0xFF475569);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/school_mode_repository.dart';
 
@@ -28,9 +29,7 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
   List<Map<String, dynamic>> _allowedApps = [];
   Map<String, dynamic> _dayOverrides = {};
 
-  final List<String> _daysOfWeek = ["Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7", "CN"];
-  // backend days might be 0-6 (Sun-Sat) or 1-7 (Mon-Sun).
-  // Assuming standard 1=Mon, 0=Sun. But we'll just map for UI manually or disable Sat/Sun by default.
+
 
   @override
   void initState() {
@@ -125,7 +124,7 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
     return Scaffold(
       backgroundColor: AppColors.slate50,
       appBar: AppBar(
-        title: Text('Chế độ học tập', overflow: TextOverflow.ellipsis),
+        title: const Text('Chế độ học tập', overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             icon: _isSaving
@@ -168,13 +167,13 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
-        border: Border.all(color: _isEnabled ? AppColors.indigo600.withOpacity(0.5) : AppColors.slate200),
+        border: Border.all(color: _isEnabled ? AppColors.indigo600.withValues(alpha: 0.5) : AppColors.slate200),
       ),
       child: SwitchListTile(
         title: Text('Bật chế độ học tập',
             style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: AppColors.slate800)),
         value: _isEnabled,
-        activeColor: AppColors.indigo600,
+        activeThumbColor: AppColors.indigo600,
         onChanged: (val) {
           setState(() => _isEnabled = val);
         },
@@ -310,7 +309,7 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
-        border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
