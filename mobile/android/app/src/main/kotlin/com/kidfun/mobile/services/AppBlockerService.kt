@@ -6,6 +6,7 @@ import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.kidfun.mobile.MainActivity
+import com.kidfun.mobile.helpers.BlockNotificationHelper
 
 class AppBlockerService : AccessibilityService() {
     companion object {
@@ -86,16 +87,18 @@ class AppBlockerService : AccessibilityService() {
             // 2. Per-app time limit check (Sprint 8)
             if (AppLimitChecker.limits.containsKey(packageName)) {
                 val checker = AppLimitChecker(this)
+                val appName = checker.getAppName(packageName)
                 when (checker.checkStatus(packageName)) {
                     "BLOCKED" -> {
-                        android.util.Log.d("AppBlocker", "⏰ App time limit exceeded: $packageName")
+                        BlockNotificationHelper.showTimeLimitExceeded(this, appName, packageName)
                         performGlobalAction(GLOBAL_ACTION_HOME)
                         return
                     }
                     "WARNING" -> {
                         if (!AppLimitChecker.warnedApps.contains(packageName)) {
                             AppLimitChecker.warnedApps.add(packageName)
-                            android.util.Log.d("AppBlocker", "⚠️ App time limit warning: $packageName")
+                            val remainingMinutes = checker.getRemainingMinutes(packageName)
+                            BlockNotificationHelper.showTimeLimitWarning(this, appName, remainingMinutes)
                         }
                     }
                 }
@@ -105,7 +108,7 @@ class AppBlockerService : AccessibilityService() {
         // 3. School Mode check (Sprint 8)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             if (SchoolModeChecker.isActive && !SchoolModeChecker.isAppAllowed(packageName)) {
-                android.util.Log.d("AppBlocker", "📚 School mode blocked: $packageName")
+                BlockNotificationHelper.showSchoolModeBlock(this, packageName)
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 return
             }
@@ -118,7 +121,7 @@ class AppBlockerService : AccessibilityService() {
             val domain = extractDomain(url) ?: return
 
             if (isDomainBlocked(domain)) {
-                android.util.Log.d("AppBlocker", "🚫 Blocked URL: $url (domain: $domain)")
+                BlockNotificationHelper.showWebBlocked(this, domain)
                 performGlobalAction(GLOBAL_ACTION_HOME)
             }
         }
