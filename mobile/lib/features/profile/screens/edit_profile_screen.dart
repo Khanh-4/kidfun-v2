@@ -403,6 +403,33 @@ class _EditProfileScreenState
           ),
           const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
+            icon: Icons.hourglass_bottom_rounded,
+            iconBg: AppColors.warningBg,
+            iconColor: AppColors.warningDark,
+            label: 'Giới hạn thời gian theo app',
+            onTap: () => context.push(
+                '/profiles/$pid/app-time-limits?name=$name'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.language_rounded,
+            iconBg: const Color(0xFFFFF7ED),
+            iconColor: const Color(0xFFEA580C),
+            label: 'Lọc web',
+            onTap: () => context.push(
+                '/profiles/$pid/web-filtering?name=$name'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.school_rounded,
+            iconBg: const Color(0xFFF0FDF4),
+            iconColor: const Color(0xFF16A34A),
+            label: 'Lịch học',
+            onTap: () => context.push(
+                '/profiles/$pid/school-schedule?name=$name'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
             icon: Icons.bar_chart_rounded,
             iconBg: const Color(0xFFF5F3FF),
             iconColor: AppColors.purple600,
