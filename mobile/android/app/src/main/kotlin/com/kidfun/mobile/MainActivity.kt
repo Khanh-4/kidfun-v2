@@ -135,6 +135,14 @@ class MainActivity : FlutterActivity() {
                         result.success(KidFunService.isScreenOn)
                     }
 
+                    "setBlockedDomains" -> {
+                        val domains = call.argument<List<String>>("domains") ?: emptyList()
+                        AppBlockerService.blockedDomains.clear()
+                        AppBlockerService.blockedDomains.addAll(domains.map { it.lowercase() })
+                        android.util.Log.d("WebFilter", "🌐 Updated blocked domains: ${domains.size}")
+                        result.success(null)
+                    }
+
                     else -> result.notImplemented()
                 }
             }
