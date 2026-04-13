@@ -1,6 +1,8 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const socketService = require('../services/socketService');
+const { sendPushToUser } = require('../services/firebaseService');
 
 // Helper: get VN date as 'YYYY-MM-DD' string (avoids UTC/VN day-boundary mismatch on Railway)
 const getVnDateStr = (date = new Date()) => {
@@ -69,6 +71,67 @@ const syncAppUsage = async (req, res) => {
     );
 
     const synced = results.filter(Boolean).length;
+
+    // ── Check per-app time limits → send warning/exceeded notifications ─────
+    try {
+      const appLimits = await prisma.appTimeLimit.findMany({
+        where: { profileId: device.profile.id, isActive: true },
+      });
+
+      if (appLimits.length > 0) {
+        const io = socketService.io;
+        const profileName = device.profile.profileName;
+
+        for (const limit of appLimits) {
+          const usage = usageData.find((u) => u.packageName === limit.packageName);
+          if (!usage) continue;
+
+          const usedSeconds = usage.usageSeconds;
+          const limitSeconds = limit.dailyLimitMinutes * 60;
+          const remainingSeconds = limitSeconds - usedSeconds;
+
+          // Vừa hết giờ (usedSeconds >= limit và lần trước chưa hết)
+          if (remainingSeconds <= 0) {
+            // Push FCM cho Parent
+            await sendPushToUser(device.userId, {
+              title: `⏰ ${profileName}: ${limit.appName || limit.packageName} đã hết giờ`,
+              body: `Đã dùng hết ${limit.dailyLimitMinutes} phút giới hạn hôm nay.`,
+              data: {
+                type: 'app_limit_exceeded',
+                profileId: String(device.profile.id),
+                packageName: limit.packageName,
+              },
+            });
+
+            // Socket.IO cho Parent
+            if (io) {
+              io.to(`family_${device.userId}`).emit('appTimeLimitExceeded', {
+                profileId: device.profile.id,
+                profileName,
+                packageName: limit.packageName,
+                appName: limit.appName,
+                limitMinutes: limit.dailyLimitMinutes,
+              });
+            }
+          } else if (remainingSeconds <= 5 * 60 && remainingSeconds > 0) {
+            // Cảnh báo còn 5 phút — Socket.IO cho Parent
+            if (io) {
+              io.to(`family_${device.userId}`).emit('appTimeLimitWarning', {
+                profileId: device.profile.id,
+                profileName,
+                packageName: limit.packageName,
+                appName: limit.appName,
+                remainingMinutes: Math.ceil(remainingSeconds / 60),
+              });
+            }
+          }
+        }
+      }
+    } catch (notifyErr) {
+      // Lỗi notify không được làm fail toàn bộ sync
+      console.error('app limit notification error:', notifyErr.message);
+    }
+
     return sendSuccess(res, { synced }, 201);
   } catch (err) {
     console.error('syncAppUsage error:', err);
