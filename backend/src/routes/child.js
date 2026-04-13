@@ -61,6 +61,10 @@ const schoolScheduleController = require('../controllers/schoolScheduleControlle
 // GET /api/child/school-mode?deviceCode=XXX — trạng thái School Mode hiện tại
 router.get('/school-mode', schoolScheduleController.getChildSchoolMode);
 
+const childPolicyController = require('../controllers/childPolicyController');
+// GET /api/child/policy?deviceCode=XXX — tất cả policy trong 1 request (khuyên dùng)
+router.get('/policy', childPolicyController.getChildPolicy);
+
 const locationController = require('../controllers/locationController');
 // POST /api/child/location - Child gửi GPS (no auth)
 router.post('/location', locationController.postLocation);
