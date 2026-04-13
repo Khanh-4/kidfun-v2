@@ -72,4 +72,12 @@ const sosController = require('../controllers/sosController');
 // GET /api/profiles/:id/sos — lịch sử SOS alerts
 router.get('/:id/sos', sosController.getSOSHistory);
 
+const appTimeLimitController = require('../controllers/appTimeLimitController');
+// GET  /api/profiles/:id/app-time-limits
+router.get('/:id/app-time-limits', appTimeLimitController.getAppTimeLimits);
+// POST /api/profiles/:id/app-time-limits — upsert
+router.post('/:id/app-time-limits', appTimeLimitController.upsertAppTimeLimit);
+// DELETE /api/profiles/:id/app-time-limits/:packageName
+router.delete('/:id/app-time-limits/:packageName', appTimeLimitController.deleteAppTimeLimit);
+
 module.exports = router;
