@@ -19,6 +19,8 @@ import 'features/profile/screens/create_profile_screen.dart';
 import 'features/profile/screens/edit_profile_screen.dart';
 import 'features/profile/screens/app_blocking_screen.dart';
 import 'features/profile/screens/per_app_limit_screen.dart';
+import 'features/profile/screens/school_mode_screen.dart';
+import 'features/profile/screens/web_filter_screen.dart';
 import 'features/profile/screens/app_usage_report_screen.dart';
 import 'features/device/providers/device_provider.dart';
 import 'features/device/screens/device_list_screen.dart';
@@ -639,6 +641,22 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = int.parse(state.pathParameters['id']!);
               final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
               return AppBlockingScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/school-schedule',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return SchoolModeScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/web-filtering',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return WebFilterScreen(profileId: id, profileName: name);
             },
           ),
           GoRoute(

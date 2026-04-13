@@ -417,7 +417,7 @@ class _EditProfileScreenState
             iconColor: const Color(0xFFEA580C),
             label: 'Lọc web',
             onTap: () => context.push(
-                '/profiles/$pid/web-filter?name=$name'),
+                '/profiles/$pid/web-filtering?name=$name'),
           ),
           const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
