@@ -80,4 +80,21 @@ router.post('/:id/app-time-limits', appTimeLimitController.upsertAppTimeLimit);
 // DELETE /api/profiles/:id/app-time-limits/:packageName
 router.delete('/:id/app-time-limits/:packageName', appTimeLimitController.deleteAppTimeLimit);
 
+const webFilteringController = require('../controllers/webFilteringController');
+// GET  /api/profiles/:id/blocked-categories
+router.get('/:id/blocked-categories', webFilteringController.getBlockedCategories);
+// POST /api/profiles/:id/blocked-categories — toggle category on/off
+router.post('/:id/blocked-categories', webFilteringController.toggleCategory);
+// POST /api/profiles/:id/blocked-categories/:categoryId/override — whitelist 1 domain
+// DELETE /api/profiles/:id/blocked-categories/:categoryId/override/:domain
+// NOTE: đặt /override/:domain TRƯỚC /override để tránh conflict route
+router.delete('/:id/blocked-categories/:categoryId/override/:domain', webFilteringController.removeCategoryOverride);
+router.post('/:id/blocked-categories/:categoryId/override', webFilteringController.addCategoryOverride);
+// GET  /api/profiles/:id/custom-blocked-domains
+router.get('/:id/custom-blocked-domains', webFilteringController.getCustomDomains);
+// POST /api/profiles/:id/custom-blocked-domains
+router.post('/:id/custom-blocked-domains', webFilteringController.addCustomDomain);
+// DELETE /api/profiles/:id/custom-blocked-domains/:domain
+router.delete('/:id/custom-blocked-domains/:domain', webFilteringController.deleteCustomDomain);
+
 module.exports = router;

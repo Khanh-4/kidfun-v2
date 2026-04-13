@@ -53,6 +53,10 @@ const appTimeLimitController = require('../controllers/appTimeLimitController');
 // GET /api/child/app-time-limits?deviceCode=XXX — per-app limits với remaining hôm nay
 router.get('/app-time-limits', appTimeLimitController.getChildAppTimeLimits);
 
+const webFilteringController = require('../controllers/webFilteringController');
+// GET /api/child/blocked-domains?deviceCode=XXX — danh sách blocked domains cuối cùng
+router.get('/blocked-domains', webFilteringController.getChildBlockedDomains);
+
 const locationController = require('../controllers/locationController');
 // POST /api/child/location - Child gửi GPS (no auth)
 router.post('/location', locationController.postLocation);
