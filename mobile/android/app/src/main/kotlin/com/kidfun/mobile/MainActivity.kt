@@ -13,6 +13,7 @@ import com.kidfun.mobile.services.AppBlockerService
 import com.kidfun.mobile.services.KidFunService
 import com.kidfun.mobile.services.AppLimitChecker
 import com.kidfun.mobile.services.AppLimitInfo
+import com.kidfun.mobile.services.SchoolModeChecker
 import com.kidfun.mobile.receivers.KidFunDeviceAdminReceiver
 
 class MainActivity : FlutterActivity() {
@@ -160,6 +161,22 @@ class MainActivity : FlutterActivity() {
                             )
                         }
                         android.util.Log.d("AppLimit", "⏰ Updated app limits: ${limits.size}")
+                        result.success(null)
+                    }
+
+                    "setSchoolMode" -> {
+                        val isActive = call.argument<Boolean>("isActive") ?: false
+                        val allowedApps = call.argument<List<String>>("allowedApps") ?: emptyList()
+                        val startTime = call.argument<String>("startTime")
+                        val endTime = call.argument<String>("endTime")
+
+                        SchoolModeChecker.isActive = isActive
+                        SchoolModeChecker.allowedPackages.clear()
+                        SchoolModeChecker.allowedPackages.addAll(allowedApps)
+                        SchoolModeChecker.startTime = startTime
+                        SchoolModeChecker.endTime = endTime
+
+                        android.util.Log.d("SchoolMode", "📚 Active=$isActive, allowed=${allowedApps.size}")
                         result.success(null)
                     }
 
