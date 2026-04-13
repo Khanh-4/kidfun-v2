@@ -11,6 +11,7 @@ import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/services/native_service.dart';
+import '../../../core/services/policy_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../location/data/location_repository.dart';
 import '../data/child_repository.dart';
@@ -172,6 +173,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 5: Sync blocked apps from server
     _syncBlockedApps();
+
+    // Sprint 8: Sync all policies (web filtering, per-app limits, school mode)
+    if (_deviceCode != null) {
+      PolicyService.instance.syncAll(_deviceCode!);
+    }
 
     // NOTE: Screen state polling moved to _initSession() — it must start AFTER
     // session is established, otherwise resume/pause API calls will 404.
@@ -782,6 +788,25 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     socket.on('blockedAppsUpdated', (data) async {
       print('🔔 [SOCKET] blockedAppsUpdated received — re-syncing blocked apps');
       await _syncBlockedApps();
+    });
+
+    // Sprint 8: Web filtering, per-app limits, school mode real-time sync
+    socket.off('blockedDomainsUpdated');
+    socket.on('blockedDomainsUpdated', (data) async {
+      print('🔔 [SOCKET] blockedDomainsUpdated — syncing policies');
+      if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
+    });
+
+    socket.off('appTimeLimitUpdated');
+    socket.on('appTimeLimitUpdated', (data) async {
+      print('🔔 [SOCKET] appTimeLimitUpdated — syncing policies');
+      if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
+    });
+
+    socket.off('schoolScheduleUpdated');
+    socket.on('schoolScheduleUpdated', (data) async {
+      print('🔔 [SOCKET] schoolScheduleUpdated — syncing policies');
+      if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
     });
 
     socket.off('locationRequested');

@@ -99,4 +99,35 @@ class NativeService {
   static Future<bool> isScreenOn() async {
     return await _channel.invokeMethod('isScreenOn') as bool;
   }
+
+  // ── Sprint 8: Web Filtering ──────────────────────────────────────────────
+
+  /// Gửi danh sách domain bị chặn xuống native AccessibilityService
+  static Future<void> setBlockedDomains(List<String> domains) async {
+    await _channel.invokeMethod('setBlockedDomains', {'domains': domains});
+  }
+
+  // ── Sprint 8: Per-app Time Limits ────────────────────────────────────────
+
+  /// Gửi per-app time limits xuống native AppLimitChecker
+  static Future<void> setAppTimeLimits(List<Map<String, dynamic>> limits) async {
+    await _channel.invokeMethod('setAppTimeLimits', {'limits': limits});
+  }
+
+  // ── Sprint 8: School Mode ───────────────────────────────────────────────
+
+  /// Cập nhật trạng thái School Mode xuống native SchoolModeChecker
+  static Future<void> setSchoolMode({
+    required bool isActive,
+    List<String> allowedApps = const [],
+    String? startTime,
+    String? endTime,
+  }) async {
+    await _channel.invokeMethod('setSchoolMode', {
+      'isActive': isActive,
+      'allowedApps': allowedApps,
+      'startTime': startTime,
+      'endTime': endTime,
+    });
+  }
 }
