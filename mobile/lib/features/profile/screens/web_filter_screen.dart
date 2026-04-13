@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/web_filter_repository.dart';
 
@@ -157,7 +158,7 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
     return Scaffold(
       backgroundColor: AppColors.slate50,
       appBar: AppBar(
-        title: Text('Lọc nội dung web', overflow: TextOverflow.ellipsis),
+        title: const Text('Lọc nội dung web', overflow: TextOverflow.ellipsis),
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.indigo600,
@@ -204,7 +205,7 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(AppTheme.radiusCardMd),
-              border: Border.all(color: isBlocked ? AppColors.danger.withOpacity(0.3) : AppColors.slate200),
+              border: Border.all(color: isBlocked ? AppColors.danger.withValues(alpha: 0.3) : AppColors.slate200),
             ),
             child: ExpansionTile(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusCardMd)),
@@ -218,7 +219,7 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
                   style: GoogleFonts.nunito(fontSize: 12, color: AppColors.slate400)),
               trailing: Switch(
                 value: isBlocked,
-                activeColor: AppColors.danger,
+                activeThumbColor: AppColors.danger,
                 onChanged: (val) => _toggleCategory(cat['categoryId'] ?? cat['id'], isBlocked),
               ),
               children: [
@@ -247,7 +248,7 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.public_off_rounded, size: 50, color: AppColors.slate300),
+                      const Icon(Icons.public_off_rounded, size: 50, color: AppColors.slate300),
                       const SizedBox(height: 16),
                       Text('Chưa có danh sách riêng',
                           style: GoogleFonts.nunito(fontSize: 16, color: AppColors.slate600, fontWeight: FontWeight.bold)),
@@ -296,7 +297,7 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -2))
             ],
           ),
           child: SafeArea(

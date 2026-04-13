@@ -277,7 +277,7 @@ class _EditProfileScreenState
         border: Border.all(color: AppColors.slate200),
         boxShadow: [
           BoxShadow(
-            color: AppColors.slate900.withOpacity(0.06),
+            color: AppColors.slate900.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -366,7 +366,7 @@ class _EditProfileScreenState
         border: Border.all(color: AppColors.slate200),
         boxShadow: [
           BoxShadow(
-            color: AppColors.slate900.withOpacity(0.06),
+            color: AppColors.slate900.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
