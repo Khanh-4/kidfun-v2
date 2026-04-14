@@ -28,4 +28,7 @@ class ApiConstants {
   
   // Device status endpoint (Sprint 3)
   static String deviceStatus(int deviceId) => '/api/devices/$deviceId/status';
+
+  // Web filtering endpoints (Sprint 8)
+  static const String webCategories = '/api/web-categories';
 }
