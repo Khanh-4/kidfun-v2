@@ -28,9 +28,10 @@ class AppLimitChecker(private val context: Context) {
     fun checkStatus(packageName: String): String {
         val limit = limits[packageName] ?: return "OK"
 
-        // Lấy usage hôm nay (foreground time, realtime từ UsageStatsManager)
-        val currentUsedSeconds = getTodayUsageSeconds(packageName)
-        val actualUsed = limit.usedSeconds + currentUsedSeconds  // cộng từ server + live
+        // Dùng UsageStatsManager (real-time) làm nguồn chính.
+        // limit.usedSeconds từ server có thể stale — lấy max để tránh undercount.
+        val deviceUsed = getTodayUsageSeconds(packageName)
+        val actualUsed = maxOf(limit.usedSeconds, deviceUsed)
         val actualRemaining = limit.dailyLimitMinutes * 60 - actualUsed
 
         return when {
@@ -45,9 +46,9 @@ class AppLimitChecker(private val context: Context) {
      */
     fun getRemainingMinutes(packageName: String): Int {
         val limit = limits[packageName] ?: return 999
-        val currentUsedSeconds = getTodayUsageSeconds(packageName)
-        val actualUsed = limit.usedSeconds + currentUsedSeconds
-        return Math.max(0, (limit.dailyLimitMinutes * 60 - actualUsed) / 60)
+        val deviceUsed = getTodayUsageSeconds(packageName)
+        val actualUsed = maxOf(limit.usedSeconds, deviceUsed)
+        return maxOf(0, (limit.dailyLimitMinutes * 60 - actualUsed) / 60)
     }
 
     /**
