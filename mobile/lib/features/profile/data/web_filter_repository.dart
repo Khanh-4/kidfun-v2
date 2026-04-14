@@ -8,7 +8,23 @@ class WebFilterRepository {
   Future<List<Map<String, dynamic>>> getBlockedCategories(int profileId) async {
     try {
       final response = await _dio.get('${ApiConstants.profiles}/$profileId/blocked-categories');
-      return List<Map<String, dynamic>>.from(response.data['data']);
+      // Backend returns: { data: { blockedCategories: [ { id, categoryId, isBlocked, category: { id, name, displayName }, overrides: [] } ] } }
+      final raw = List<dynamic>.from(response.data['data']['blockedCategories'] ?? []);
+      return raw.map<Map<String, dynamic>>((e) {
+        final cat = e['category'] as Map<String, dynamic>? ?? {};
+        final overrides = List<Map<String, dynamic>>.from(
+          (e['overrides'] as List? ?? []).map((o) => Map<String, dynamic>.from(o)),
+        );
+        return {
+          'id': e['categoryId'],         // categoryId used as primary key in toggleCategory
+          'categoryId': e['categoryId'],
+          'blockedRecordId': e['id'],    // actual DB row id
+          'name': cat['name'] ?? '',
+          'displayName': cat['displayName'] ?? cat['name'] ?? '',
+          'isBlocked': e['isBlocked'] ?? false,
+          'overrides': overrides,
+        };
+      }).toList();
     } catch (e) {
       throw _handleError(e, 'Lỗi tải danh mục chặn');
     }
@@ -52,7 +68,10 @@ class WebFilterRepository {
   Future<List<Map<String, dynamic>>> getCustomDomains(int profileId) async {
     try {
       final response = await _dio.get('${ApiConstants.profiles}/$profileId/custom-blocked-domains');
-      return List<Map<String, dynamic>>.from(response.data['data']);
+      // Backend returns: { data: { domains: [...] } }
+      return List<Map<String, dynamic>>.from(
+        (response.data['data']['domains'] ?? []).map((e) => Map<String, dynamic>.from(e)),
+      );
     } catch (e) {
       throw _handleError(e, 'Lỗi tải danh sách domain chặn thủ công');
     }
