@@ -53,16 +53,35 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
       final blockedCategories = results[1];
       final customDomains = results[2];
 
+      // Build override map: categoryId → List<domain> đang được whitelist
+      final overrideMap = <int, List<String>>{};
+      for (final b in blockedCategories) {
+        if (b['isBlocked'] == true) {
+          final catId = b['categoryId'] as int;
+          final overrides = (b['overrides'] as List?)
+                  ?.map((o) => (o['domain'] ?? '').toString())
+                  .where((d) => d.isNotEmpty)
+                  .toList() ??
+              [];
+          overrideMap[catId] = overrides;
+        }
+      }
+
       // Tạo set categoryId bị chặn để merge nhanh
       final blockedIds = {
         for (final b in blockedCategories)
           if (b['isBlocked'] == true) b['categoryId'] as int,
       };
 
-      // Merge: tất cả categories + trạng thái blocked
+      // Merge: tất cả categories + trạng thái blocked + overrides
       final merged = allCategories.map((cat) {
-        final isBlocked = blockedIds.contains(cat['categoryId']);
-        return {...cat, 'isBlocked': isBlocked};
+        final catId = cat['categoryId'] as int;
+        final isBlocked = blockedIds.contains(catId);
+        return {
+          ...cat,
+          'isBlocked': isBlocked,
+          'overrideDomains': isBlocked ? (overrideMap[catId] ?? []) : <String>[],
+        };
       }).toList();
 
       setState(() {
@@ -193,6 +212,27 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
     }
   }
 
+  /// Thêm / xoá override cho 1 domain trong category đang bị chặn.
+  /// [shouldOverride] = true → whitelist domain (cho phép truy cập dù category bị chặn)
+  /// [shouldOverride] = false → xoá whitelist (domain bị chặn trở lại)
+  Future<void> _toggleDomainOverride(int categoryId, String domain, bool shouldOverride) async {
+    try {
+      if (shouldOverride) {
+        await _repository.addCategoryOverride(widget.profileId, categoryId, domain);
+      } else {
+        await _repository.removeCategoryOverride(widget.profileId, categoryId, domain);
+      }
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Lỗi: $e', style: GoogleFonts.nunito()),
+          backgroundColor: AppColors.danger,
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -265,18 +305,117 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
                 onChanged: (val) => _toggleCategory(cat['categoryId'] ?? cat['id'], isBlocked),
               ),
               children: [
-                Container(
-                  color: AppColors.slate50,
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    'Khi bật, tất cả trang web thuộc danh mục này sẽ bị chặn truy cập trên trình duyệt của máy con.',
-                    style: GoogleFonts.nunito(fontSize: 13, color: AppColors.slate500),
-                  ),
-                ),
+                _buildCategoryDomainsList(cat),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// Expandable domain list bên trong ExpansionTile của mỗi category.
+  /// - Khi category ĐANG chặn: hiển thị switch bên cạnh domain → tắt switch = whitelist domain đó
+  /// - Khi category chưa chặn: chỉ hiển thị danh sách domain (read-only)
+  Widget _buildCategoryDomainsList(Map<String, dynamic> cat) {
+    final domains = List<String>.from(cat['domains'] ?? []);
+    final bool isBlocked = cat['isBlocked'] ?? false;
+    final overrideDomains = List<String>.from(cat['overrideDomains'] ?? []);
+    final catId = cat['categoryId'] as int;
+
+    if (domains.isEmpty) {
+      return Container(
+        color: AppColors.slate50,
+        padding: const EdgeInsets.all(12),
+        child: Text('Không có domain nào trong danh mục này.',
+            style: GoogleFonts.nunito(fontSize: 12, color: AppColors.slate400)),
+      );
+    }
+
+    return Container(
+      color: AppColors.slate50,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header hint
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 13, color: AppColors.slate400),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    isBlocked
+                        ? 'Tắt switch để cho phép truy cập từng domain dù danh mục bị chặn.'
+                        : 'Bật danh mục để chặn các trang web dưới đây.',
+                    style: GoogleFonts.nunito(fontSize: 11, color: AppColors.slate400),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Domain list — constrained height with internal scroll
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              itemCount: domains.length,
+              itemBuilder: (context, i) {
+                final domain = domains[i];
+                final isOverridden = overrideDomains.contains(domain);
+                // domainBlocked = true nghĩa là domain này VẪN BỊ chặn (chưa được whitelist)
+                final domainBlocked = !isOverridden;
+
+                return SizedBox(
+                  height: 36,
+                  child: Row(
+                    children: [
+                      Icon(
+                        isBlocked && !domainBlocked
+                            ? Icons.check_circle_outline_rounded
+                            : Icons.language_rounded,
+                        size: 13,
+                        color: isBlocked && !domainBlocked
+                            ? AppColors.success
+                            : AppColors.slate400,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          domain,
+                          style: GoogleFonts.nunito(
+                            fontSize: 12,
+                            color: isBlocked && domainBlocked
+                                ? AppColors.slate700
+                                : AppColors.slate400,
+                            decoration: isBlocked && domainBlocked
+                                ? null
+                                : TextDecoration.lineThrough,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isBlocked)
+                        Transform.scale(
+                          scale: 0.75,
+                          child: Switch(
+                            value: domainBlocked,
+                            activeColor: AppColors.danger,
+                            inactiveThumbColor: AppColors.success,
+                            inactiveTrackColor: AppColors.success.withValues(alpha: 0.3),
+                            onChanged: (val) =>
+                                _toggleDomainOverride(catId, domain, !val),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

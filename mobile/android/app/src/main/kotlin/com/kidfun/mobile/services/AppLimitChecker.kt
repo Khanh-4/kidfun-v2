@@ -22,17 +22,34 @@ class AppLimitChecker(private val context: Context) {
     }
 
     /**
-     * Kiểm tra xem app có vượt/gần vượt limit chưa
+     * Kiểm tra xem app có vượt/gần vượt limit chưa.
+     *
+     * Nguồn dữ liệu:
+     * - [limit.usedSeconds] / [limit.remainingSeconds]: server tính từ UsageLog (sync mỗi 5 phút)
+     * - [getTodayUsageSeconds]: UsageStatsManager real-time trên device (API 21+)
+     * - [getRealTimeOffset]: giây đã trôi qua kể từ khi app lên foreground (session hiện tại)
+     *
+     * Quy tắc:
+     * - Nếu UsageStats có dữ liệu (> 0): dùng trực tiếp — nó đã bao gồm session hiện tại,
+     *   KHÔNG cộng thêm realTimeOffset (sẽ đếm 2 lần).
+     * - Nếu UsageStats trả về 0 (emulator hoặc chưa có quyền): dùng
+     *   server's remainingSeconds trừ đi thời gian đã trôi qua kể từ khi app lên foreground.
+     *
      * Return: "OK" | "WARNING" | "BLOCKED"
      */
     fun checkStatus(packageName: String): String {
         val limit = limits[packageName] ?: return "OK"
 
-        // Dùng UsageStatsManager (real-time) làm nguồn chính.
-        // limit.usedSeconds từ server có thể stale — lấy max để tránh undercount.
-        val deviceUsed = getTodayUsageSeconds(packageName) + getRealTimeOffset(packageName)
-        val actualUsed = maxOf(limit.usedSeconds, deviceUsed)
-        val actualRemaining = limit.dailyLimitMinutes * 60 - actualUsed
+        val deviceUsed = getTodayUsageSeconds(packageName)
+        val actualRemaining = if (deviceUsed > 0) {
+            // UsageStats hoạt động — dùng device data, không cộng thêm offset (tránh double-count)
+            limit.dailyLimitMinutes * 60 - deviceUsed
+        } else {
+            // UsageStats không có dữ liệu (emulator / thiếu quyền) — dùng server remaining
+            limit.remainingSeconds - getRealTimeOffset(packageName)
+        }
+
+        android.util.Log.d("AppLimit", "📊 checkStatus pkg=$packageName deviceUsed=${deviceUsed}s serverRemaining=${limit.remainingSeconds}s actualRemaining=${actualRemaining}s")
 
         return when {
             actualRemaining <= 0 -> "BLOCKED"
@@ -46,9 +63,13 @@ class AppLimitChecker(private val context: Context) {
      */
     fun getRemainingMinutes(packageName: String): Int {
         val limit = limits[packageName] ?: return 999
-        val deviceUsed = getTodayUsageSeconds(packageName) + getRealTimeOffset(packageName)
-        val actualUsed = maxOf(limit.usedSeconds, deviceUsed)
-        return maxOf(0, (limit.dailyLimitMinutes * 60 - actualUsed) / 60)
+        val deviceUsed = getTodayUsageSeconds(packageName)
+        val actualRemaining = if (deviceUsed > 0) {
+            limit.dailyLimitMinutes * 60 - deviceUsed
+        } else {
+            limit.remainingSeconds - getRealTimeOffset(packageName)
+        }
+        return maxOf(0, actualRemaining / 60)
     }
 
     /**
