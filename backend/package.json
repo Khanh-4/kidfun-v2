@@ -11,7 +11,8 @@
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",
-    "seed:demo": "node prisma/seed-demo.js"
+    "seed:demo": "node prisma/seed-demo.js",
+    "seed:categories": "node prisma/seed-web-categories.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
