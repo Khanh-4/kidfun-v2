@@ -3,6 +3,8 @@ package com.kidfun.mobile.services
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.kidfun.mobile.MainActivity
@@ -17,6 +19,7 @@ class AppBlockerService : AccessibilityService() {
         // forceCheckForeground() to detect the current app without querying UsageStatsManager
         // (which is unreliable in short time windows).
         var lastForegroundPackage: String? = null
+        var lastForegroundStartTime: Long = 0L
 
         /**
          * Full lock mode: khi hết giờ, chặn TẤT CẢ app trừ KidFun.
@@ -45,6 +48,22 @@ class AppBlockerService : AccessibilityService() {
             "com.android.systemui",           // Status bar, notification shade
             "com.android.settings",           // Needed briefly for permission screens
         )
+
+        // Interval (ms) cho periodic per-app limit check khi app đang ở foreground
+        private const val APP_LIMIT_CHECK_INTERVAL_MS = 30_000L
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * Periodic runnable: check app đang foreground mỗi 30s để bắt warning/block
+     * kể cả khi không có window-state-change event nào.
+     */
+    private val periodicAppLimitCheck = object : Runnable {
+        override fun run() {
+            checkForegroundAppLimit()
+            handler.postDelayed(this, APP_LIMIT_CHECK_INTERVAL_MS)
+        }
     }
 
     override fun onServiceConnected() {
@@ -56,9 +75,12 @@ class AppBlockerService : AccessibilityService() {
                          AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
                          AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
+                    AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
             notificationTimeout = 100
         }
+        // Bắt đầu periodic check ngay sau khi service kết nối
+        handler.postDelayed(periodicAppLimitCheck, APP_LIMIT_CHECK_INTERVAL_MS)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -68,7 +90,10 @@ class AppBlockerService : AccessibilityService() {
         // 1. App-level blocking (TYPE_WINDOW_STATE_CHANGED only)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             // Always update foreground tracking, even for non-blocked apps
-            lastForegroundPackage = packageName
+            if (lastForegroundPackage != packageName) {
+                lastForegroundPackage = packageName
+                lastForegroundStartTime = System.currentTimeMillis()
+            }
 
             if (isFullLockMode) {
                 // Full lock: block EVERYTHING except KidFun and essential system UI
@@ -84,25 +109,8 @@ class AppBlockerService : AccessibilityService() {
                 return
             }
 
-            // 2. Per-app time limit check (Sprint 8)
-            if (AppLimitChecker.limits.containsKey(packageName)) {
-                val checker = AppLimitChecker(this)
-                val appName = checker.getAppName(packageName)
-                when (checker.checkStatus(packageName)) {
-                    "BLOCKED" -> {
-                        BlockNotificationHelper.showTimeLimitExceeded(this, appName, packageName)
-                        performGlobalAction(GLOBAL_ACTION_HOME)
-                        return
-                    }
-                    "WARNING" -> {
-                        if (!AppLimitChecker.warnedApps.contains(packageName)) {
-                            AppLimitChecker.warnedApps.add(packageName)
-                            val remainingMinutes = checker.getRemainingMinutes(packageName)
-                            BlockNotificationHelper.showTimeLimitWarning(this, appName, remainingMinutes)
-                        }
-                    }
-                }
-            }
+            // 2. Per-app time limit check (Sprint 8) — dùng chung logic với periodic check
+            checkForegroundAppLimit()
         }
 
         // 3. School Mode check (Sprint 8)
@@ -116,10 +124,16 @@ class AppBlockerService : AccessibilityService() {
 
         // 2. Web URL blocking — monitor browser URL bar content
         if (BROWSER_PACKAGES.contains(packageName) && blockedDomains.isNotEmpty()) {
-            val root = rootInActiveWindow ?: return
-            val url = extractUrl(root, packageName) ?: return
-            val domain = extractDomain(url) ?: return
+            // Thử lấy URL từ event text trước (nhanh hơn, Chrome đôi khi đặt URL ở đây)
+            val eventText = event.text?.firstOrNull()?.toString()
+            val urlFromEvent = if (!eventText.isNullOrBlank() && looksLikeUrl(eventText)) eventText else null
 
+            val url = urlFromEvent ?: run {
+                val root = rootInActiveWindow ?: return
+                extractUrl(root, packageName)
+            } ?: return
+
+            val domain = extractDomain(url) ?: return
             if (isDomainBlocked(domain)) {
                 BlockNotificationHelper.showWebBlocked(this, domain)
                 performGlobalAction(GLOBAL_ACTION_HOME)
@@ -129,11 +143,13 @@ class AppBlockerService : AccessibilityService() {
 
     /**
      * Extract URL text from browser's URL-bar by searching for known resource IDs.
-     * Each major browser uses a different view ID for the address bar.
+     * Falls back to tree traversal if no known ID matches (handles Chrome version changes).
      */
     private fun extractUrl(root: AccessibilityNodeInfo, pkg: String): String? {
         val urlBarIds = listOf(
-            "$pkg:id/url_bar",                                 // Chrome
+            "$pkg:id/url_bar",                                 // Chrome ≤ 114
+            "$pkg:id/omnibox_text",                            // Chrome 115+
+            "$pkg:id/search_box_text",                         // Chrome (some builds)
             "$pkg:id/mozac_browser_toolbar_url_view",          // Firefox
             "$pkg:id/location_bar_edit_text",                  // Samsung Internet
             "$pkg:id/url_field",                               // Opera / generic
@@ -146,7 +162,34 @@ class AppBlockerService : AccessibilityService() {
                 if (!text.isNullOrBlank()) return text
             }
         }
+
+        // Fallback: duyệt cây accessibility tìm EditText chứa URL
+        return findUrlInTree(root)
+    }
+
+    /**
+     * Duyệt cây AccessibilityNodeInfo tìm node EditText/TextView chứa URL.
+     * Chrome đôi khi expose URL qua content description của node thay vì text.
+     */
+    private fun findUrlInTree(node: AccessibilityNodeInfo?): String? {
+        if (node == null) return null
+        val className = node.className?.toString() ?: ""
+        if (className.contains("EditText") || className.contains("TextView")) {
+            val text = node.text?.toString()
+            if (!text.isNullOrBlank() && looksLikeUrl(text)) return text
+            val desc = node.contentDescription?.toString()
+            if (!desc.isNullOrBlank() && looksLikeUrl(desc)) return desc
+        }
+        for (i in 0 until node.childCount) {
+            val result = findUrlInTree(node.getChild(i))
+            if (result != null) return result
+        }
         return null
+    }
+
+    private fun looksLikeUrl(text: String): Boolean {
+        return text.startsWith("http://") || text.startsWith("https://") ||
+            (text.contains(".") && !text.contains(" ") && text.length > 4)
     }
 
     /**
@@ -211,12 +254,39 @@ class AppBlockerService : AccessibilityService() {
         startActivity(intent)
     }
 
+    /**
+     * Kiểm tra app đang foreground có bị limit không.
+     * Được gọi bởi periodicAppLimitCheck mỗi 30s và bởi onAccessibilityEvent.
+     */
+    private fun checkForegroundAppLimit() {
+        val pkg = lastForegroundPackage ?: return
+        if (!AppLimitChecker.limits.containsKey(pkg)) return
+        if (isFullLockMode) return  // Full lock đã handle riêng
+
+        val checker = AppLimitChecker(this)
+        val appName = checker.getAppName(pkg)
+        when (checker.checkStatus(pkg)) {
+            "BLOCKED" -> {
+                BlockNotificationHelper.showTimeLimitExceeded(this, appName, pkg)
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            }
+            "WARNING" -> {
+                if (!AppLimitChecker.warnedApps.contains(pkg)) {
+                    AppLimitChecker.warnedApps.add(pkg)
+                    val remainingMinutes = checker.getRemainingMinutes(pkg)
+                    BlockNotificationHelper.showTimeLimitWarning(this, appName, remainingMinutes)
+                }
+            }
+        }
+    }
+
     override fun onInterrupt() {
         isEnabled = false
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        handler.removeCallbacks(periodicAppLimitCheck)
         isEnabled = false
         instance = null
     }

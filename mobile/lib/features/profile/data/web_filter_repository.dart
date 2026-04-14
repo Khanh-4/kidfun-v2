@@ -5,6 +5,28 @@ import 'package:dio/dio.dart';
 class WebFilterRepository {
   final _dio = DioClient.instance;
 
+  /// Lấy tất cả categories từ server (dùng cho UI danh mục đen)
+  Future<List<Map<String, dynamic>>> getAllCategories() async {
+    try {
+      final response = await _dio.get(ApiConstants.webCategories);
+      final raw = List<dynamic>.from(response.data['data']['categories'] ?? []);
+      return raw.map<Map<String, dynamic>>((e) {
+        final domains = (e['domains'] as List? ?? []);
+        return {
+          'id': e['id'],
+          'categoryId': e['id'],
+          'name': e['name'] ?? '',
+          'displayName': e['displayName'] ?? e['name'] ?? '',
+          'description': e['description'] ?? '',
+          'domainCount': domains.length,
+          'isBlocked': false, // will be merged with blocked status
+        };
+      }).toList();
+    } catch (e) {
+      throw _handleError(e, 'Lỗi tải danh mục web');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getBlockedCategories(int profileId) async {
     try {
       final response = await _dio.get('${ApiConstants.profiles}/$profileId/blocked-categories');

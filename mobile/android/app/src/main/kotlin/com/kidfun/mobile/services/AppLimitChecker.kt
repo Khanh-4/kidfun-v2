@@ -28,9 +28,10 @@ class AppLimitChecker(private val context: Context) {
     fun checkStatus(packageName: String): String {
         val limit = limits[packageName] ?: return "OK"
 
-        // Lấy usage hôm nay (foreground time, realtime từ UsageStatsManager)
-        val currentUsedSeconds = getTodayUsageSeconds(packageName)
-        val actualUsed = limit.usedSeconds + currentUsedSeconds  // cộng từ server + live
+        // Dùng UsageStatsManager (real-time) làm nguồn chính.
+        // limit.usedSeconds từ server có thể stale — lấy max để tránh undercount.
+        val deviceUsed = getTodayUsageSeconds(packageName) + getRealTimeOffset(packageName)
+        val actualUsed = maxOf(limit.usedSeconds, deviceUsed)
         val actualRemaining = limit.dailyLimitMinutes * 60 - actualUsed
 
         return when {
@@ -45,9 +46,9 @@ class AppLimitChecker(private val context: Context) {
      */
     fun getRemainingMinutes(packageName: String): Int {
         val limit = limits[packageName] ?: return 999
-        val currentUsedSeconds = getTodayUsageSeconds(packageName)
-        val actualUsed = limit.usedSeconds + currentUsedSeconds
-        return Math.max(0, (limit.dailyLimitMinutes * 60 - actualUsed) / 60)
+        val deviceUsed = getTodayUsageSeconds(packageName) + getRealTimeOffset(packageName)
+        val actualUsed = maxOf(limit.usedSeconds, deviceUsed)
+        return maxOf(0, (limit.dailyLimitMinutes * 60 - actualUsed) / 60)
     }
 
     /**
@@ -76,5 +77,13 @@ class AppLimitChecker(private val context: Context) {
             android.util.Log.e("AppLimitChecker", "Error querying usage stats: ${e.message}")
             0
         }
+    }
+
+    private fun getRealTimeOffset(packageName: String): Int {
+        if (packageName == AppBlockerService.lastForegroundPackage && AppBlockerService.lastForegroundStartTime > 0) {
+            val offset = (System.currentTimeMillis() - AppBlockerService.lastForegroundStartTime) / 1000
+            if (offset > 0) return offset.toInt()
+        }
+        return 0
     }
 }
