@@ -18,7 +18,8 @@ class PolicyService {
   Future<void> syncAll(String deviceCode) async {
     try {
       final response = await _dio.get('/api/child/policy?deviceCode=$deviceCode');
-      final data = response.data;
+      // Backend wraps all responses: { success: true, data: { appTimeLimits, blockedDomains, schoolMode } }
+      final data = response.data['data'] as Map<String, dynamic>?;
 
       if (data == null) {
         debugPrint('⚠️ [POLICY] No data returned from server');
