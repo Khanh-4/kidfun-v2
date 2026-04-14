@@ -12,13 +12,18 @@ class WebFilterRepository {
       final raw = List<dynamic>.from(response.data['data']['categories'] ?? []);
       return raw.map<Map<String, dynamic>>((e) {
         final domains = (e['domains'] as List? ?? []);
+        final domainList = domains
+            .map((d) => (d['domain'] ?? '').toString())
+            .where((d) => d.isNotEmpty)
+            .toList();
         return {
           'id': e['id'],
           'categoryId': e['id'],
           'name': e['name'] ?? '',
           'displayName': e['displayName'] ?? e['name'] ?? '',
           'description': e['description'] ?? '',
-          'domainCount': domains.length,
+          'domainCount': domainList.length,
+          'domains': domainList,
           'isBlocked': false, // will be merged with blocked status
         };
       }).toList();
