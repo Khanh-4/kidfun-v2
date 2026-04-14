@@ -161,10 +161,12 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
         title: const Text('Lọc nội dung web', overflow: TextOverflow.ellipsis),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.indigo600,
-          unselectedLabelColor: AppColors.slate500,
-          indicatorColor: AppColors.indigo600,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           labelStyle: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 15),
+          unselectedLabelStyle: GoogleFonts.nunito(fontWeight: FontWeight.w500, fontSize: 15),
           tabs: const [
             Tab(text: 'Danh mục đen'),
             Tab(text: 'Miền tự chọn'),

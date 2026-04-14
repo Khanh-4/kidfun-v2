@@ -118,8 +118,8 @@ const getChildPolicy = async (req, res) => {
     }
 
     return sendSuccess(res, {
-      appTimeLimits: { limits: appTimeLimits },
-      blockedDomains: { domains: domainsArray, count: domainsArray.length },
+      appTimeLimits,
+      blockedDomains: domainsArray,
       schoolMode,
     });
   } catch (err) {

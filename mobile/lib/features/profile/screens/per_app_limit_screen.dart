@@ -100,33 +100,61 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+            // Lưu
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  final val = int.tryParse(controller.text.trim());
+                  if (val != null && val > 0) {
+                    Navigator.pop(ctx, val);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Vui lòng nhập số phút hợp lệ', style: GoogleFonts.nunito()),
+                    ));
+                  }
+                },
+                child: Text('Lưu', style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+            if (currentLimit != null) ...[
+              const SizedBox(height: 10),
+              // Xoá giới hạn
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    side: const BorderSide(color: AppColors.danger),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, -1),
+                  child: Text('Xoá giới hạn',
+                      style: GoogleFonts.nunito(color: AppColors.danger, fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            // Hủy
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: const BorderSide(color: AppColors.slate300),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Hủy', style: GoogleFonts.nunito(color: AppColors.slate600, fontSize: 15)),
+              ),
+            ),
           ],
         ),
-        actions: [
-          if (currentLimit != null)
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, -1), // sentinel: remove
-              child: Text('Xóa giới hạn',
-                  style: GoogleFonts.nunito(color: AppColors.danger, fontWeight: FontWeight.bold)),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Hủy', style: GoogleFonts.nunito()),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final val = int.tryParse(controller.text.trim());
-              if (val != null && val > 0) {
-                Navigator.pop(ctx, val);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Vui lòng nhập số phút hợp lệ', style: GoogleFonts.nunito()),
-                ));
-              }
-            },
-            child: Text('Lưu', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
 
@@ -175,7 +203,7 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
     return Scaffold(
       backgroundColor: AppColors.slate50,
       appBar: AppBar(
-        title: Text('Giới hạn app — ${widget.profileName}',
+        title: Text('Giới hạn thời gian dùng ứng dụng — ${widget.profileName}',
             overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(

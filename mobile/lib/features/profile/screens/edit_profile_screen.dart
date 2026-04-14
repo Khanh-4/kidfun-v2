@@ -406,7 +406,7 @@ class _EditProfileScreenState
             icon: Icons.hourglass_bottom_rounded,
             iconBg: AppColors.warningBg,
             iconColor: AppColors.warningDark,
-            label: 'Giới hạn thời gian theo app',
+            label: 'Giới hạn thời gian dùng ứng dụng',
             onTap: () => context.push(
                 '/profiles/$pid/app-time-limits?name=$name'),
           ),
