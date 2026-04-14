@@ -19,6 +19,7 @@ class AppBlockerService : AccessibilityService() {
         // forceCheckForeground() to detect the current app without querying UsageStatsManager
         // (which is unreliable in short time windows).
         var lastForegroundPackage: String? = null
+        var lastForegroundStartTime: Long = 0L
 
         /**
          * Full lock mode: khi hết giờ, chặn TẤT CẢ app trừ KidFun.
@@ -74,7 +75,8 @@ class AppBlockerService : AccessibilityService() {
                          AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
                          AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
+                    AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
             notificationTimeout = 100
         }
         // Bắt đầu periodic check ngay sau khi service kết nối
@@ -88,7 +90,10 @@ class AppBlockerService : AccessibilityService() {
         // 1. App-level blocking (TYPE_WINDOW_STATE_CHANGED only)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             // Always update foreground tracking, even for non-blocked apps
-            lastForegroundPackage = packageName
+            if (lastForegroundPackage != packageName) {
+                lastForegroundPackage = packageName
+                lastForegroundStartTime = System.currentTimeMillis()
+            }
 
             if (isFullLockMode) {
                 // Full lock: block EVERYTHING except KidFun and essential system UI

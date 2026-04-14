@@ -103,17 +103,36 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
           keyboardType: TextInputType.url,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Hủy', style: GoogleFonts.nunito(color: AppColors.slate600)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final val = controller.text.trim();
-              if (val.isNotEmpty) Navigator.pop(ctx, val);
-            },
-            child: Text('Thêm', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-          ),
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    final val = controller.text.trim();
+                    if (val.isNotEmpty) Navigator.pop(ctx, val);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.indigo600,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: Text('Thêm', style: GoogleFonts.nunito(fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.slate200),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: Text('Hủy', style: GoogleFonts.nunito(color: AppColors.slate600, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          )
         ],
       ),
     );
