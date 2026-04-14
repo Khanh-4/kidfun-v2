@@ -61,6 +61,7 @@ class AppBlockerService : AccessibilityService() {
      */
     private val periodicAppLimitCheck = object : Runnable {
         override fun run() {
+            android.util.Log.d("AppLimit", "⏱ periodicCheck fired — foreground=${lastForegroundPackage}, limits=${AppLimitChecker.limits.size}")
             checkForegroundAppLimit()
             handler.postDelayed(this, APP_LIMIT_CHECK_INTERVAL_MS)
         }
@@ -265,8 +266,11 @@ class AppBlockerService : AccessibilityService() {
 
         val checker = AppLimitChecker(this)
         val appName = checker.getAppName(pkg)
-        when (checker.checkStatus(pkg)) {
+        val status = checker.checkStatus(pkg)
+        android.util.Log.d("AppLimit", "🔍 check pkg=$pkg status=$status remaining=${checker.getRemainingMinutes(pkg)}min")
+        when (status) {
             "BLOCKED" -> {
+                android.util.Log.d("AppLimit", "🚫 BLOCKING $pkg — time limit exceeded")
                 BlockNotificationHelper.showTimeLimitExceeded(this, appName, pkg)
                 performGlobalAction(GLOBAL_ACTION_HOME)
             }
@@ -274,6 +278,7 @@ class AppBlockerService : AccessibilityService() {
                 if (!AppLimitChecker.warnedApps.contains(pkg)) {
                     AppLimitChecker.warnedApps.add(pkg)
                     val remainingMinutes = checker.getRemainingMinutes(pkg)
+                    android.util.Log.d("AppLimit", "⚠️ WARNING $pkg — ${remainingMinutes}min remaining")
                     BlockNotificationHelper.showTimeLimitWarning(this, appName, remainingMinutes)
                 }
             }
