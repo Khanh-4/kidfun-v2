@@ -380,6 +380,14 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ],
         ),
       );
+      return; // Re-check sẽ được gọi khi app resume sau khi user bật trong Settings
+    }
+
+    // Android 13+: request POST_NOTIFICATIONS permission tại runtime
+    // Nếu không có permission này, tất cả notification từ BlockNotificationHelper sẽ silently fail
+    final notifStatus = await Permission.notification.status;
+    if (notifStatus.isDenied) {
+      await Permission.notification.request();
     }
 
     // Ask for location permission

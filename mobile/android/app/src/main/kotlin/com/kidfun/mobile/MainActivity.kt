@@ -119,7 +119,21 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
-                    "isAccessibilityEnabled" -> result.success(AppBlockerService.isEnabled)
+                    "isAccessibilityEnabled" -> {
+                        // Dùng Settings.Secure thay vì static flag để tránh race condition
+                        // khi process restart trước khi onServiceConnected() kịp fire.
+                        val enabledServices = android.provider.Settings.Secure.getString(
+                            contentResolver,
+                            android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                        ) ?: ""
+                        val target = android.content.ComponentName(
+                            this, AppBlockerService::class.java
+                        ).flattenToString()
+                        val isEnabled = enabledServices.split(":").any {
+                            it.trim().equals(target, ignoreCase = true)
+                        }
+                        result.success(isEnabled)
+                    }
 
                     "requestAccessibilityPermission" -> {
                         val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
