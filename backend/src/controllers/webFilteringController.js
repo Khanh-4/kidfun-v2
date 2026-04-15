@@ -95,11 +95,23 @@ const addCategoryOverride = async (req, res) => {
       return sendError(res, 'Category not configured for this profile', 404, 'NOT_FOUND');
     }
 
-    const override = await prisma.categoryOverride.upsert({
-      where: { blockedCategoryId_domain: { blockedCategoryId: blocked.id, domain } },
-      update: {},
-      create: { blockedCategoryId: blocked.id, domain },
-    });
+    let override;
+    try {
+      override = await prisma.categoryOverride.upsert({
+        where: { blockedCategoryId_domain: { blockedCategoryId: blocked.id, domain } },
+        update: {},
+        create: { blockedCategoryId: blocked.id, domain },
+      });
+    } catch (upsertErr) {
+      if (upsertErr.code === 'P2002') {
+        // Race condition: concurrent request already inserted the same record
+        override = await prisma.categoryOverride.findUnique({
+          where: { blockedCategoryId_domain: { blockedCategoryId: blocked.id, domain } },
+        });
+      } else {
+        throw upsertErr;
+      }
+    }
 
     await notifyChildDomainsUpdated(profileId);
     return sendSuccess(res, { override }, 201);
