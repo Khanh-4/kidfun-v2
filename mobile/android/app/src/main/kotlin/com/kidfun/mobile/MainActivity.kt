@@ -190,7 +190,11 @@ class MainActivity : FlutterActivity() {
                         SchoolModeChecker.startTime = startTime
                         SchoolModeChecker.endTime = endTime
 
-                        android.util.Log.d("SchoolMode", "📚 Active=$isActive, allowed=${allowedApps.size}")
+                        android.util.Log.d("SchoolMode", "📚 Active=$isActive, allowed=${allowedApps.size}, packages=${allowedApps.joinToString()}")
+                        // Force-kick any non-allowed app already in foreground
+                        if (isActive) {
+                            AppBlockerService.instance?.forceCheckSchoolMode()
+                        }
                         result.success(null)
                     }
 
