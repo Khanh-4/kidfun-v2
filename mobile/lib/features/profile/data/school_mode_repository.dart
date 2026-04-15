@@ -27,7 +27,7 @@ class SchoolModeRepository {
       await _dio.post(
         '${ApiConstants.profiles}/$profileId/school-schedule/override',
         data: {
-          'overrideType': overrideType,
+          'action': overrideType,  // backend expects 'action', not 'overrideType'
           if (durationMinutes != null) 'durationMinutes': durationMinutes,
         },
       );

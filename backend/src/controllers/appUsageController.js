@@ -39,6 +39,29 @@ const syncAppUsage = async (req, res) => {
     const todayStr = getVnDateStr();
     const today = parseDateStr(todayStr);
 
+    // ── Fetch appLimits + prevUsage BEFORE upsert ──────────────────────────
+    // Cần prevUsage để detect "first crossing" (prev < limit, new >= limit)
+    // và tránh gửi FCM lặp lại mỗi 5 phút sau khi app đã hết giờ.
+    const appLimits = await prisma.appTimeLimit.findMany({
+      where: { profileId: device.profile.id, isActive: true },
+    });
+
+    let prevUsageMap = {};
+    if (appLimits.length > 0) {
+      const limitPkgs = appLimits.map((l) => l.packageName);
+      const prevLogs = await prisma.appUsageLog.findMany({
+        where: {
+          profileId: device.profile.id,
+          deviceId: device.id,
+          date: today,
+          packageName: { in: limitPkgs },
+        },
+        select: { packageName: true, usageSeconds: true },
+      });
+      prevUsageMap = Object.fromEntries(prevLogs.map((l) => [l.packageName, l.usageSeconds]));
+    }
+
+    // ── Upsert usage logs ───────────────────────────────────────────────────
     const results = await Promise.all(
       usageData.map((usage) => {
         if (!usage.packageName || typeof usage.usageSeconds !== 'number') return null;
@@ -74,10 +97,6 @@ const syncAppUsage = async (req, res) => {
 
     // ── Check per-app time limits → send warning/exceeded notifications ─────
     try {
-      const appLimits = await prisma.appTimeLimit.findMany({
-        where: { profileId: device.profile.id, isActive: true },
-      });
-
       if (appLimits.length > 0) {
         const io = socketService.io;
         const profileName = device.profile.profileName;
@@ -87,12 +106,12 @@ const syncAppUsage = async (req, res) => {
           if (!usage) continue;
 
           const usedSeconds = usage.usageSeconds;
+          const prevUsedSeconds = prevUsageMap[limit.packageName] ?? 0;
           const limitSeconds = limit.dailyLimitMinutes * 60;
           const remainingSeconds = limitSeconds - usedSeconds;
 
-          // Vừa hết giờ (usedSeconds >= limit và lần trước chưa hết)
-          if (remainingSeconds <= 0) {
-            // Push FCM cho Parent
+          if (remainingSeconds <= 0 && prevUsedSeconds < limitSeconds) {
+            // First crossing: lần đầu vượt limit trong ngày → notify 1 lần duy nhất
             await sendPushToUser(device.userId, {
               title: `⏰ ${profileName}: ${limit.appName || limit.packageName} đã hết giờ`,
               body: `Đã dùng hết ${limit.dailyLimitMinutes} phút giới hạn hôm nay.`,
@@ -103,7 +122,6 @@ const syncAppUsage = async (req, res) => {
               },
             });
 
-            // Socket.IO cho Parent
             if (io) {
               io.to(`family_${device.userId}`).emit('appTimeLimitExceeded', {
                 profileId: device.profile.id,
