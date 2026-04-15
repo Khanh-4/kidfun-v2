@@ -132,6 +132,14 @@ const syncAppUsage = async (req, res) => {
       console.error('app limit notification error:', notifyErr.message);
     }
 
+    // Notify child device to re-sync policy so serverRemaining stays fresh
+    const io = socketService.io;
+    if (io) {
+      io.to(`device_${deviceCode}`).emit('appTimeLimitUpdated', {
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     return sendSuccess(res, { synced }, 201);
   } catch (err) {
     console.error('syncAppUsage error:', err);
