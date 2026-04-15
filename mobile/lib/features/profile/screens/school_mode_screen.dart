@@ -127,11 +127,19 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
       appBar: AppBar(
         title: const Text('Chế độ học tập', overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(
-            icon: _isSaving
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.check_rounded),
+          TextButton(
             onPressed: _isSaving ? null : _saveChanges,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text(
+                    'Lưu',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                  ),
           ),
         ],
       ),

@@ -63,6 +63,7 @@ class AppBlockerService : AccessibilityService() {
         override fun run() {
             android.util.Log.d("AppLimit", "⏱ periodicCheck fired — foreground=${lastForegroundPackage}, limits=${AppLimitChecker.limits.size}")
             checkForegroundAppLimit()
+            checkSchoolMode()
             handler.postDelayed(this, APP_LIMIT_CHECK_INTERVAL_MS)
         }
     }
@@ -117,7 +118,8 @@ class AppBlockerService : AccessibilityService() {
         // 3. School Mode check (Sprint 8)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             if (SchoolModeChecker.isActive && !SchoolModeChecker.isAppAllowed(packageName)) {
-                BlockNotificationHelper.showSchoolModeBlock(this, packageName)
+                android.util.Log.d("SchoolMode", "🚫 onEvent BLOCKING $packageName — school mode active")
+                try { BlockNotificationHelper.showSchoolModeBlock(this, packageName) } catch (_: Exception) {}
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 return
             }
@@ -283,6 +285,33 @@ class AppBlockerService : AccessibilityService() {
                 }
             }
         }
+    }
+
+    /**
+     * Check school mode cho app đang foreground — dùng trong periodic check.
+     */
+    private fun checkSchoolMode() {
+        val pkg = lastForegroundPackage ?: return
+        if (isFullLockMode) return
+        if (!SchoolModeChecker.isActive) return
+        if (SchoolModeChecker.isAppAllowed(pkg)) return
+
+        android.util.Log.d("SchoolMode", "🚫 periodicCheck BLOCKING $pkg — school mode active")
+        try { BlockNotificationHelper.showSchoolModeBlock(this, pkg) } catch (_: Exception) {}
+        performGlobalAction(GLOBAL_ACTION_HOME)
+    }
+
+    /**
+     * Gọi ngay sau khi school mode được bật để kick app không hợp lệ đang ở foreground.
+     */
+    fun forceCheckSchoolMode() {
+        val pkg = lastForegroundPackage ?: return
+        if (isFullLockMode) return
+        if (!SchoolModeChecker.isActive) return
+        if (SchoolModeChecker.isAppAllowed(pkg)) return
+
+        android.util.Log.d("SchoolMode", "🚫 forceCheck BLOCKING $pkg — school mode just activated")
+        bringKidFunToFront()
     }
 
     override fun onInterrupt() {
