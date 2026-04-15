@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/school_mode_repository.dart';
+import '../data/app_usage_repository.dart';
 
 class SchoolModeScreen extends StatefulWidget {
   final int profileId;
@@ -20,6 +21,7 @@ class SchoolModeScreen extends StatefulWidget {
 
 class _SchoolModeScreenState extends State<SchoolModeScreen> {
   final _repository = SchoolModeRepository();
+  final _appUsageRepo = AppUsageRepository();
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -41,12 +43,13 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
     setState(() => _isLoading = true);
     try {
       final data = await _repository.getSchedule(widget.profileId);
+      // Backend returns: { schedule: { isEnabled, templateStartTime, templateEndTime, allowedApps, daySchedules } }
+      final schedule = data['schedule'] as Map<String, dynamic>?;
       setState(() {
-        _isEnabled = data['isEnabled'] ?? false;
-        _startTime = data['template']?['startTime'] ?? "07:00";
-        _endTime = data['template']?['endTime'] ?? "11:30";
-        _dayOverrides = Map<String, dynamic>.from(data['dayOverrides'] ?? {});
-        _allowedApps = List<Map<String, dynamic>>.from(data['allowedApps'] ?? []);
+        _isEnabled = schedule?['isEnabled'] ?? false;
+        _startTime = schedule?['templateStartTime'] ?? "07:00";
+        _endTime = schedule?['templateEndTime'] ?? "11:30";
+        _allowedApps = List<Map<String, dynamic>>.from(schedule?['allowedApps'] ?? []);
         _isLoading = false;
       });
     } catch (e) {
@@ -65,11 +68,9 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
     try {
       await _repository.upsertSchedule(widget.profileId, {
         'isEnabled': _isEnabled,
-        'template': {
-          'startTime': _startTime,
-          'endTime': _endTime,
-        },
-        'dayOverrides': _dayOverrides,
+        'templateStartTime': _startTime,
+        'templateEndTime': _endTime,
+        'dayOverrides': [],
         'allowedApps': _allowedApps,
       });
       if (mounted) {
@@ -287,7 +288,14 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.apps_rounded, color: AppColors.indigo400),
-                  title: Text(app['packageName'], style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
+                  title: Text(
+                    (app['appName'] ?? app['packageName']).toString(),
+                    style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: app['appName'] != null
+                      ? Text(app['packageName'].toString(),
+                          style: GoogleFonts.nunito(fontSize: 11, color: AppColors.slate400))
+                      : null,
                   trailing: IconButton(
                     icon: const Icon(Icons.remove_circle_outline, color: AppColors.danger),
                     onPressed: () {
@@ -356,35 +364,100 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
   }
 
   Future<void> _showAddAppDialog() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+    // Fetch danh sách app từ thiết bị con (via AppUsageRepository.getAllApps)
+    List<AppUsageEntry> serverApps = [];
+    try {
+      serverApps = await _appUsageRepo.getAllApps(widget.profileId);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    // Lọc ra các app chưa được thêm
+    final added = _allowedApps.map((a) => a['packageName'] as String).toSet();
+    var available = serverApps.where((a) => !added.contains(a.packageName)).toList();
+    List<AppUsageEntry> filtered = List.from(available);
+
+    final searchCtrl = TextEditingController();
+
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Thêm ứng dụng', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'com.example.app (package name)',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Chọn ứng dụng', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: Column(
+              children: [
+                TextField(
+                  controller: searchCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'Tìm ứng dụng...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onChanged: (q) => setDialogState(() {
+                    filtered = available.where((a) {
+                      final name = a.appName.toLowerCase();
+                      final pkg = a.packageName.toLowerCase();
+                      final query = q.toLowerCase();
+                      return name.contains(query) || pkg.contains(query);
+                    }).toList();
+                  }),
+                ),
+                const SizedBox(height: 8),
+                if (available.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        'Chưa có dữ liệu ứng dụng từ thiết bị con.\nThiết bị cần sử dụng ít nhất một lần.',
+                        style: GoogleFonts.nunito(color: AppColors.slate400, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                else if (filtered.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text('Không tìm thấy', style: GoogleFonts.nunito(color: AppColors.slate400)),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final app = filtered[i];
+                        return ListTile(
+                          leading: const Icon(Icons.apps_rounded, color: AppColors.indigo400),
+                          title: Text(app.appName, style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
+                          subtitle: app.appName != app.packageName
+                              ? Text(app.packageName,
+                                  style: GoogleFonts.nunito(fontSize: 11, color: AppColors.slate400))
+                              : null,
+                          onTap: () {
+                            setState(() {
+                              _allowedApps.add({
+                                'packageName': app.packageName,
+                                'appName': app.appName,
+                              });
+                            });
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Navigator.pop(ctx, controller.text.trim());
-              }
-            },
-            child: const Text('Thêm'),
-          )
-        ],
       ),
     );
-
-    if (result != null) {
-      setState(() {
-        _allowedApps.add({'packageName': result});
-      });
-    }
+    searchCtrl.dispose();
   }
 }
