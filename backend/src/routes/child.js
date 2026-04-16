@@ -65,6 +65,12 @@ const childPolicyController = require('../controllers/childPolicyController');
 // GET /api/child/policy?deviceCode=XXX — tất cả policy trong 1 request (khuyên dùng)
 router.get('/policy', childPolicyController.getChildPolicy);
 
+const youtubeController = require('../controllers/youtubeController');
+// POST /api/child/youtube-logs — Child batch upload YouTube logs
+router.post('/youtube-logs', youtubeController.batchUploadLogs);
+// GET /api/child/blocked-videos?deviceCode=XXX — Child sync blocked videos
+router.get('/blocked-videos', youtubeController.getBlockedVideos);
+
 const locationController = require('../controllers/locationController');
 // POST /api/child/location - Child gửi GPS (no auth)
 router.post('/location', locationController.postLocation);

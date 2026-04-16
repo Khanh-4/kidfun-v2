@@ -44,6 +44,45 @@ exports.sendGeofencePushNotification = async (profile, geofence, eventType) => {
  * @param {object} profile - Prisma Profile (cần .profileName, .id)
  * @param {object} sos - Prisma SOSAlert (cần .id, .latitude, .longitude)
  */
+/**
+ * Push notification khi AI phát hiện video nguy hiểm.
+ * @param {object} user - Prisma User
+ * @param {object} profile - Prisma Profile
+ * @param {object} alert - AIAlert record
+ * @param {object} log - YouTubeLog record
+ */
+exports.sendAIAlertPush = async (user, profile, alert, log) => {
+  if (!user || !profile) return;
+  try {
+    const tokens = await prisma.fCMToken.findMany({ where: { userId: user.id } });
+    if (tokens.length === 0) return;
+
+    const tokenStrings = tokens.map(t => t.token);
+    const dangerEmoji = alert.dangerLevel === 5 ? '🚨' : '⚠️';
+
+    const result = await sendToMultipleTokens(
+      tokenStrings,
+      `${dangerEmoji} Cảnh báo nội dung nguy hiểm`,
+      `${profile.profileName} đã xem: "${(log.videoTitle || '').slice(0, 60)}"\n${alert.summary}`,
+      {
+        type: 'AI_ALERT',
+        alertId: String(alert.id),
+        profileId: String(profile.id),
+        dangerLevel: String(alert.dangerLevel),
+        category: alert.category,
+      },
+    );
+
+    console.log(`🔔 [FCM AI ALERT] Sent to ${tokenStrings.length} devices`);
+
+    if (result?.invalidTokens?.length > 0) {
+      await prisma.fCMToken.deleteMany({ where: { token: { in: result.invalidTokens } } });
+    }
+  } catch (err) {
+    console.error('❌ [FCM AI Alert] Error:', err.message);
+  }
+};
+
 exports.sendSOSPushNotification = async (user, profile, sos) => {
   if (!user || !profile) return;
   try {
