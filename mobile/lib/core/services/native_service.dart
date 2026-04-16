@@ -130,4 +130,25 @@ class NativeService {
       'endTime': endTime,
     });
   }
+
+  // ── Sprint 9: YouTube Tracking ──────────────────────────────────────────
+
+  /// Lấy danh sách YouTube logs đang chờ upload từ native YouTubeTracker
+  static Future<List<Map<String, dynamic>>> getPendingYouTubeLogs() async {
+    final result = await _channel.invokeMethod('getPendingYouTubeLogs');
+    if (result == null) return [];
+    return List<Map<String, dynamic>>.from(
+      (result as List).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+  }
+
+  /// Xóa pending logs sau khi upload thành công
+  static Future<void> clearPendingYouTubeLogs() async {
+    await _channel.invokeMethod('clearPendingYouTubeLogs');
+  }
+
+  /// Cập nhật danh sách video bị chặn xuống native YouTubeTracker
+  static Future<void> setBlockedVideos(List<Map<String, dynamic>> videos) async {
+    await _channel.invokeMethod('setBlockedVideos', {'videos': videos});
+  }
 }

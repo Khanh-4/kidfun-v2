@@ -13,6 +13,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/services/native_service.dart';
 import '../../../core/services/policy_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/youtube_service.dart';
 import '../../location/data/location_repository.dart';
 import '../data/child_repository.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -177,6 +178,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Sprint 8: Sync all policies (web filtering, per-app limits, school mode)
     if (_deviceCode != null) {
       PolicyService.instance.syncAll(_deviceCode!);
+    }
+
+    // Sprint 9: Start YouTube tracking service
+    if (_deviceCode != null) {
+      YouTubeService.instance.start(_deviceCode!);
     }
 
     // NOTE: Screen state polling moved to _initSession() — it must start AFTER
@@ -805,6 +811,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
     });
 
+    socket.off('blockedVideosUpdated');
+    socket.on('blockedVideosUpdated', (_) {
+      print('🔔 [SOCKET] blockedVideosUpdated — syncing blocked videos');
+      if (_deviceCode != null) YouTubeService.instance.forceSyncBlocked(_deviceCode!);
+    });
+
     socket.off('appTimeLimitUpdated');
     socket.on('appTimeLimitUpdated', (data) async {
       print('🔔 [SOCKET] appTimeLimitUpdated — syncing policies');
@@ -937,6 +949,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     SocketService.instance.socket.off('timeExtensionResponse');
     SocketService.instance.socket.off('blockedAppsUpdated');
     LocationService.instance.stop();
+    YouTubeService.instance.stop();
     _sosTimer?.cancel();
     _audioRecorder.dispose();
     

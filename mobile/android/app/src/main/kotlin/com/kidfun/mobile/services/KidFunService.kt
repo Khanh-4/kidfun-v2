@@ -258,6 +258,8 @@ class KidFunService : Service() {
                     Intent.ACTION_SCREEN_OFF -> {
                         isScreenOn = false
                         prefs.edit().putBoolean(KEY_IS_SCREEN_ON, false).apply()
+                        // Sprint 9: Stop YouTube tracking when screen turns off
+                        YouTubeTracker.stopCurrentVideo()
                     }
                     Intent.ACTION_SCREEN_ON -> {
                         isScreenOn = true

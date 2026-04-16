@@ -51,6 +51,20 @@ object BlockNotificationHelper {
         manager.notify(appName.hashCode(), notification)
     }
 
+    fun showVideoBlocked(context: Context, videoTitle: String) {
+        ensureChannel(context)
+        val shortTitle = if (videoTitle.length > 60) videoTitle.take(60) + "..." else videoTitle
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle("🚫 Video bị chặn")
+            .setContentText("\"$shortTitle\" không phù hợp với bạn.")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(videoTitle.hashCode(), notification)
+    }
+
     fun showWebBlocked(context: Context, domain: String) {
         ensureChannel(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

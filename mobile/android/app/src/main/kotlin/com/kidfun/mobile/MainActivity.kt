@@ -14,6 +14,7 @@ import com.kidfun.mobile.services.KidFunService
 import com.kidfun.mobile.services.AppLimitChecker
 import com.kidfun.mobile.services.AppLimitInfo
 import com.kidfun.mobile.services.SchoolModeChecker
+import com.kidfun.mobile.services.YouTubeTracker
 import com.kidfun.mobile.receivers.KidFunDeviceAdminReceiver
 
 class MainActivity : FlutterActivity() {
@@ -195,6 +196,24 @@ class MainActivity : FlutterActivity() {
                         if (isActive) {
                             AppBlockerService.instance?.forceCheckSchoolMode()
                         }
+                        result.success(null)
+                    }
+
+                    // ── Sprint 9: YouTube Tracking ────────────────────────
+                    "getPendingYouTubeLogs" -> {
+                        val logs = YouTubeTracker.pendingLogs.toList()
+                        result.success(logs)
+                    }
+
+                    "clearPendingYouTubeLogs" -> {
+                        YouTubeTracker.pendingLogs.clear()
+                        result.success(null)
+                    }
+
+                    "setBlockedVideos" -> {
+                        val videos = call.argument<List<Map<String, String?>>>("videos") ?: emptyList()
+                        YouTubeTracker.blockedVideos = videos
+                        android.util.Log.d("YouTubeTracker", "🚫 Updated blocked videos: ${videos.size}")
                         result.success(null)
                     }
 
