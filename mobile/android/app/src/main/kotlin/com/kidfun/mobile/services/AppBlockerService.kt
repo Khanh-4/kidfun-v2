@@ -93,6 +93,10 @@ class AppBlockerService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             // Always update foreground tracking, even for non-blocked apps
             if (lastForegroundPackage != packageName) {
+                // Stop YouTube tracking khi rời YouTube
+                if (lastForegroundPackage == YouTubeTracker.YOUTUBE_PACKAGE) {
+                    YouTubeTracker.stopCurrentVideo()
+                }
                 lastForegroundPackage = packageName
                 lastForegroundStartTime = System.currentTimeMillis()
             }
@@ -113,6 +117,12 @@ class AppBlockerService : AccessibilityService() {
 
             // 2. Per-app time limit check (Sprint 8) — dùng chung logic với periodic check
             checkForegroundAppLimit()
+        }
+
+        // Sprint 9: YouTube tracking
+        if (packageName == YouTubeTracker.YOUTUBE_PACKAGE) {
+            handleYouTubeEvent(event)
+            return
         }
 
         // 3. School Mode check (Sprint 8)
@@ -142,6 +152,32 @@ class AppBlockerService : AccessibilityService() {
                 performGlobalAction(GLOBAL_ACTION_HOME)
             }
         }
+    }
+
+    // ── Sprint 9: YouTube Tracking ────────────────────────────────────────────
+
+    private fun handleYouTubeEvent(event: AccessibilityEvent) {
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
+
+        val root = rootInActiveWindow ?: return
+        val info = YouTubeTracker.extractVideoInfo(root) ?: return
+
+        // Same video đang xem → skip
+        if (YouTubeTracker.currentVideo?.title == info.title) return
+
+        // Video mới → stop video cũ trước
+        YouTubeTracker.stopCurrentVideo()
+
+        // Check blocked
+        if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
+            BlockNotificationHelper.showVideoBlocked(this, info.title)
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            return
+        }
+
+        YouTubeTracker.currentVideo = info
+        android.util.Log.d("YouTubeTracker", "▶️ Started: ${info.title} | ${info.channelName}")
     }
 
     /**
