@@ -174,3 +174,6 @@ AGENTS.md
 CLAUDE.md
 plantuml.jar
 reports/
+# Exception: Flutter features/reports is source code, not a report artifact
+!mobile/lib/features/reports/
+!mobile/lib/features/reports/**

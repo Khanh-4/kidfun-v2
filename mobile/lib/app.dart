@@ -33,6 +33,11 @@ import 'features/location/screens/map_screen.dart';
 import 'features/location/screens/location_history_screen.dart';
 import 'features/location/screens/sos_alert_screen.dart';
 import 'features/location/screens/sos_history_screen.dart';
+import 'features/youtube/screens/youtube_dashboard_screen.dart';
+import 'features/youtube/screens/youtube_logs_screen.dart';
+import 'features/youtube/screens/ai_alerts_screen.dart';
+import 'features/reports/screens/reports_screen.dart';
+import 'features/reports/screens/activity_history_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -697,6 +702,47 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = int.parse(state.pathParameters['id']!);
               final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
               return SosHistoryScreen(profileId: id, profileName: name);
+            },
+          ),
+          // ── Sprint 9 routes ──────────────────────────────────────────────
+          GoRoute(
+            path: ':id/youtube-dashboard',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return YouTubeDashboardScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/youtube-logs',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return YouTubeLogsScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/reports',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return ReportsScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/activity-history',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return ActivityHistoryScreen(profileId: id, profileName: name);
+            },
+          ),
+          GoRoute(
+            path: ':id/ai-alerts',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return AIAlertsScreen(profileId: id, profileName: name);
             },
           ),
         ],

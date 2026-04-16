@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/socket_service.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/services/notification_service.dart';
+import '../../features/youtube/widgets/ai_alert_dialog.dart';
+import '../../features/youtube/screens/ai_alerts_screen.dart';
 
 class TimeExtensionListener extends ConsumerStatefulWidget {
   final Widget child;
@@ -50,6 +52,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     SocketService.instance.addGeofenceEventListener(_onGeofenceEvent);
     // TC-21: Global sosAlert listener so parent sees SOS from any screen
     SocketService.instance.addSosAlertListener(_onSosAlert);
+    // Sprint 9: Global aiAlert listener so parent sees dangerous content alert from any screen
+    SocketService.instance.addAiAlertListener(_onAiAlert);
   }
 
   Future<void> _checkPendingRequests() async {
@@ -309,6 +313,37 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     });
   }
 
+  // Sprint 9: AI Alert handler — shows dialog when AI detects dangerous YouTube content.
+  // Follows same Timer.run() pattern as _onSosAlert to avoid mid-frame showDialog issues.
+  void _onAiAlert(Map<String, dynamic> data) {
+    if (!mounted) return;
+    // Only parents receive AI alerts
+    if (SocketService.instance.currentRole != 'parent') return;
+
+    final profileId = data['profileId'] as int?;
+    final profileName = data['profileName'] as String? ?? 'Con';
+
+    Timer.run(() {
+      if (!mounted) return;
+      final ctx = widget.navigatorKey?.currentContext ?? context;
+      showDialog(
+        context: ctx,
+        barrierDismissible: false,
+        builder: (_) => AIAlertDialog(data: data),
+      ).then((result) {
+        if (result == 'view_details' && profileId != null) {
+          final navCtx = widget.navigatorKey?.currentContext ?? context;
+          Navigator.push(navCtx, MaterialPageRoute(
+            builder: (_) => AIAlertsScreen(
+              profileId: profileId,
+              profileName: profileName,
+            ),
+          ));
+        }
+      });
+    });
+  }
+
   void _respondExtension(int requestId, bool approved, int minutes) {
     // Remove from Set now that Parent has responded — future polls won't re-show this dialog
     _activeRequestIds.remove(requestId);
@@ -333,6 +368,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     SocketService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequest);
     SocketService.instance.removeGeofenceEventListener(_onGeofenceEvent);
     SocketService.instance.removeSosAlertListener(_onSosAlert);
+    SocketService.instance.removeAiAlertListener(_onAiAlert);
     // BUG 3 FIX: Remove the named connect handler to prevent stacking
     SocketService.instance.socket.off('connect', _onSocketReconnect);
     super.dispose();

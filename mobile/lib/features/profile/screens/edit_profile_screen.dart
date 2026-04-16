@@ -433,9 +433,9 @@ class _EditProfileScreenState
             icon: Icons.bar_chart_rounded,
             iconBg: const Color(0xFFF5F3FF),
             iconColor: AppColors.purple600,
-            label: 'Báo cáo sử dụng',
+            label: 'Báo cáo chi tiết',
             onTap: () => context.push(
-                '/profiles/$pid/app-usage?name=$name'),
+                '/profiles/$pid/reports?name=$name'),
           ),
           const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(
@@ -454,6 +454,34 @@ class _EditProfileScreenState
             label: 'Lịch sử di chuyển',
             onTap: () => context.push(
                 '/profiles/$pid/location-history?name=$name'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          // ── Sprint 9 tiles ────────────────────────────────────────────
+          _buildManagementTile(
+            icon: Icons.play_circle_outline_rounded,
+            iconBg: const Color(0xFFFFE9E9),
+            iconColor: const Color(0xFFCC0000),
+            label: 'Bảng điều khiển YouTube',
+            onTap: () => context.push(
+                '/profiles/$pid/youtube-dashboard?name=$name'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.psychology_outlined,
+            iconBg: const Color(0xFFFFEBEB),
+            iconColor: Colors.red,
+            label: 'Cảnh báo AI',
+            onTap: () => context.push(
+                '/profiles/$pid/ai-alerts?name=$name'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          _buildManagementTile(
+            icon: Icons.history_edu_rounded,
+            iconBg: const Color(0xFFF0FDF4),
+            iconColor: const Color(0xFF16A34A),
+            label: 'Lịch sử hoạt động',
+            onTap: () => context.push(
+                '/profiles/$pid/activity-history?name=$name'),
           ),
           const Divider(height: 1, color: AppColors.slate100),
           _buildManagementTile(

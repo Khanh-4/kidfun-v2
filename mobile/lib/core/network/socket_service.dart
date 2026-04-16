@@ -23,6 +23,8 @@ class SocketService {
   final List<SocketCallback> _timeExtensionRequestListeners = [];
   final List<SocketCallback> _geofenceEventListeners = [];
   final List<SocketCallback> _sosAlertListeners = [];
+  // Sprint 9: AI alert listeners — dangerous YouTube content detected
+  final List<SocketCallback> _aiAlertListeners = [];
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -65,6 +67,10 @@ class SocketService {
   // sosAlert listeners — TC-21: global handler so any screen receives SOS
   void addSosAlertListener(SocketCallback callback) => _sosAlertListeners.add(callback);
   void removeSosAlertListener(SocketCallback callback) => _sosAlertListeners.remove(callback);
+
+  // aiAlert listeners — Sprint 9: AI detected dangerous YouTube content
+  void addAiAlertListener(SocketCallback callback) => _aiAlertListeners.add(callback);
+  void removeAiAlertListener(SocketCallback callback) => _aiAlertListeners.remove(callback);
 
   // ★★★ DEPRECATED: kept for backward compat but now just proxy to list-based listeners
   // These are no-op setters; do NOT use them for new code.
@@ -179,6 +185,15 @@ class SocketService {
         print('🆘 [SOCKET] RECEIVED sosAlert: $data (listeners: ${_sosAlertListeners.length})');
         final mapData = Map<String, dynamic>.from(data as Map);
         for (final cb in List.from(_sosAlertListeners)) {
+          cb(mapData);
+        }
+      });
+
+      // Sprint 9: aiAlert — parent notified when AI flags dangerous YouTube content
+      _socket!.on('aiAlert', (data) {
+        print('🪓 [SOCKET] RECEIVED aiAlert: $data (listeners: ${_aiAlertListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_aiAlertListeners)) {
           cb(mapData);
         }
       });
