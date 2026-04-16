@@ -54,6 +54,10 @@ model Profile {
   blockedCategories     BlockedCategory[]
   customBlockedDomains  CustomBlockedDomain[]
   schoolSchedule        SchoolSchedule?
+  youtubeLogs    YouTubeLog[]
+  aiAlerts       AIAlert[]
+  blockedVideos  BlockedVideo[]
+  reportSnapshots ReportSnapshot[]
 }
 
 model Device {
@@ -79,6 +83,7 @@ model Device {
   appUsageLogs  AppUsageLog[]
   locationLogs  LocationLog[]
   sosAlerts     SOSAlert[]
+  youtubeLogs   YouTubeLog[]
 }
 
 model TimeLimit {
@@ -431,4 +436,82 @@ model SOSAlert {
   device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@index([profileId, createdAt])
+}
+
+// ── Sprint 9: YouTube Monitoring + AI Safety ───────────────────────────────
+
+model YouTubeLog {
+  id              Int      @id @default(autoincrement())
+  profileId       Int
+  deviceId        Int
+  videoTitle      String
+  channelName     String?
+  videoId         String?
+  thumbnailUrl    String?
+  watchedAt       DateTime @default(now())
+  durationSeconds Int      @default(0)
+
+  isAnalyzed  Boolean @default(false)
+  dangerLevel Int?    // 1-5 (null = chưa phân tích)
+  category    String? // SAFE | BULLY | SEXUAL | DRUG | VIOLENCE | SELF_HARM | DISTURBING
+  aiSummary   String?
+
+  isBlocked Boolean @default(false)
+
+  profile Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  alerts  AIAlert[]
+
+  @@index([profileId, watchedAt])
+  @@index([isAnalyzed])
+  @@index([dangerLevel])
+}
+
+model AIAlert {
+  id           Int       @id @default(autoincrement())
+  profileId    Int
+  youtubeLogId Int
+  dangerLevel  Int
+  category     String
+  summary      String
+  isRead       Boolean   @default(false)
+  notifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  profile    Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  youtubeLog YouTubeLog @relation(fields: [youtubeLogId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([isRead])
+}
+
+model BlockedVideo {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  videoTitle  String
+  channelName String?
+  videoId     String?
+  reason      String?  // "AI_DETECTED" | "PARENT_MANUAL"
+  createdAt   DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+// ── Sprint 9: Reports & Analytics ─────────────────────────────────────────
+
+model ReportSnapshot {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  type        String   // "DAILY" | "WEEKLY"
+  periodStart DateTime
+  periodEnd   DateTime
+  data        Json
+  generatedAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, type, periodStart])
+  @@index([profileId, type, periodStart])
 }
