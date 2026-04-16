@@ -105,4 +105,30 @@ router.post('/:id/custom-blocked-domains', webFilteringController.addCustomDomai
 // DELETE /api/profiles/:id/custom-blocked-domains/:domain
 router.delete('/:id/custom-blocked-domains/:domain', webFilteringController.deleteCustomDomain);
 
+// ── Sprint 9: YouTube Monitoring ──────────────────────────────────────────
+const youtubeController = require('../controllers/youtubeController');
+// GET /api/profiles/:id/youtube/dashboard?days=7
+router.get('/:id/youtube/dashboard', youtubeController.getDashboard);
+// GET /api/profiles/:id/youtube/logs?date=&minDanger=&channel=&page=&limit=
+router.get('/:id/youtube/logs', youtubeController.getLogs);
+// POST /api/profiles/:id/blocked-videos — manual block
+router.post('/:id/blocked-videos', youtubeController.blockVideo);
+
+// ── Sprint 9: AI Alerts ───────────────────────────────────────────────────
+const aiAlertController = require('../controllers/aiAlertController');
+// GET /api/profiles/:id/ai-alerts?unread=true
+router.get('/:id/ai-alerts', aiAlertController.getAlerts);
+
+// ── Sprint 9: Reports ─────────────────────────────────────────────────────
+const reportController = require('../controllers/reportController');
+// GET /api/profiles/:id/reports/daily?date=YYYY-MM-DD
+router.get('/:id/reports/daily', reportController.getDailyReport);
+// GET /api/profiles/:id/reports/weekly?weekStart=YYYY-MM-DD
+router.get('/:id/reports/weekly', reportController.getWeeklyReport);
+
+// ── Sprint 9: Activity History ────────────────────────────────────────────
+const activityHistoryController = require('../controllers/activityHistoryController');
+// GET /api/profiles/:id/activity-history?date=YYYY-MM-DD
+router.get('/:id/activity-history', activityHistoryController.getActivityHistory);
+
 module.exports = router;

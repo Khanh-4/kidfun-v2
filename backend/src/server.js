@@ -53,6 +53,7 @@ const extensionRequestRoutes = require('./routes/extensionRequests');
 const geofenceRoutes = require('./routes/geofences');
 const sosRoutes = require('./routes/sos');
 const webFilteringRoutes = require('./routes/webFiltering');
+const youtubeRoutes = require('./routes/youtube');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -66,6 +67,7 @@ app.use('/api/extension-requests', extensionRequestRoutes);
 app.use('/api/geofences', geofenceRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/web-categories', webFilteringRoutes);
+app.use('/api', youtubeRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -91,6 +93,34 @@ try {
 // Socket.IO - sử dụng socketService
 const socketService = require('./services/socketService');
 socketService.init(io);
+
+// ── Sprint 9: AI Analysis Worker (runs every 10 minutes) ────────────────
+const aiWorker = require('./workers/aiAnalysisWorker');
+aiWorker.setSocketIO(io);
+setInterval(() => {
+  aiWorker.runAnalysisBatch().catch(console.error);
+}, 10 * 60 * 1000);
+// Run once on startup after 30s delay (wait for DB connection to settle)
+setTimeout(() => aiWorker.runAnalysisBatch().catch(console.error), 30 * 1000);
+
+// ── Sprint 9: Report Scheduler (daily + weekly cron) ─────────────────────
+const reportWorker = require('./workers/reportWorker');
+reportWorker.startScheduler();
+
+// ── Sprint 9: Admin manual trigger endpoints ──────────────────────────────
+const { authenticate } = require('./middleware/auth');
+app.post('/api/admin/run-ai-analysis', authenticate, (req, res) => {
+  aiWorker.runAnalysisBatch().catch(console.error);
+  res.json({ success: true, data: { message: 'AI analysis started' } });
+});
+app.post('/api/admin/run-daily-reports', authenticate, (req, res) => {
+  reportWorker.runDailyReports().catch(console.error);
+  res.json({ success: true, data: { message: 'Daily reports triggered' } });
+});
+app.post('/api/admin/run-weekly-reports', authenticate, (req, res) => {
+  reportWorker.runWeeklyReports().catch(console.error);
+  res.json({ success: true, data: { message: 'Weekly reports triggered' } });
+});
 
 // Error handling middleware
 const errorHandler = require('./middleware/errorHandler');
