@@ -49,6 +49,15 @@ Channel: {channel}
 
 const VALID_CATEGORIES = ['SAFE', 'BULLY', 'SEXUAL', 'DRUG', 'VIOLENCE', 'SELF_HARM', 'DISTURBING'];
 
+const RETRY_DELAYS_MS = [5000, 10000, 20000];
+
+function isTransientError(err) {
+  const msg = err.message || '';
+  return msg.includes('503') || msg.includes('Service Unavailable') ||
+    msg.includes('overloaded') || msg.includes('high demand') ||
+    msg.includes('429') || msg.includes('Too Many Requests');
+}
+
 exports.analyzeVideo = async ({ title, channel, thumbnailUrl }) => {
   const aiModel = getModel();
   if (!aiModel) {
@@ -56,40 +65,51 @@ exports.analyzeVideo = async ({ title, channel, thumbnailUrl }) => {
     return { dangerLevel: 1, category: 'SAFE', summary: 'Chưa có API key để phân tích' };
   }
 
-  try {
-    const prompt = ANALYSIS_PROMPT
-      .replace('{title}', title || 'Unknown')
-      .replace('{channel}', channel || 'Unknown');
+  const prompt = ANALYSIS_PROMPT
+    .replace('{title}', title || 'Unknown')
+    .replace('{channel}', channel || 'Unknown');
 
-    const parts = [{ text: prompt }];
+  const parts = [{ text: prompt }];
 
-    if (thumbnailUrl) {
-      try {
-        const response = await fetch(thumbnailUrl);
-        const buffer = await response.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        parts.push({
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64,
-          },
-        });
-      } catch (e) {
-        console.warn('⚠️ [GEMINI] Cannot fetch thumbnail, fallback to text-only:', e.message);
+  if (thumbnailUrl) {
+    try {
+      const response = await fetch(thumbnailUrl);
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      parts.push({ inlineData: { mimeType: 'image/jpeg', data: base64 } });
+    } catch (e) {
+      console.warn('⚠️ [GEMINI] Cannot fetch thumbnail, fallback to text-only:', e.message);
+    }
+  }
+
+  let lastErr;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const result = await aiModel.generateContent({ contents: [{ role: 'user', parts }] });
+      const text = result.response.text();
+      const parsed = JSON.parse(text);
+
+      const dangerLevel = Math.max(1, Math.min(5, parseInt(parsed.dangerLevel) || 1));
+      const category = VALID_CATEGORIES.includes(parsed.category) ? parsed.category : 'SAFE';
+      const summary = (parsed.summary || '').slice(0, 500);
+
+      return { dangerLevel, category, summary };
+    } catch (err) {
+      lastErr = err;
+      if (isTransientError(err) && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        console.warn(`⚠️ [GEMINI] Transient error (attempt ${attempt + 1}), retrying in ${delay / 1000}s: ${err.message}`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        break;
       }
     }
-
-    const result = await aiModel.generateContent({ contents: [{ role: 'user', parts }] });
-    const text = result.response.text();
-    const parsed = JSON.parse(text);
-
-    const dangerLevel = Math.max(1, Math.min(5, parseInt(parsed.dangerLevel) || 1));
-    const category = VALID_CATEGORIES.includes(parsed.category) ? parsed.category : 'SAFE';
-    const summary = (parsed.summary || '').slice(0, 500);
-
-    return { dangerLevel, category, summary };
-  } catch (err) {
-    console.error('❌ [GEMINI] Analysis error:', err.message);
-    return { dangerLevel: 1, category: 'SAFE', summary: 'Phân tích thất bại' };
   }
+
+  if (isTransientError(lastErr)) {
+    // Re-throw so the worker can skip marking this log as analyzed
+    throw lastErr;
+  }
+  console.error('❌ [GEMINI] Analysis error:', lastErr.message);
+  return { dangerLevel: 1, category: 'SAFE', summary: 'Phân tích thất bại' };
 };

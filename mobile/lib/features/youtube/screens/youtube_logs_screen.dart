@@ -302,7 +302,7 @@ class _YouTubeLogsScreenState extends State<YouTubeLogsScreen> {
                   ? OutlinedButton.icon(
                       onPressed: () => _toggleBlock(log),
                       icon: const Icon(Icons.lock_open_outlined, size: 16),
-                      label: const Text('Bỏ chặn'),
+                      label: const Text('Bỏ chặn video này'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.green,
                         side: const BorderSide(color: Colors.green),
