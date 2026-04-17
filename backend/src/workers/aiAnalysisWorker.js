@@ -57,12 +57,21 @@ exports.runAnalysisBatch = async () => {
         // Rate limit: 4.5s giữa requests (Gemini free tier 15 RPM)
         await sleep(4500);
       } catch (err) {
-        console.error(`❌ [AI WORKER] Error analyzing log ${log.id}:`, err.message);
-        // Mark as analyzed to skip on next run if persistent error
-        await prisma.youTubeLog.update({
-          where: { id: log.id },
-          data: { isAnalyzed: true, category: 'SAFE', dangerLevel: 1, aiSummary: 'Lỗi phân tích' },
-        }).catch(() => {});
+        const isTransient = err.message && (
+          err.message.includes('503') || err.message.includes('Service Unavailable') ||
+          err.message.includes('overloaded') || err.message.includes('high demand') ||
+          err.message.includes('429') || err.message.includes('Too Many Requests')
+        );
+        if (isTransient) {
+          // Transient error — leave isAnalyzed: false so next batch will retry
+          console.warn(`⏳ [AI WORKER] Transient error for log ${log.id}, will retry next batch: ${err.message}`);
+        } else {
+          console.error(`❌ [AI WORKER] Permanent error for log ${log.id}, marking as analyzed: ${err.message}`);
+          await prisma.youTubeLog.update({
+            where: { id: log.id },
+            data: { isAnalyzed: true, category: 'SAFE', dangerLevel: 1, aiSummary: 'Lỗi phân tích' },
+          }).catch(() => {});
+        }
       }
     }
 

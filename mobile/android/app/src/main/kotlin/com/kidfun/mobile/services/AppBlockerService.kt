@@ -64,6 +64,11 @@ class AppBlockerService : AccessibilityService() {
             android.util.Log.d("AppLimit", "⏱ periodicCheck fired — foreground=${lastForegroundPackage}, limits=${AppLimitChecker.limits.size}")
             checkForegroundAppLimit()
             checkSchoolMode()
+            // Force-close safety: if YouTube is no longer foreground but tracker still holds a video, stop it
+            if (lastForegroundPackage != YouTubeTracker.YOUTUBE_PACKAGE && YouTubeTracker.currentVideo != null) {
+                android.util.Log.d("YouTubeTracker", "⚠️ periodicCheck: YouTube not foreground but video still tracked — stopping")
+                YouTubeTracker.stopCurrentVideo()
+            }
             handler.postDelayed(this, APP_LIMIT_CHECK_INTERVAL_MS)
         }
     }
@@ -161,12 +166,28 @@ class AppBlockerService : AccessibilityService() {
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
 
         val root = rootInActiveWindow ?: return
-        val info = YouTubeTracker.extractVideoInfo(root) ?: return
+        val info = YouTubeTracker.extractVideoInfo(root)
 
-        // Same video đang xem → skip
-        if (YouTubeTracker.currentVideo?.title == info.title) return
+        // Same video still playing → check pause/resume state
+        if (info != null && YouTubeTracker.currentVideo?.title == info.title) {
+            val paused = YouTubeTracker.detectPauseState(root)
+            if (paused && !YouTubeTracker.isPaused) {
+                YouTubeTracker.pauseCurrentVideo()
+            } else if (!paused && YouTubeTracker.isPaused) {
+                YouTubeTracker.resumeCurrentVideo()
+            }
+            return
+        }
 
-        // Video mới → stop video cũ trước
+        // No video detected in current window → pause if playing
+        if (info == null) {
+            if (YouTubeTracker.currentVideo != null && !YouTubeTracker.isPaused) {
+                YouTubeTracker.pauseCurrentVideo()
+            }
+            return
+        }
+
+        // New video → stop previous, start new
         YouTubeTracker.stopCurrentVideo()
 
         // Check blocked

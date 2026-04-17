@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/dio_client.dart';
 import 'youtube_logs_screen.dart';
-import '../screens/ai_alerts_screen.dart';
 
 class YouTubeDashboardScreen extends StatefulWidget {
   final int profileId;
@@ -97,17 +96,6 @@ class _YouTubeDashboardScreenState extends State<YouTubeDashboardScreen> {
                 ],
               ),
             ),
-          ),
-          // AI Alerts shortcut
-          IconButton(
-            icon: const Icon(Icons.psychology_outlined),
-            tooltip: 'Cảnh báo AI',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => AIAlertsScreen(
-                profileId: widget.profileId,
-                profileName: widget.profileName,
-              ),
-            )),
           ),
         ],
       ),
