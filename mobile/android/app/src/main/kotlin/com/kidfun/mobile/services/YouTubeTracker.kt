@@ -17,10 +17,14 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/title",
         "$YOUTUBE_PACKAGE:id/video_title",
         "$YOUTUBE_PACKAGE:id/watch_video_title",
-        // YouTube Shorts
+        // YouTube Shorts — multiple versions
         "$YOUTUBE_PACKAGE:id/reel_player_title",
         "$YOUTUBE_PACKAGE:id/shorts_video_title",
         "$YOUTUBE_PACKAGE:id/reel_title_text",
+        "$YOUTUBE_PACKAGE:id/reel_player_page_title",
+        "$YOUTUBE_PACKAGE:id/video_metadata_title",
+        "$YOUTUBE_PACKAGE:id/player_view_title",
+        "$YOUTUBE_PACKAGE:id/title_anim_text",
     )
 
     private val CHANNEL_VIEW_IDS = listOf(
@@ -28,10 +32,12 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/owner_name",
         "$YOUTUBE_PACKAGE:id/byline",
         "$YOUTUBE_PACKAGE:id/author",
-        // YouTube Shorts
+        // YouTube Shorts — multiple versions
         "$YOUTUBE_PACKAGE:id/reel_channel_bar_inner_container",
         "$YOUTUBE_PACKAGE:id/reel_player_header_text",
         "$YOUTUBE_PACKAGE:id/channel_textview",
+        "$YOUTUBE_PACKAGE:id/reel_channel_bar_slim_textview_label",
+        "$YOUTUBE_PACKAGE:id/reel_channel_name",
     )
 
     // Play/pause button IDs to detect pause state
@@ -54,10 +60,14 @@ object YouTubeTracker {
     // Blocked videos synced từ server
     var blockedVideos: List<Map<String, String?>> = emptyList()
 
+    private val IGNORED_TITLES = setOf(
+        "YouTube", "Trang chủ", "Home", "Shorts", "Đang tải...", "Loading...",
+        "Khám phá", "Explore", "Thư viện", "Library", "Đăng ký", "Subscriptions",
+    )
+
     fun extractVideoInfo(root: AccessibilityNodeInfo): YouTubeVideoInfo? {
         val title = findTextByIds(root, TITLE_VIEW_IDS) ?: return null
-        if (title.length < 3 || title == "YouTube" || title == "Trang chủ" || title == "Home"
-            || title == "Shorts" || title == "Đang tải..." || title == "Loading...") return null
+        if (title.length < 3 || IGNORED_TITLES.contains(title)) return null
 
         val channel = findTextByIds(root, CHANNEL_VIEW_IDS)
         return YouTubeVideoInfo(

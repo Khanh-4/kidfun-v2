@@ -168,21 +168,29 @@ class AppBlockerService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         val info = YouTubeTracker.extractVideoInfo(root)
 
+        // No video title detected (controls hidden or non-video screen) → don't touch state
+        // YouTube hides overlay controls after ~3-4s; title disappears from a11y tree.
+        // Treating null as "paused" causes false pauses during normal playback.
+        if (info == null) {
+            // Only check explicit pause via play button if a video is currently tracked
+            if (YouTubeTracker.currentVideo != null) {
+                val paused = YouTubeTracker.detectPauseState(root)
+                if (paused && !YouTubeTracker.isPaused) {
+                    YouTubeTracker.pauseCurrentVideo()
+                } else if (!paused && YouTubeTracker.isPaused) {
+                    YouTubeTracker.resumeCurrentVideo()
+                }
+            }
+            return
+        }
+
         // Same video still playing → check pause/resume state
-        if (info != null && YouTubeTracker.currentVideo?.title == info.title) {
+        if (YouTubeTracker.currentVideo?.title == info.title) {
             val paused = YouTubeTracker.detectPauseState(root)
             if (paused && !YouTubeTracker.isPaused) {
                 YouTubeTracker.pauseCurrentVideo()
             } else if (!paused && YouTubeTracker.isPaused) {
                 YouTubeTracker.resumeCurrentVideo()
-            }
-            return
-        }
-
-        // No video detected in current window → pause if playing
-        if (info == null) {
-            if (YouTubeTracker.currentVideo != null && !YouTubeTracker.isPaused) {
-                YouTubeTracker.pauseCurrentVideo()
             }
             return
         }
