@@ -14,8 +14,6 @@ object YouTubeTracker {
     const val YOUTUBE_PACKAGE = "com.google.android.youtube"
 
     private val TITLE_VIEW_IDS = listOf(
-        "$YOUTUBE_PACKAGE:id/title",
-        "$YOUTUBE_PACKAGE:id/video_title",
         "$YOUTUBE_PACKAGE:id/watch_video_title",
         // YouTube Shorts — multiple versions
         "$YOUTUBE_PACKAGE:id/reel_player_title",
@@ -67,7 +65,7 @@ object YouTubeTracker {
 
     fun extractVideoInfo(root: AccessibilityNodeInfo): YouTubeVideoInfo? {
         val title = findTextByIds(root, TITLE_VIEW_IDS) ?: return null
-        if (title.length < 3 || IGNORED_TITLES.contains(title)) return null
+        if (title.isEmpty() || IGNORED_TITLES.contains(title)) return null
 
         val channel = findTextByIds(root, CHANNEL_VIEW_IDS)
         return YouTubeVideoInfo(

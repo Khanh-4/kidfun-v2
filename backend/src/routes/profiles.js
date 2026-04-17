@@ -113,6 +113,8 @@ router.get('/:id/youtube/dashboard', youtubeController.getDashboard);
 router.get('/:id/youtube/logs', youtubeController.getLogs);
 // POST /api/profiles/:id/blocked-videos — manual block
 router.post('/:id/blocked-videos', youtubeController.blockVideo);
+// GET /api/profiles/:id/blocked-videos — parent sync blocked videos
+router.get('/:id/blocked-videos', youtubeController.getParentBlockedVideos);
 
 // ── Sprint 9: AI Alerts ───────────────────────────────────────────────────
 const aiAlertController = require('../controllers/aiAlertController');

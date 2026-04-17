@@ -78,6 +78,28 @@ exports.getBlockedVideos = async (req, res) => {
   }
 };
 
+// GET /api/profiles/:id/blocked-videos — Parent sync blocked videos
+exports.getParentBlockedVideos = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.id);
+    const blockedVideos = await prisma.blockedVideo.findMany({
+      where: { profileId },
+      select: {
+        id: true,
+        videoTitle: true,
+        channelName: true,
+        videoId: true,
+        reason: true,
+        createdAt: true,
+      }
+    });
+
+    return sendSuccess(res, { blockedVideos });
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+};
+
 // GET /api/profiles/:id/youtube/dashboard?days=7 — Parent dashboard
 exports.getDashboard = async (req, res) => {
   try {
@@ -169,7 +191,7 @@ exports.getLogs = async (req, res) => {
     if (minDanger) where.dangerLevel = { gte: parseInt(minDanger) };
     if (channel) where.channelName = channel;
 
-    const [total, logs] = await Promise.all([
+    const [total, logs, blockedVideos] = await Promise.all([
       prisma.youTubeLog.count({ where }),
       prisma.youTubeLog.findMany({
         where,
@@ -177,9 +199,19 @@ exports.getLogs = async (req, res) => {
         skip: (page - 1) * limit,
         take: limit,
       }),
+      prisma.blockedVideo.findMany({
+        where: { profileId },
+        select: { videoTitle: true },
+      })
     ]);
 
-    return sendSuccess(res, { total, page, limit, logs });
+    const blockedSet = new Set(blockedVideos.map(b => b.videoTitle.toLowerCase()));
+    const enrichedLogs = logs.map(log => ({
+      ...log,
+      isBlocked: blockedSet.has(log.videoTitle.toLowerCase())
+    }));
+
+    return sendSuccess(res, { total, page, limit, logs: enrichedLogs });
   } catch (err) {
     return sendError(res, err.message, 500);
   }
