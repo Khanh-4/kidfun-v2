@@ -1,5 +1,6 @@
 package com.kidfun.mobile.services
 
+import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
 data class YouTubeVideoInfo(
@@ -13,9 +14,12 @@ data class YouTubeVideoInfo(
 object YouTubeTracker {
     const val YOUTUBE_PACKAGE = "com.google.android.youtube"
 
+    // Primary IDs — regular video player
     private val TITLE_VIEW_IDS = listOf(
+        "$YOUTUBE_PACKAGE:id/title",
+        "$YOUTUBE_PACKAGE:id/video_title",
         "$YOUTUBE_PACKAGE:id/watch_video_title",
-        // YouTube Shorts — multiple versions
+        // Shorts — various YouTube versions
         "$YOUTUBE_PACKAGE:id/reel_player_title",
         "$YOUTUBE_PACKAGE:id/shorts_video_title",
         "$YOUTUBE_PACKAGE:id/reel_title_text",
@@ -30,7 +34,7 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/owner_name",
         "$YOUTUBE_PACKAGE:id/byline",
         "$YOUTUBE_PACKAGE:id/author",
-        // YouTube Shorts — multiple versions
+        // Shorts — various YouTube versions
         "$YOUTUBE_PACKAGE:id/reel_channel_bar_inner_container",
         "$YOUTUBE_PACKAGE:id/reel_player_header_text",
         "$YOUTUBE_PACKAGE:id/channel_textview",
@@ -38,34 +42,52 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/reel_channel_name",
     )
 
-    // Play/pause button IDs to detect pause state
     private val PLAY_PAUSE_IDS = listOf(
         "$YOUTUBE_PACKAGE:id/player_control_play_pause_replay_button",
         "$YOUTUBE_PACKAGE:id/play_pause_button",
     )
 
-    var currentVideo: YouTubeVideoInfo? = null
-
-    // Accumulated seconds across pause/resume cycles
-    private var accumulatedSeconds: Int = 0
-
-    // True when video is paused but not yet stopped
-    var isPaused: Boolean = false
-
-    // Queue pending logs để Flutter upload lên server
-    val pendingLogs: MutableList<Map<String, Any?>> = mutableListOf()
-
-    // Blocked videos synced từ server
-    var blockedVideos: List<Map<String, String?>> = emptyList()
-
     private val IGNORED_TITLES = setOf(
         "YouTube", "Trang chủ", "Home", "Shorts", "Đang tải...", "Loading...",
         "Khám phá", "Explore", "Thư viện", "Library", "Đăng ký", "Subscriptions",
+        "Tìm kiếm", "Search", "Xem sau", "Watch later",
     )
 
-    fun extractVideoInfo(root: AccessibilityNodeInfo): YouTubeVideoInfo? {
-        val title = findTextByIds(root, TITLE_VIEW_IDS) ?: return null
-        if (title.isEmpty() || IGNORED_TITLES.contains(title)) return null
+    var currentVideo: YouTubeVideoInfo? = null
+    private var accumulatedSeconds: Int = 0
+    var isPaused: Boolean = false
+    val pendingLogs: MutableList<Map<String, Any?>> = mutableListOf()
+    var blockedVideos: List<Map<String, String?>> = emptyList()
+
+    /**
+     * Extract video info using 3-tier strategy:
+     * 1. Known view IDs (fastest, version-dependent)
+     * 2. AccessibilityEvent text (reliable for window changes)
+     * 3. Full tree scan for TextView nodes (fallback when IDs change)
+     */
+    fun extractVideoInfo(root: AccessibilityNodeInfo, event: AccessibilityEvent? = null): YouTubeVideoInfo? {
+        // Tier 1: known view IDs
+        var title = findTextByIds(root, TITLE_VIEW_IDS)
+
+        // Tier 2: event text — reliable for TYPE_WINDOW_STATE_CHANGED
+        if (title == null && event != null) {
+            title = event.text
+                ?.mapNotNull { it?.toString()?.trim() }
+                ?.firstOrNull { it.length in 5..200 && !IGNORED_TITLES.contains(it) && !it.startsWith("http") }
+            if (title != null) {
+                android.util.Log.d("YouTubeTracker", "📝 Title from event.text: $title")
+            }
+        }
+
+        // Tier 3: tree scan — last resort when YouTube obfuscates view IDs
+        if (title == null) {
+            title = scanTreeForTitle(root)
+            if (title != null) {
+                android.util.Log.d("YouTubeTracker", "🌲 Title from tree scan: $title")
+            }
+        }
+
+        if (title == null || title.length < 3 || IGNORED_TITLES.contains(title)) return null
 
         val channel = findTextByIds(root, CHANNEL_VIEW_IDS)
         return YouTubeVideoInfo(
@@ -77,15 +99,14 @@ object YouTubeTracker {
         )
     }
 
-    // Detect if video is currently paused by checking play button content description
     fun detectPauseState(root: AccessibilityNodeInfo): Boolean {
         for (id in PLAY_PAUSE_IDS) {
             try {
                 val nodes = root.findAccessibilityNodeInfosByViewId(id)
                 for (node in nodes) {
                     val desc = node.contentDescription?.toString()?.lowercase() ?: continue
-                    if (desc.contains("play") || desc.contains("phát")) return true   // paused → button shows "Play"
-                    if (desc.contains("pause") || desc.contains("tạm dừng")) return false // playing → button shows "Pause"
+                    if (desc.contains("play") || desc.contains("phát")) return true
+                    if (desc.contains("pause") || desc.contains("tạm dừng")) return false
                 }
             } catch (_: Exception) {}
         }
@@ -99,7 +120,6 @@ object YouTubeTracker {
                 for (node in nodes) {
                     val text = node.text?.toString()?.trim()
                     if (!text.isNullOrBlank()) return text
-                    // Also check content description for Shorts channel names
                     val desc = node.contentDescription?.toString()?.trim()
                     if (!desc.isNullOrBlank() && desc.length > 1) return desc
                 }
@@ -108,43 +128,53 @@ object YouTubeTracker {
         return null
     }
 
-    // Called when video is paused — accumulates duration without clearing currentVideo
+    /**
+     * Scan the accessibility tree for a text node that looks like a video title.
+     * Looks for TextView text between 8 and 200 chars that isn't a nav label or button.
+     * Stops at depth 12 to avoid scanning the full tree.
+     */
+    private fun scanTreeForTitle(node: AccessibilityNodeInfo?, depth: Int = 0): String? {
+        if (node == null || depth > 12) return null
+        val className = node.className?.toString() ?: ""
+        if (className.endsWith("TextView")) {
+            val text = node.text?.toString()?.trim()
+            if (!text.isNullOrBlank() && text.length in 8..200 &&
+                !IGNORED_TITLES.contains(text) && !text.startsWith("http")) {
+                return text
+            }
+        }
+        for (i in 0 until node.childCount) {
+            val result = scanTreeForTitle(try { node.getChild(i) } catch (_: Exception) { null }, depth + 1)
+            if (result != null) return result
+        }
+        return null
+    }
+
     fun pauseCurrentVideo() {
         val current = currentVideo ?: return
-        if (isPaused) return  // already paused
-
+        if (isPaused) return
         val elapsed = ((System.currentTimeMillis() - current.startedAt) / 1000).toInt()
         accumulatedSeconds += elapsed
         isPaused = true
-
         android.util.Log.d("YouTubeTracker", "⏸️ Paused: ${current.title} (+${elapsed}s, total=${accumulatedSeconds}s)")
     }
 
-    // Called when video resumes — resets startedAt so duration tracks from resume point
     fun resumeCurrentVideo() {
         val current = currentVideo ?: return
         if (!isPaused) return
-
         isPaused = false
         currentVideo = current.copy(startedAt = System.currentTimeMillis())
-
         android.util.Log.d("YouTubeTracker", "▶️ Resumed: ${current.title} (accumulated=${accumulatedSeconds}s)")
     }
 
     fun stopCurrentVideo() {
         val current = currentVideo ?: return
-
-        // Add elapsed since last resume/start
         if (!isPaused) {
             val elapsed = ((System.currentTimeMillis() - current.startedAt) / 1000).toInt()
             accumulatedSeconds += elapsed
         }
-
         val totalDuration = accumulatedSeconds
-
         android.util.Log.d("YouTubeTracker", "⏹️ Stopping: ${current.title} (totalDuration=${totalDuration}s)")
-
-        // Reset state regardless of min-duration threshold
         currentVideo = null
         accumulatedSeconds = 0
         isPaused = false
@@ -164,7 +194,6 @@ object YouTubeTracker {
                 "durationSeconds" to totalDuration,
             )
         )
-
         android.util.Log.d("YouTubeTracker", "📺 Saved: ${current.title} (${totalDuration}s)")
     }
 

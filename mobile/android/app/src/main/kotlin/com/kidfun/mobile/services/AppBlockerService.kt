@@ -165,14 +165,18 @@ class AppBlockerService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
 
-        val root = rootInActiveWindow ?: return
-        val info = YouTubeTracker.extractVideoInfo(root)
+        android.util.Log.v("YouTubeTracker", "📡 YT event type=${event.eventType} current=${YouTubeTracker.currentVideo?.title?.take(30)}")
 
-        // No video title detected (controls hidden or non-video screen) → don't touch state
-        // YouTube hides overlay controls after ~3-4s; title disappears from a11y tree.
-        // Treating null as "paused" causes false pauses during normal playback.
+        val root = rootInActiveWindow ?: run {
+            android.util.Log.w("YouTubeTracker", "⚠️ rootInActiveWindow null")
+            return
+        }
+
+        // Pass event so extractVideoInfo can use event.text as fallback when view IDs miss
+        val info = YouTubeTracker.extractVideoInfo(root, event)
+
+        // No video title detected → controls hidden or non-video screen, don't change state
         if (info == null) {
-            // Only check explicit pause via play button if a video is currently tracked
             if (YouTubeTracker.currentVideo != null) {
                 val paused = YouTubeTracker.detectPauseState(root)
                 if (paused && !YouTubeTracker.isPaused) {
@@ -184,7 +188,7 @@ class AppBlockerService : AccessibilityService() {
             return
         }
 
-        // Same video still playing → check pause/resume state
+        // Same video → check pause/resume state only
         if (YouTubeTracker.currentVideo?.title == info.title) {
             val paused = YouTubeTracker.detectPauseState(root)
             if (paused && !YouTubeTracker.isPaused) {
@@ -198,7 +202,6 @@ class AppBlockerService : AccessibilityService() {
         // New video → stop previous, start new
         YouTubeTracker.stopCurrentVideo()
 
-        // Check blocked
         if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
             BlockNotificationHelper.showVideoBlocked(this, info.title)
             performGlobalAction(GLOBAL_ACTION_HOME)
