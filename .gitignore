@@ -177,3 +177,7 @@ reports/
 # Exception: Flutter features/reports is source code, not a report artifact
 !mobile/lib/features/reports/
 !mobile/lib/features/reports/**
+
+# Local working documents — not part of project source
+scratch/
+Plans/
