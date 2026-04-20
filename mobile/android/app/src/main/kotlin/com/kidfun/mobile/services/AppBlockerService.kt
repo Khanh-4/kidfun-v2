@@ -55,6 +55,10 @@ class AppBlockerService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
 
+    // Debounce TYPE_WINDOW_CONTENT_CHANGED events for YouTube to reduce CPU/log spam
+    private var lastYtContentChangedMs: Long = 0L
+    private val YT_CONTENT_CHANGED_DEBOUNCE_MS = 500L
+
     /**
      * Periodic runnable: check app đang foreground mỗi 30s để bắt warning/block
      * kể cả khi không có window-state-change event nào.
@@ -165,12 +169,23 @@ class AppBlockerService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
 
+        // Debounce high-frequency content-change events
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            val now = System.currentTimeMillis()
+            if (now - lastYtContentChangedMs < YT_CONTENT_CHANGED_DEBOUNCE_MS) return
+            lastYtContentChangedMs = now
+        }
+
         android.util.Log.v("YouTubeTracker", "📡 YT event type=${event.eventType} current=${YouTubeTracker.currentVideo?.title?.take(30)}")
 
         val root = rootInActiveWindow ?: run {
             android.util.Log.w("YouTubeTracker", "⚠️ rootInActiveWindow null")
             return
         }
+
+        // Guard: stale queued events can fire after user leaves YouTube; rootInActiveWindow
+        // then belongs to the new foreground app, causing scanTreeForTitle to misread its UI.
+        if (root.packageName?.toString() != YouTubeTracker.YOUTUBE_PACKAGE) return
 
         // Pass event so extractVideoInfo can use event.text as fallback when view IDs miss
         val info = YouTubeTracker.extractVideoInfo(root, event)
