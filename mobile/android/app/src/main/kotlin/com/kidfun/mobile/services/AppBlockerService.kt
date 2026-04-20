@@ -57,7 +57,7 @@ class AppBlockerService : AccessibilityService() {
 
     // Debounce TYPE_WINDOW_CONTENT_CHANGED events for YouTube to reduce CPU/log spam
     private var lastYtContentChangedMs: Long = 0L
-    private val YT_CONTENT_CHANGED_DEBOUNCE_MS = 500L
+    private val YT_CONTENT_CHANGED_DEBOUNCE_MS = 2000L
 
     /**
      * Periodic runnable: check app đang foreground mỗi 30s để bắt warning/block
@@ -166,53 +166,26 @@ class AppBlockerService : AccessibilityService() {
     // ── Sprint 9: YouTube Tracking ────────────────────────────────────────────
 
     private fun handleYouTubeEvent(event: AccessibilityEvent) {
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
-
-        // Debounce high-frequency content-change events
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            val now = System.currentTimeMillis()
-            if (now - lastYtContentChangedMs < YT_CONTENT_CHANGED_DEBOUNCE_MS) return
-            lastYtContentChangedMs = now
+        // Only handle relevant event types
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleYouTubeWindowChange(event)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> handleYouTubeContentChange()
+            else -> return
         }
+    }
 
-        android.util.Log.v("YouTubeTracker", "📡 YT event type=${event.eventType} current=${YouTubeTracker.currentVideo?.title?.take(30)}")
-
-        val root = rootInActiveWindow ?: run {
-            android.util.Log.w("YouTubeTracker", "⚠️ rootInActiveWindow null")
-            return
-        }
-
-        // Guard: stale queued events can fire after user leaves YouTube; rootInActiveWindow
-        // then belongs to the new foreground app, causing scanTreeForTitle to misread its UI.
+    /**
+     * Handle TYPE_WINDOW_STATE_CHANGED — detect new video or leaving YouTube.
+     * This fires infrequently (only on actual window transitions) so no debounce needed.
+     */
+    private fun handleYouTubeWindowChange(event: AccessibilityEvent) {
+        val root = rootInActiveWindow ?: return
         if (root.packageName?.toString() != YouTubeTracker.YOUTUBE_PACKAGE) return
 
-        // Pass event so extractVideoInfo can use event.text as fallback when view IDs miss
-        val info = YouTubeTracker.extractVideoInfo(root, event)
+        val info = YouTubeTracker.extractVideoInfo(root, event) ?: return
 
-        // No video title detected → controls hidden or non-video screen, don't change state
-        if (info == null) {
-            if (YouTubeTracker.currentVideo != null) {
-                val paused = YouTubeTracker.detectPauseState(root)
-                if (paused && !YouTubeTracker.isPaused) {
-                    YouTubeTracker.pauseCurrentVideo()
-                } else if (!paused && YouTubeTracker.isPaused) {
-                    YouTubeTracker.resumeCurrentVideo()
-                }
-            }
-            return
-        }
-
-        // Same video → check pause/resume state only
-        if (YouTubeTracker.currentVideo?.title == info.title) {
-            val paused = YouTubeTracker.detectPauseState(root)
-            if (paused && !YouTubeTracker.isPaused) {
-                YouTubeTracker.pauseCurrentVideo()
-            } else if (!paused && YouTubeTracker.isPaused) {
-                YouTubeTracker.resumeCurrentVideo()
-            }
-            return
-        }
+        // Same video — no action needed
+        if (YouTubeTracker.currentVideo?.title == info.title) return
 
         // New video → stop previous, start new
         YouTubeTracker.stopCurrentVideo()
@@ -225,6 +198,33 @@ class AppBlockerService : AccessibilityService() {
 
         YouTubeTracker.currentVideo = info
         android.util.Log.d("YouTubeTracker", "▶️ Started: ${info.title} | ${info.channelName}")
+    }
+
+    /**
+     * Handle TYPE_WINDOW_CONTENT_CHANGED — detect pause/resume only.
+     * Heavily debounced (2s) because YouTube fires these events dozens of times per second.
+     * Only checks pause state when we're actively tracking a video.
+     */
+    private fun handleYouTubeContentChange() {
+        // Skip if not tracking any video
+        if (YouTubeTracker.currentVideo == null) return
+
+        // Debounce: YouTube fires CONTENT_CHANGED very frequently
+        val now = System.currentTimeMillis()
+        if (now - lastYtContentChangedMs < YT_CONTENT_CHANGED_DEBOUNCE_MS) return
+        lastYtContentChangedMs = now
+
+        val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() != YouTubeTracker.YOUTUBE_PACKAGE) return
+
+        // Tri-state: true=paused, false=playing, null=controls hidden (keep current state)
+        val pauseState = YouTubeTracker.detectPauseState(root) ?: return
+
+        if (pauseState && !YouTubeTracker.isPaused) {
+            YouTubeTracker.pauseCurrentVideo()
+        } else if (!pauseState && YouTubeTracker.isPaused) {
+            YouTubeTracker.resumeCurrentVideo()
+        }
     }
 
     /**
