@@ -1,4 +1,4 @@
-const { analyzeVideo } = require('../services/geminiService');
+const { analyzeVideo, isAIAvailable } = require('../services/aiService');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -13,6 +13,11 @@ exports.setSocketIO = (socketIO) => { io = socketIO; };
 exports.runAnalysisBatch = async () => {
   if (isRunning) {
     console.log('⏳ [AI WORKER] Already running, skip');
+    return;
+  }
+
+  if (!isAIAvailable()) {
+    console.log('⏭️ [AI WORKER] No AI provider configured (GROQ_API_KEY or OPENROUTER_API_KEY), skip batch');
     return;
   }
 
@@ -54,8 +59,8 @@ exports.runAnalysisBatch = async () => {
           await handleDangerousVideo(log, result);
         }
 
-        // Rate limit: 4.5s giữa requests (Gemini free tier 15 RPM)
-        await sleep(4500);
+        // Rate limit: 2.5s giữa requests (Groq free tier 30 RPM)
+        await sleep(2500);
       } catch (err) {
         const isTransient = err.message && (
           err.message.includes('503') || err.message.includes('Service Unavailable') ||
