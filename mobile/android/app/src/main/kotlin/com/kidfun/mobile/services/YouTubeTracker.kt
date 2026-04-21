@@ -140,18 +140,16 @@ object YouTubeTracker {
 
     /**
      * Scan the accessibility tree for a text node that looks like a video title.
-     * Looks for TextView text between 8 and 200 chars that isn't a nav label or button.
-     * Stops at depth 12 to avoid scanning the full tree.
+     * Checks all nodes for text — depth 20 to handle deep Compose trees.
+     * YouTube migrated to Jetpack Compose which doesn't use TextView class names,
+     * so we can't filter by className anymore.
      */
     private fun scanTreeForTitle(node: AccessibilityNodeInfo?, depth: Int = 0): String? {
-        if (node == null || depth > 12) return null
-        val className = node.className?.toString() ?: ""
-        if (className.endsWith("TextView")) {
-            val text = node.text?.toString()?.trim()
-            if (!text.isNullOrBlank() && text.length in 8..200 &&
-                !IGNORED_TITLES.contains(text) && !text.startsWith("http")) {
-                return text
-            }
+        if (node == null || depth > 20) return null
+        val text = node.text?.toString()?.trim()
+        if (!text.isNullOrBlank() && text.length in 8..200 &&
+            !IGNORED_TITLES.contains(text) && !text.startsWith("http")) {
+            return text
         }
         for (i in 0 until node.childCount) {
             val result = scanTreeForTitle(try { node.getChild(i) } catch (_: Exception) { null }, depth + 1)
