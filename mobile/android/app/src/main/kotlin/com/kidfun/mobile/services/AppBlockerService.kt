@@ -237,9 +237,12 @@ class AppBlockerService : AccessibilityService() {
 
         val root = getYouTubeRoot() ?: return
 
+        // Always try to extract current visible video info
+        val info = YouTubeTracker.extractVideoInfo(root, null)
+
         if (YouTubeTracker.currentVideo == null) {
             // No video tracked yet — try detecting from content tree (fragment navigation)
-            val info = YouTubeTracker.extractVideoInfo(root, null) ?: return
+            if (info == null) return
             if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
                 BlockNotificationHelper.showVideoBlocked(this, info.title)
                 performGlobalAction(GLOBAL_ACTION_HOME)
@@ -250,7 +253,20 @@ class AppBlockerService : AccessibilityService() {
             return
         }
 
-        // Video tracked — detect pause/resume via play/pause button state
+        // Video tracked — check if user navigated to a different video (related video tap)
+        if (info != null && info.title != YouTubeTracker.currentVideo?.title) {
+            YouTubeTracker.stopCurrentVideo()
+            if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
+                BlockNotificationHelper.showVideoBlocked(this, info.title)
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                return
+            }
+            YouTubeTracker.currentVideo = info
+            android.util.Log.d("YouTubeTracker", "▶️ Started (navigation): ${info.title} | ${info.channelName}")
+            return
+        }
+
+        // Same video — detect pause/resume via play/pause button state
         // Tri-state: true=paused, false=playing, null=controls hidden (keep current state)
         val pauseState = YouTubeTracker.detectPauseState(root) ?: return
         if (pauseState && !YouTubeTracker.isPaused) {
