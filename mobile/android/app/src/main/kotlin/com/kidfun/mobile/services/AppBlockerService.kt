@@ -223,14 +223,13 @@ class AppBlockerService : AccessibilityService() {
     }
 
     /**
-     * Handle TYPE_WINDOW_CONTENT_CHANGED — detect pause/resume only.
+     * Handle TYPE_WINDOW_CONTENT_CHANGED — detect initial video OR pause/resume.
      * Heavily debounced (2s) because YouTube fires these events dozens of times per second.
-     * Only checks pause state when we're actively tracking a video.
+     *
+     * YouTube uses fragment navigation when tapping a video: no TYPE_WINDOW_STATE_CHANGED
+     * fires, only CONTENT_CHANGED. So initial video detection must also happen here.
      */
     private fun handleYouTubeContentChange() {
-        // Skip if not tracking any video
-        if (YouTubeTracker.currentVideo == null) return
-
         // Debounce: YouTube fires CONTENT_CHANGED very frequently
         val now = System.currentTimeMillis()
         if (now - lastYtContentChangedMs < YT_CONTENT_CHANGED_DEBOUNCE_MS) return
@@ -238,9 +237,22 @@ class AppBlockerService : AccessibilityService() {
 
         val root = getYouTubeRoot() ?: return
 
+        if (YouTubeTracker.currentVideo == null) {
+            // No video tracked yet — try detecting from content tree (fragment navigation)
+            val info = YouTubeTracker.extractVideoInfo(root, null) ?: return
+            if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
+                BlockNotificationHelper.showVideoBlocked(this, info.title)
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                return
+            }
+            YouTubeTracker.currentVideo = info
+            android.util.Log.d("YouTubeTracker", "▶️ Started (content): ${info.title} | ${info.channelName}")
+            return
+        }
+
+        // Video tracked — detect pause/resume via play/pause button state
         // Tri-state: true=paused, false=playing, null=controls hidden (keep current state)
         val pauseState = YouTubeTracker.detectPauseState(root) ?: return
-
         if (pauseState && !YouTubeTracker.isPaused) {
             YouTubeTracker.pauseCurrentVideo()
         } else if (!pauseState && YouTubeTracker.isPaused) {
