@@ -87,7 +87,8 @@ class AppBlockerService : AccessibilityService() {
                          AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
-                    AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                    AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
+                    AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 100
         }
         // Bắt đầu periodic check ngay sau khi service kết nối
@@ -102,9 +103,15 @@ class AppBlockerService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             // Always update foreground tracking, even for non-blocked apps
             if (lastForegroundPackage != packageName) {
-                // Stop YouTube tracking khi rời YouTube
                 if (lastForegroundPackage == YouTubeTracker.YOUTUBE_PACKAGE) {
-                    YouTubeTracker.stopCurrentVideo()
+                    // Only stop tracking if YouTube window is actually gone.
+                    // Accessibility overlay packages (voiceaccess, talkback) fire
+                    // TYPE_WINDOW_STATE_CHANGED while YouTube is still foreground,
+                    // which would incorrectly stop tracking if we don't check.
+                    val ytStillVisible = try {
+                        windows?.any { it.root?.packageName?.toString() == YouTubeTracker.YOUTUBE_PACKAGE } == true
+                    } catch (_: Exception) { false }
+                    if (!ytStillVisible) YouTubeTracker.stopCurrentVideo()
                 }
                 lastForegroundPackage = packageName
                 lastForegroundStartTime = System.currentTimeMillis()
@@ -165,6 +172,23 @@ class AppBlockerService : AccessibilityService() {
 
     // ── Sprint 9: YouTube Tracking ────────────────────────────────────────────
 
+    /**
+     * Find YouTube's window root via the windows list (FLAG_RETRIEVE_INTERACTIVE_WINDOWS).
+     * Falls back to rootInActiveWindow if windows API is unavailable.
+     * Using windows list avoids the bug where rootInActiveWindow returns an accessibility
+     * overlay window (e.g. VoiceAccess) instead of the actual YouTube window.
+     */
+    private fun getYouTubeRoot(): AccessibilityNodeInfo? {
+        try {
+            val ytRoot = windows
+                ?.firstOrNull { it.root?.packageName?.toString() == YouTubeTracker.YOUTUBE_PACKAGE }
+                ?.root
+            if (ytRoot != null) return ytRoot
+        } catch (_: Exception) {}
+        val root = rootInActiveWindow ?: return null
+        return if (root.packageName?.toString() == YouTubeTracker.YOUTUBE_PACKAGE) root else null
+    }
+
     private fun handleYouTubeEvent(event: AccessibilityEvent) {
         // Only handle relevant event types
         when (event.eventType) {
@@ -179,9 +203,7 @@ class AppBlockerService : AccessibilityService() {
      * This fires infrequently (only on actual window transitions) so no debounce needed.
      */
     private fun handleYouTubeWindowChange(event: AccessibilityEvent) {
-        val root = rootInActiveWindow ?: return
-        if (root.packageName?.toString() != YouTubeTracker.YOUTUBE_PACKAGE) return
-
+        val root = getYouTubeRoot() ?: return
         val info = YouTubeTracker.extractVideoInfo(root, event) ?: return
 
         // Same video — no action needed
@@ -214,8 +236,7 @@ class AppBlockerService : AccessibilityService() {
         if (now - lastYtContentChangedMs < YT_CONTENT_CHANGED_DEBOUNCE_MS) return
         lastYtContentChangedMs = now
 
-        val root = rootInActiveWindow ?: return
-        if (root.packageName?.toString() != YouTubeTracker.YOUTUBE_PACKAGE) return
+        val root = getYouTubeRoot() ?: return
 
         // Tri-state: true=paused, false=playing, null=controls hidden (keep current state)
         val pauseState = YouTubeTracker.detectPauseState(root) ?: return
