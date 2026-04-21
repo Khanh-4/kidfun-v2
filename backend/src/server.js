@@ -109,6 +109,10 @@ reportWorker.startScheduler();
 
 // ── Sprint 9: Admin manual trigger endpoints ──────────────────────────────
 const { authenticate } = require('./middleware/auth');
+const { getProviderStatus } = require('./services/aiService');
+app.get('/api/admin/ai-status', authenticate, (req, res) => {
+  res.json({ success: true, data: { providers: getProviderStatus() } });
+});
 app.post('/api/admin/run-ai-analysis', authenticate, (req, res) => {
   aiWorker.runAnalysisBatch().catch(console.error);
   res.json({ success: true, data: { message: 'AI analysis started' } });
