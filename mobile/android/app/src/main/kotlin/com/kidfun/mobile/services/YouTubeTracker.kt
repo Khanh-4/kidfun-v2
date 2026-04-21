@@ -55,6 +55,26 @@ object YouTubeTracker {
         "Tìm kiếm", "Search", "Xem sau", "Watch later",
     )
 
+    // Matches duration strings like "16 minutes, 28 seconds", "1 hour, 5 minutes", "1 phút 30 giây"
+    private val DURATION_REGEX = Regex(
+        "\\d+\\s*(minute|second|hour|phút|giây|giờ)",
+        RegexOption.IGNORE_CASE
+    )
+    // Matches video timestamps like "1:23:45" or "12:34"
+    private val TIMESTAMP_REGEX = Regex("^\\d+:\\d{2}(:\\d{2})?$")
+    // Matches pure numbers, view counts, like counts ("1,234,567", "1.2M", "123K")
+    private val METRIC_REGEX = Regex("^[\\d,\\.]+([KMB])?\\s*(views?|likes?|comments?)?$", RegexOption.IGNORE_CASE)
+
+    private fun looksLikeTitle(text: String): Boolean {
+        if (text.length !in 8..200) return false
+        if (IGNORED_TITLES.contains(text)) return false
+        if (text.startsWith("http")) return false
+        if (DURATION_REGEX.containsMatchIn(text)) return false
+        if (TIMESTAMP_REGEX.matches(text)) return false
+        if (METRIC_REGEX.matches(text)) return false
+        return true
+    }
+
     var currentVideo: YouTubeVideoInfo? = null
     private var accumulatedSeconds: Int = 0
     var isPaused: Boolean = false
@@ -75,7 +95,7 @@ object YouTubeTracker {
         if (title == null && event != null) {
             title = event.text
                 ?.mapNotNull { it?.toString()?.trim() }
-                ?.firstOrNull { it.length in 5..200 && !IGNORED_TITLES.contains(it) && !it.startsWith("http") }
+                ?.firstOrNull { looksLikeTitle(it) }
             if (title != null) {
                 Log.d(TAG, "📝 Title from event.text: $title")
             }
@@ -142,13 +162,13 @@ object YouTubeTracker {
      * Scan the accessibility tree for a text node that looks like a video title.
      * Checks all nodes for text — depth 20 to handle deep Compose trees.
      * YouTube migrated to Jetpack Compose which doesn't use TextView class names,
-     * so we can't filter by className anymore.
+     * so we can't filter by className anymore. Uses looksLikeTitle() to filter
+     * out duration strings, timestamps, and metric labels.
      */
     private fun scanTreeForTitle(node: AccessibilityNodeInfo?, depth: Int = 0): String? {
         if (node == null || depth > 20) return null
         val text = node.text?.toString()?.trim()
-        if (!text.isNullOrBlank() && text.length in 8..200 &&
-            !IGNORED_TITLES.contains(text) && !text.startsWith("http")) {
+        if (!text.isNullOrBlank() && looksLikeTitle(text)) {
             return text
         }
         for (i in 0 until node.childCount) {
