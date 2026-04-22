@@ -49,6 +49,17 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/play_pause_button",
     )
 
+    // Shorts has no traditional play/pause button — detect active Shorts player
+    // by checking for Shorts-specific container/title nodes that only appear in the player view
+    private val SHORTS_CONTEXT_IDS = listOf(
+        "$YOUTUBE_PACKAGE:id/reel_player_page",
+        "$YOUTUBE_PACKAGE:id/shorts_container",
+        "$YOUTUBE_PACKAGE:id/reel_player_title",
+        "$YOUTUBE_PACKAGE:id/shorts_video_title",
+        "$YOUTUBE_PACKAGE:id/reel_title_text",
+        "$YOUTUBE_PACKAGE:id/reel_channel_name",
+    )
+
     private val IGNORED_TITLES = setOf(
         "YouTube", "Trang chủ", "Home", "Shorts", "Đang tải...", "Loading...",
         "Khám phá", "Explore", "Thư viện", "Library", "Đăng ký", "Subscriptions",
@@ -133,10 +144,11 @@ object YouTubeTracker {
             }
         }
 
-        // Tier 3: tree scan — only runs when the video player UI is visible.
-        // Guard with hasPlayerControls() to avoid scanning YouTube home/browse screens
-        // where many recommendation titles would be falsely detected as the current video.
-        if (title == null && hasPlayerControls(root)) {
+        // Tier 3: tree scan — only runs when a video player UI is visible.
+        // hasActivePlayer() checks both the regular player (play/pause button) and
+        // the Shorts player (Shorts-specific container nodes) to avoid scanning
+        // YouTube home/browse screens where recommendation titles would cause false positives.
+        if (title == null && hasActivePlayer(root)) {
             title = scanTreeForTitle(root)
             if (title != null) {
                 Log.d(TAG, "🌲 Title from tree scan: $title")
@@ -155,8 +167,15 @@ object YouTubeTracker {
         )
     }
 
-    private fun hasPlayerControls(root: AccessibilityNodeInfo): Boolean {
+    private fun hasActivePlayer(root: AccessibilityNodeInfo): Boolean {
+        // Regular player: check play/pause button
         for (id in PLAY_PAUSE_IDS) {
+            try {
+                if (root.findAccessibilityNodeInfosByViewId(id).isNotEmpty()) return true
+            } catch (_: Exception) {}
+        }
+        // Shorts player: no traditional play/pause button — check Shorts-specific nodes
+        for (id in SHORTS_CONTEXT_IDS) {
             try {
                 if (root.findAccessibilityNodeInfosByViewId(id).isNotEmpty()) return true
             } catch (_: Exception) {}

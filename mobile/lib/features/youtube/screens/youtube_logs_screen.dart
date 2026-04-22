@@ -153,25 +153,54 @@ class _YouTubeLogsScreenState extends State<YouTubeLogsScreen> {
     return Scaffold(
       backgroundColor: AppColors.slate50,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text('Lịch sử YouTube', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 16)),
-            Text(widget.profileName, style: GoogleFonts.nunito(fontSize: 12, color: Colors.white70)),
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(40),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Lịch sử YouTube',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 16)),
+                Row(children: [
+                  const Icon(Icons.person_outline, size: 12, color: Colors.white70),
+                  const SizedBox(width: 3),
+                  Text(widget.profileName,
+                    style: GoogleFonts.nunito(fontSize: 11, color: Colors.white70)),
+                ]),
+              ],
+            ),
           ],
         ),
         backgroundColor: const Color(0xFFCC0000),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          Stack(
-            children: [
-              IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterSheet),
-              if (hasFilter) Positioned(
-                right: 8, top: 8,
-                child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.yellow, shape: BoxShape.circle)),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: TextButton.icon(
+              onPressed: _showFilterSheet,
+              icon: Icon(Icons.tune_rounded, size: 15,
+                color: hasFilter ? Colors.yellow.shade200 : Colors.white),
+              label: Text('Lọc dữ liệu',
+                style: GoogleFonts.nunito(
+                  color: hasFilter ? Colors.yellow.shade200 : Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                )),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withAlpha(hasFilter ? 55 : 25),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               ),
-            ],
+            ),
           ),
         ],
       ),
