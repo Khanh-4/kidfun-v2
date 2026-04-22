@@ -53,6 +53,23 @@ object YouTubeTracker {
         "YouTube", "Trang chủ", "Home", "Shorts", "Đang tải...", "Loading...",
         "Khám phá", "Explore", "Thư viện", "Library", "Đăng ký", "Subscriptions",
         "Tìm kiếm", "Search", "Xem sau", "Watch later",
+        // Navigation & player UI
+        "Up next", "Tiếp theo", "Now playing", "Đang phát",
+        "Recommended", "Đề xuất", "Related videos", "Video liên quan",
+        "More videos", "Video khác",
+        // Action labels
+        "Comments", "Bình luận", "Replies", "Phản hồi",
+        "More", "Xem thêm", "See all", "Xem tất cả", "Show less", "Ẩn bớt",
+        "Share", "Chia sẻ", "Download", "Tải xuống",
+        "Save", "Lưu", "Report", "Báo cáo",
+        "Subscribe", "Đăng ký theo dõi", "Unsubscribe", "Hủy đăng ký",
+        "Liked videos", "Video đã thích",
+        // Player controls & settings
+        "Auto-play", "Autoplay", "Tự động phát",
+        "Settings", "Cài đặt", "About", "Giới thiệu",
+        "Subtitles", "Phụ đề", "Quality", "Chất lượng",
+        "Full screen", "Toàn màn hình", "Miniplayer",
+        "Add to playlist", "Thêm vào danh sách phát",
     )
 
     // Matches duration strings like "16 minutes, 28 seconds", "1 hour, 5 minutes", "1 phút 30 giây"
@@ -64,6 +81,16 @@ object YouTubeTracker {
     private val TIMESTAMP_REGEX = Regex("^\\d+:\\d{2}(:\\d{2})?$")
     // Matches pure numbers, view counts, like counts ("1,234,567", "1.2M", "123K")
     private val METRIC_REGEX = Regex("^[\\d,\\.]+([KMB])?\\s*(views?|likes?|comments?)?$", RegexOption.IGNORE_CASE)
+    // Matches relative time like "2 days ago", "3 tháng trước"
+    private val RELATIVE_TIME_REGEX = Regex(
+        "\\b\\d+\\s*(năm|tháng|ngày|tuần|giờ|phút|giây|year|month|week|day|hour|minute|second)s?\\s*(trước|ago)\\b",
+        RegexOption.IGNORE_CASE
+    )
+    // Matches subscriber/follower counts like "1.2M subscribers", "500K người đăng ký"
+    private val SUBSCRIBER_COUNT_REGEX = Regex(
+        "\\b[\\d,\\.]+[KMBkmb]?\\s*(subscribers?|người đăng ký|follower)\\b",
+        RegexOption.IGNORE_CASE
+    )
 
     private fun looksLikeTitle(text: String): Boolean {
         if (text.length !in 8..200) return false
@@ -72,6 +99,11 @@ object YouTubeTracker {
         if (DURATION_REGEX.containsMatchIn(text)) return false
         if (TIMESTAMP_REGEX.matches(text)) return false
         if (METRIC_REGEX.matches(text)) return false
+        if (RELATIVE_TIME_REGEX.containsMatchIn(text)) return false
+        if (SUBSCRIBER_COUNT_REGEX.containsMatchIn(text)) return false
+        // Must be mostly alphabetic — filters out number/symbol-heavy UI elements
+        val letterCount = text.count { it.isLetter() }
+        if (letterCount < text.length * 0.4f) return false
         return true
     }
 
@@ -85,7 +117,7 @@ object YouTubeTracker {
      * Extract video info using 3-tier strategy:
      * 1. Known view IDs (fastest, version-dependent)
      * 2. AccessibilityEvent text (reliable for window changes)
-     * 3. Full tree scan for TextView nodes (fallback when IDs change)
+     * 3. Full tree scan — only when player controls are visible (not on home/browse screens)
      */
     fun extractVideoInfo(root: AccessibilityNodeInfo, event: AccessibilityEvent? = null): YouTubeVideoInfo? {
         // Tier 1: known view IDs
@@ -101,8 +133,10 @@ object YouTubeTracker {
             }
         }
 
-        // Tier 3: tree scan — last resort when YouTube obfuscates view IDs
-        if (title == null) {
+        // Tier 3: tree scan — only runs when the video player UI is visible.
+        // Guard with hasPlayerControls() to avoid scanning YouTube home/browse screens
+        // where many recommendation titles would be falsely detected as the current video.
+        if (title == null && hasPlayerControls(root)) {
             title = scanTreeForTitle(root)
             if (title != null) {
                 Log.d(TAG, "🌲 Title from tree scan: $title")
@@ -119,6 +153,15 @@ object YouTubeTracker {
             thumbnailUrl = null,
             startedAt = System.currentTimeMillis(),
         )
+    }
+
+    private fun hasPlayerControls(root: AccessibilityNodeInfo): Boolean {
+        for (id in PLAY_PAUSE_IDS) {
+            try {
+                if (root.findAccessibilityNodeInfosByViewId(id).isNotEmpty()) return true
+            } catch (_: Exception) {}
+        }
+        return false
     }
 
     /**
@@ -159,23 +202,48 @@ object YouTubeTracker {
     }
 
     /**
-     * Scan the accessibility tree for a text node that looks like a video title.
-     * Checks all nodes for text — depth 20 to handle deep Compose trees.
-     * YouTube migrated to Jetpack Compose which doesn't use TextView class names,
-     * so we can't filter by className anymore. Uses looksLikeTitle() to filter
-     * out duration strings, timestamps, and metric labels.
+     * Scan the accessibility tree for text nodes that look like a video title.
+     * Collects all candidates then picks the highest-scoring one to avoid false positives
+     * from the first matching node (which could be a comment, description, etc.).
      */
-    private fun scanTreeForTitle(node: AccessibilityNodeInfo?, depth: Int = 0): String? {
-        if (node == null || depth > 20) return null
+    private fun scanTreeForTitle(root: AccessibilityNodeInfo?): String? {
+        val candidates = mutableListOf<String>()
+        collectTitleCandidates(root, candidates)
+        return candidates.maxByOrNull { scoreTitleCandidate(it) }
+    }
+
+    private fun collectTitleCandidates(node: AccessibilityNodeInfo?, candidates: MutableList<String>, depth: Int = 0) {
+        if (node == null || depth > 20) return
         val text = node.text?.toString()?.trim()
         if (!text.isNullOrBlank() && looksLikeTitle(text)) {
-            return text
+            candidates.add(text)
         }
         for (i in 0 until node.childCount) {
-            val result = scanTreeForTitle(try { node.getChild(i) } catch (_: Exception) { null }, depth + 1)
-            if (result != null) return result
+            collectTitleCandidates(try { node.getChild(i) } catch (_: Exception) { null }, candidates, depth + 1)
         }
-        return null
+    }
+
+    private fun scoreTitleCandidate(text: String): Int {
+        var score = 0
+        val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        // Video titles typically have 3–12 words
+        when {
+            words.size in 3..12 -> score += 3
+            words.size in 2..15 -> score += 2
+            words.size >= 2 -> score += 1
+        }
+        // Video titles typically are 20–100 chars
+        when {
+            text.length in 20..100 -> score += 2
+            text.length in 10..150 -> score += 1
+        }
+        // Most titles start with an uppercase letter
+        if (text.firstOrNull()?.isUpperCase() == true) score += 1
+        // Mostly alphabetic (not symbol/number heavy)
+        val letterRatio = text.count { it.isLetter() }.toFloat() / text.length
+        if (letterRatio > 0.7f) score += 2
+        else if (letterRatio > 0.5f) score += 1
+        return score
     }
 
     fun pauseCurrentVideo() {
