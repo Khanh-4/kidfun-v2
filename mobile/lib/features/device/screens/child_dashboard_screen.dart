@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/services/native_service.dart';
 import '../../../core/services/policy_service.dart';
@@ -35,6 +36,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   bool _isLoading = true;
   bool _hasToken = false;
   bool _isSocketConnected = false;
+  bool _isDeviceLinked = true; // false khi server trả về deviceError
   String? _deviceCode;
   Timer? _connectionCheckTimer;
   late AnimationController _pulseController;
@@ -219,7 +221,17 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     try {
       // 1. Get remaining time
-      final todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      TodayLimitModel todayLimit;
+      try {
+        todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) {
+          // Device chưa được link → dừng mọi polling, hiện hướng dẫn
+          _handleDeviceNotLinked();
+          return;
+        }
+        rethrow;
+      }
       print('📊 [DEBUG] _initSession: limitMinutes=${todayLimit.limitMinutes}, remainingMinutes=${todayLimit.remainingMinutes}, remainingSeconds=${todayLimit.remainingSeconds}');
 
       _currentTotalLimitMinutes = todayLimit.limitMinutes;
@@ -811,6 +823,47 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     }
   }
 
+  void _handleDeviceNotLinked() {
+    if (!_isDeviceLinked) return; // Đã xử lý rồi, tránh duplicate
+    print('⚠️ [DEVICE] Device not linked — stopping all timers');
+    setState(() => _isDeviceLinked = false);
+
+    // Stop tất cả timers để tránh tiếp tục spam 404
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    _usageSyncTimer?.cancel();
+    _screenPollTimer?.cancel();
+    _connectionCheckTimer?.cancel();
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.link_off, color: Color(0xFF6366f1)),
+            SizedBox(width: 8),
+            Expanded(child: Text('Thiết bị chưa liên kết')),
+          ],
+        ),
+        content: const Text(
+          'Thiết bị này chưa được liên kết với tài khoản phụ huynh. Vui lòng quét mã QR từ ứng dụng phụ huynh.',
+        ),
+        actions: [
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(roleProvider.notifier).setLinked(false);
+            },
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Liên kết ngay'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _setupSocketListeners() {
     final socket = SocketService.instance.socket;
 
@@ -875,6 +928,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
     });
 
+    // Sprint 10: deviceError — thiết bị chưa được liên kết trong DB
+    SocketService.instance.addDeviceErrorListener(_onDeviceError);
+
     socket.off('timeExtensionResponse');
     socket.on('timeExtensionResponse', (data) async {
       print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
@@ -920,6 +976,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         }
       }
     });
+  }
+
+  void _onDeviceError(Map<String, dynamic> data) {
+    if (data['code'] == 'DEVICE_NOT_FOUND') {
+      _handleDeviceNotLinked();
+    }
   }
 
   void _showResultDialog(bool approved, int minutes) {
@@ -971,6 +1033,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     }
     
     // Remove socket listeners
+    SocketService.instance.removeDeviceErrorListener(_onDeviceError);
     SocketService.instance.socket.off('timeLimitUpdated');
     SocketService.instance.socket.off('timeExtensionResponse');
     SocketService.instance.socket.off('blockedAppsUpdated');
