@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', 1); // Railway/Render/Heroku sit behind a reverse proxy
 const httpServer = createServer(app);
 
 // CORS: cho phép tất cả origins trong dev mode để hỗ trợ LAN
