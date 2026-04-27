@@ -122,6 +122,10 @@ const socketService = {
 
           } else {
             console.warn(`⚠️ [SOCKET] joinDevice: No device found in DB for code ${deviceCode}`);
+            socket.emit('deviceError', {
+              code: 'DEVICE_NOT_FOUND',
+              message: 'Thiết bị chưa được liên kết. Vui lòng quét mã QR từ ứng dụng phụ huynh.',
+            });
           }
         } catch (err) {
           console.error('❌ [SOCKET] joinDevice error:', err);
@@ -280,9 +284,9 @@ const socketService = {
             }
 
             if (deviceId) {
-              await prisma.device.update({
+              await prisma.device.updateMany({
                 where: { id: deviceId },
-                data: { isOnline: false, lastSeen: new Date() }
+                data: { isOnline: false, lastSeen: new Date() },
               });
 
               const familyRoom = `family_${deviceUserId}`;

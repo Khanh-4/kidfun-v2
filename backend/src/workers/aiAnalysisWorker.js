@@ -7,6 +7,7 @@ const ALERT_THRESHOLD = 4;
 
 let isRunning = false;
 let io = null;
+let emptyRunCount = 0;
 
 exports.setSocketIO = (socketIO) => { io = socketIO; };
 
@@ -31,9 +32,13 @@ exports.runAnalysisBatch = async () => {
     });
 
     if (logs.length === 0) {
-      console.log('✅ [AI WORKER] No videos to analyze');
+      emptyRunCount++;
+      if (emptyRunCount % 6 === 1) {
+        console.log('✅ [AI WORKER] No videos to analyze (checking every 10 min)');
+      }
       return;
     }
+    emptyRunCount = 0;
 
     console.log(`🤖 [AI WORKER] Analyzing ${logs.length} videos...`);
 
