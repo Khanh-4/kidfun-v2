@@ -477,4 +477,38 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
     );
     searchCtrl.dispose();
   }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 56, color: AppColors.danger),
+            const SizedBox(height: 16),
+            Text(
+              _error ?? 'Lỗi kết nối. Vui lòng thử lại sau.',
+              style: GoogleFonts.nunito(
+                fontSize: 16,
+                color: AppColors.danger,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh),
+              label: Text('Thử lại', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.indigo600,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
