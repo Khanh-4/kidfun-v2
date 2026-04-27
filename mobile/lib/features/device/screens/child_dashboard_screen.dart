@@ -41,6 +41,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   Timer? _connectionCheckTimer;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  String? _error;
 
   // Task 2: Countdown & Session
   final _childRepo = ChildRepository();
@@ -141,7 +142,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     setState(() {
       _hasToken = true;
       _deviceCode = deviceCode;
-      _isLoading = false;
+      _error = null;
     });
 
     // Connect Socket.IO (idempotent — won't duplicate if already connected)
@@ -191,7 +192,18 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // session is established, otherwise resume/pause API calls will 404.
 
     // Sprint 4: Task 2 - Session & Countdown
-    _initSession();
+    try {
+      await _initSession();
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      print('❌ Dashboard initSession error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Lỗi kết nối mạng, vui lòng thử lại';
+        });
+      }
+    }
     _setupSocketListeners();
     
     // Task 3: Start location tracking
@@ -1216,6 +1228,46 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         body: Container(
           decoration: AppTheme.gradientBg(AppColors.timeRemainingGradient),
           child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Container(
+          decoration: AppTheme.gradientBg(AppColors.timeRemainingGradient),
+          child: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.white),
+                    const SizedBox(height: 16),
+                    Text(_error!, style: GoogleFonts.nunito(fontSize: 18, color: Colors.white), textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _isLoading = true;
+                          _error = null;
+                        });
+                        _initializeDashboard();
+                      },
+                      icon: const Icon(Icons.refresh, color: Colors.blue),
+                      label: Text('Thử lại', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       );
     }

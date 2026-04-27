@@ -24,6 +24,7 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
   final _appUsageRepo = AppUsageRepository();
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _error;
 
   bool _isEnabled = false;
   String _startTime = "07:00";
@@ -40,7 +41,10 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final data = await _repository.getSchedule(widget.profileId);
       // Backend returns: { schedule: { isEnabled, templateStartTime, templateEndTime, allowedApps, daySchedules } }
@@ -53,8 +57,11 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _error = 'Lỗi kết nối. Vui lòng thử lại sau.';
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Lỗi: $e', style: GoogleFonts.nunito()),
           backgroundColor: AppColors.danger,
@@ -145,9 +152,11 @@ class _SchoolModeScreenState extends State<SchoolModeScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(AppTheme.screenPadding),
-              children: [
+          : _error != null
+              ? _buildErrorState()
+              : ListView(
+                  padding: const EdgeInsets.all(AppTheme.screenPadding),
+                  children: [
                 _buildToggleSection(),
                 const SizedBox(height: 16),
                 if (_isEnabled) ...[

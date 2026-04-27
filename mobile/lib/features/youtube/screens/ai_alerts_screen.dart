@@ -24,6 +24,7 @@ class _AIAlertsScreenState extends State<AIAlertsScreen> with SingleTickerProvid
   List<Map<String, dynamic>> _allAlerts = [];
   List<Map<String, dynamic>> _unreadAlerts = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -39,7 +40,10 @@ class _AIAlertsScreenState extends State<AIAlertsScreen> with SingleTickerProvid
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final res = await _dio.get('/api/profiles/${widget.profileId}/ai-alerts');
       final alerts = (res.data['data']['alerts'] as List? ?? [])
@@ -51,7 +55,10 @@ class _AIAlertsScreenState extends State<AIAlertsScreen> with SingleTickerProvid
         _loading = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _error = 'Lỗi kết nối mạng, vui lòng thử lại';
+      });
     }
   }
 
@@ -121,13 +128,38 @@ class _AIAlertsScreenState extends State<AIAlertsScreen> with SingleTickerProvid
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.red))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _AlertsList(alerts: _unreadAlerts, onMarkRead: _markRead, emptyText: 'Không có cảnh báo chưa đọc 🎉'),
-                _AlertsList(alerts: _allAlerts, onMarkRead: _markRead, emptyText: 'Chưa có cảnh báo nào'),
-              ],
-            ),
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(_error!, style: GoogleFonts.nunito(fontSize: 16, color: Colors.red), textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          label: Text('Thử lại', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade800,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _AlertsList(alerts: _unreadAlerts, onMarkRead: _markRead, emptyText: 'Không có cảnh báo chưa đọc 🎉', onRefresh: _load),
+                    _AlertsList(alerts: _allAlerts, onMarkRead: _markRead, emptyText: 'Chưa có cảnh báo nào', onRefresh: _load),
+                  ],
+                ),
     );
   }
 }
@@ -136,24 +168,42 @@ class _AlertsList extends StatelessWidget {
   final List<Map<String, dynamic>> alerts;
   final Future<void> Function(int id) onMarkRead;
   final String emptyText;
+  final Future<void> Function() onRefresh;
 
-  const _AlertsList({required this.alerts, required this.onMarkRead, required this.emptyText});
+  const _AlertsList({required this.alerts, required this.onMarkRead, required this.emptyText, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     if (alerts.isEmpty) {
-      return Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
-          const SizedBox(height: 12),
-          Text(emptyText, style: GoogleFonts.nunito(color: Colors.grey, fontSize: 15)),
-        ]),
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: Colors.red.shade800,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: Center(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
+                  const SizedBox(height: 12),
+                  Text(emptyText, style: GoogleFonts.nunito(color: Colors.grey, fontSize: 15)),
+                ]),
+              ),
+            ),
+          ],
+        ),
       );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: alerts.length,
-      itemBuilder: (_, i) => _AlertCard(alert: alerts[i], onMarkRead: onMarkRead),
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: Colors.red.shade800,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        itemCount: alerts.length,
+        itemBuilder: (_, i) => _AlertCard(alert: alerts[i], onMarkRead: onMarkRead),
+      ),
     );
   }
 }

@@ -24,6 +24,7 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
   List<Map<String, dynamic>> _apps = [];
   List<Map<String, dynamic>> _limits = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -32,7 +33,10 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final results = await Future.wait([
         _dio.get('/api/profiles/${widget.profileId}/all-apps'),
@@ -50,6 +54,9 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _error = 'Lỗi kết nối. Vui lòng thử lại sau.';
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Lỗi: $e', style: GoogleFonts.nunito()),
           backgroundColor: AppColors.danger,
@@ -215,9 +222,32 @@ class _PerAppTimeLimitScreenState extends State<PerAppTimeLimitScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _apps.isEmpty
-              ? _buildEmptyState()
-              : _buildAppList(),
+          : _error != null
+              ? _buildErrorState()
+              : _apps.isEmpty
+                  ? _buildEmptyState()
+                  : _buildAppList(),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+            const SizedBox(height: 12),
+            Text(_error!, textAlign: TextAlign.center, style: GoogleFonts.nunito(color: AppColors.danger, fontSize: 14)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: Text('Thử lại', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -23,6 +23,7 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
   late TabController _tabController;
 
   bool _isLoading = true;
+  String? _error;
   List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _customDomains = [];
 
@@ -40,7 +41,10 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       // Load song song: tất cả categories + danh sách bị chặn + custom domains
       final results = await Future.wait([
@@ -90,8 +94,11 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _error = 'Lỗi kết nối. Vui lòng thử lại sau.';
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Lỗi: $e', style: GoogleFonts.nunito()),
           backgroundColor: AppColors.danger,
@@ -255,13 +262,36 @@ class _WebFilterScreenState extends State<WebFilterScreen> with SingleTickerProv
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildCategoriesTab(),
-                _buildCustomDomainsTab(),
-              ],
+          : _error != null
+              ? _buildErrorState()
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildCategoriesTab(),
+                    _buildCustomDomainsTab(),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+            const SizedBox(height: 12),
+            Text(_error!, textAlign: TextAlign.center, style: GoogleFonts.nunito(color: AppColors.danger, fontSize: 14)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: Text('Thử lại', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
             ),
+          ],
+        ),
+      ),
     );
   }
 

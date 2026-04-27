@@ -59,7 +59,12 @@ class _MapScreenState extends State<MapScreen> {
       setState(() => _geofences = data);
       _drawGeofences();
     } catch (e) {
-      print('Error fetching geofences: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Lỗi tải vùng an toàn, vui lòng thử lại."),
+          backgroundColor: Colors.red,
+        ));
+      }
     }
   }
 
@@ -70,7 +75,12 @@ class _MapScreenState extends State<MapScreen> {
         _updateChildMarker(location['latitude'] as double, location['longitude'] as double);
       }
     } catch (e) {
-      print('Error fetching location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Lỗi tải vị trí hiện tại, vui lòng thử lại."),
+          backgroundColor: Colors.red,
+        ));
+      }
     }
   }
 
