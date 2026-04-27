@@ -68,10 +68,7 @@ class _AppBlockingScreenState extends State<AppBlockingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _errorMessage = e.toString());
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e'), backgroundColor: Colors.red),
-        );
+        setState(() => _errorMessage = 'Lỗi kết nối. Vui lòng thử lại sau.');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Lỗi tải dữ liệu: $e', style: GoogleFonts.nunito()),
           backgroundColor: AppColors.danger,

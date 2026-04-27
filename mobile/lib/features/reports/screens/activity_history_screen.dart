@@ -23,6 +23,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   DateTime _selectedDate = DateTime.now();
   List<dynamic> _activities = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -31,7 +32,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final items = await _repo.getActivityHistory(widget.profileId, date: _selectedDate);
       setState(() {
@@ -39,7 +43,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         _loading = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
+      setState(() {
+        _error = 'Lỗi kết nối. Vui lòng thử lại sau.';
+        _loading = false;
+      });
     }
   }
 
@@ -65,13 +72,15 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _activities.isEmpty
-                    ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
-                        const SizedBox(height: 12),
-                        Text('Không có hoạt động nào', style: GoogleFonts.nunito(color: Colors.grey, fontSize: 16)),
-                      ]))
-                    : RefreshIndicator(
+                : _error != null
+                    ? _buildErrorState()
+                    : _activities.isEmpty
+                        ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
+                            const SizedBox(height: 12),
+                            Text('Không có hoạt động nào', style: GoogleFonts.nunito(color: Colors.grey, fontSize: 16)),
+                          ]))
+                        : RefreshIndicator(
                         onRefresh: _load,
                         child: ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

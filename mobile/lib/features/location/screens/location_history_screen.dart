@@ -28,6 +28,7 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
   DateTime _selectedDate = DateTime.now();
   List<dynamic> _events = [];
   bool _isLoading = true;
+  String? _error;
 
   // Map
   MapboxMap? _mapboxMap;
@@ -60,7 +61,10 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
   }
 
   Future<void> _fetchHistory() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final data = await _locationRepo.getHistory(widget.profileId, dateStr);
@@ -73,7 +77,10 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
     } catch (e) {
       print('Error fetching history: $e');
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _error = 'Lỗi kết nối mạng, vui lòng thử lại';
+      });
     }
   }
 
@@ -283,15 +290,47 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _events.isEmpty
+                : _error != null
                     ? Center(
-                        child: Text(
-                          'Không có dữ liệu vị trí',
-                          style: GoogleFonts.nunito(
-                              color: AppColors.slate500, fontSize: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text(_error!, style: GoogleFonts.nunito(fontSize: 16, color: Colors.red), textAlign: TextAlign.center),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: _fetchHistory,
+                                icon: const Icon(Icons.refresh, color: Colors.white),
+                                label: Text('Thử lại', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade800,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       )
-                    : ListView.builder(
+                    : _events.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.location_off, size: 64, color: Colors.grey),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Không có dữ liệu vị trí',
+                                  style: GoogleFonts.nunito(
+                                      color: AppColors.slate500, fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
                         itemCount: _events.length,
                         itemBuilder: (context, index) {
                           final event = _events[index];

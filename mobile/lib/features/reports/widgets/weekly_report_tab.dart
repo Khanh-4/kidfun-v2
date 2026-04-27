@@ -76,12 +76,7 @@ class _WeeklyReportTabState extends State<WeeklyReportTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-      const SizedBox(height: 12),
-      Text('Lỗi tải dữ liệu', style: GoogleFonts.nunito(color: Colors.red)),
-      TextButton(onPressed: _load, child: const Text('Thử lại')),
-    ]));
+    if (_error != null) return _buildErrorState();
 
     return RefreshIndicator(
       onRefresh: _load,

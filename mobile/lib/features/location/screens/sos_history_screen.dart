@@ -48,7 +48,7 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Không thể tải lịch sử SOS: $e';
+        _error = 'Lỗi kết nối. Vui lòng thử lại sau.';
         _isLoading = false;
       });
     }
@@ -111,26 +111,7 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
       return const Center(child: CircularProgressIndicator(color: AppColors.indigo600));
     }
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
-              const SizedBox(height: 12),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(color: AppColors.danger)),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _fetchSOSHistory,
-                child: Text('Thử lại', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorState();
     }
     if (_alerts.isEmpty) {
       return Center(
@@ -296,4 +277,36 @@ class _SosHistoryScreenState extends State<SosHistoryScreen> {
       ),
     );
   }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+          const SizedBox(height: 16),
+          Text(
+            _error ?? 'Lỗi kết nối. Vui lòng thử lại sau.',
+            style: GoogleFonts.nunito(
+              fontSize: 16,
+              color: AppColors.danger,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _fetchSOSHistory,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+          )
+        ],
+      ),
+    );
+  }
 }
+

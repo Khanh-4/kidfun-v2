@@ -44,12 +44,7 @@ class _DailyReportTabState extends State<DailyReportTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-      const SizedBox(height: 12),
-      Text('Lỗi tải dữ liệu', style: GoogleFonts.nunito(color: Colors.red)),
-      TextButton(onPressed: _load, child: const Text('Thử lại')),
-    ]));
+    if (_error != null) return _buildErrorState();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -382,4 +377,36 @@ class _DailyReportTabState extends State<DailyReportTab> {
     final m = minutes % 60;
     return h > 0 ? '${h}h ${m}m' : '${m}m';
   }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+          const SizedBox(height: 16),
+          Text(
+            _error ?? 'Lỗi kết nối. Vui lòng thử lại sau.',
+            style: GoogleFonts.nunito(
+              fontSize: 16,
+              color: AppColors.danger,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+          )
+        ],
+      ),
+    );
+  }
 }
+
