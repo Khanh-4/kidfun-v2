@@ -300,9 +300,22 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
               deviceCode: _deviceCode!,
             );
             if (mounted) {
-              // Completely decouple heartbeat API response from UI countdown
-              print('💓 [HEARTBEAT] ping successful. UI timer isolated from API latency.');
-              
+              print('💓 [HEARTBEAT] ping successful. server=${result.remainingSeconds}s');
+
+              // Sync countdown nếu lệch > 10s so với server (tránh drift dài hạn)
+              if (_isLimitEnabled && _endTime != null) {
+                final localRemaining = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+                final diff = (result.remainingSeconds - localRemaining).abs();
+                if (diff > 10) {
+                  print('⚠️ [HEARTBEAT] Drift ${diff}s detected, syncing from server');
+                  setState(() {
+                    _remainingSeconds = result.remainingSeconds;
+                    _endTime = DateTime.now().add(Duration(seconds: result.remainingSeconds));
+                  });
+                  _saveEndTime();
+                }
+              }
+
               // If server says blocked, trigger time up
               if (result.isBlocked && !_isTimeUpDialogShowing) {
                 _onTimeUp();
@@ -571,8 +584,21 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                   sessionId: _sessionId!,
                   deviceCode: _deviceCode!,
                 );
-                if (mounted && result.isBlocked && !_isTimeUpDialogShowing) {
-                  _onTimeUp();
+                if (mounted) {
+                  if (_isLimitEnabled && _endTime != null) {
+                    final localRemaining = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+                    final diff = (result.remainingSeconds - localRemaining).abs();
+                    if (diff > 10) {
+                      setState(() {
+                        _remainingSeconds = result.remainingSeconds;
+                        _endTime = DateTime.now().add(Duration(seconds: result.remainingSeconds));
+                      });
+                      _saveEndTime();
+                    }
+                  }
+                  if (result.isBlocked && !_isTimeUpDialogShowing) {
+                    _onTimeUp();
+                  }
                 }
               } catch (e) {
                 print('❌ Heartbeat error: $e');

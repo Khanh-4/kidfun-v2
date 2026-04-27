@@ -90,8 +90,9 @@ class SocketService {
         .setTransports(['websocket'])
         .disableAutoConnect()
         .enableReconnection()
-        .setReconnectionAttempts(99999)
-        .setReconnectionDelay(2000)
+        .setReconnectionAttempts(50)
+        .setReconnectionDelay(5000)
+        .setReconnectionDelayMax(30000)
         .build()
       );
 
