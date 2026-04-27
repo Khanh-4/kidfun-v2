@@ -1,9 +1,14 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { getCached, setCache, clearCache } = require('../services/cacheService');
 
 // Helper: calculate remaining minutes for a profile today, including bonus
+// Results are cached for 30s to reduce DB load from frequent heartbeat calls
 const calcRemaining = async (profileId, deviceId) => {
+  const cacheKey = `remaining_${profileId}_${deviceId}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
   const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
   const dayOfWeek = vnNow.getDay();
 
@@ -88,7 +93,9 @@ const calcRemaining = async (profileId, deviceId) => {
   const remainingSeconds = Math.max(0, limitSeconds - totalSeconds);
   const remainingMinutes = Math.round(remainingSeconds / 60);
 
-  return { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession };
+  const result = { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession };
+  setCache(cacheKey, result, 30 * 1000); // Cache 30s — invalidate khi Parent thay đổi time limit
+  return result;
 };
 
 // GET /api/child/status
@@ -584,6 +591,9 @@ const addBonus = async (req, res) => {
       where: { id: activeSession.id },
       data: { bonusMinutes: activeSession.bonusMinutes + additionalMinutes }
     });
+
+    // Invalidate cache so next calcRemaining reflects new bonus
+    clearCache(`remaining_${device.profileId}_`);
 
     // Calculate new remaining
     const { remainingMinutes } = await calcRemaining(device.profileId, device.id);
