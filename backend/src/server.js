@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
@@ -30,12 +31,32 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling'] // Cho phép polling làm fallback khi websocket bị block
 });
 
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 phút
+  max: 200, // 200 requests/phút/IP (thoải mái cho child heartbeat + parent polling)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later' },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 20, // 20 login/register attempts per 15 phút
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many login attempts, please try again after 15 minutes' },
+});
+
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: '*' }));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 // Static files — SOS audio uploads
 const path = require('path');
