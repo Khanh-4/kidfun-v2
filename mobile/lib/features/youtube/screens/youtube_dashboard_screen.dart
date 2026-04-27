@@ -23,7 +23,6 @@ class _YouTubeDashboardScreenState extends State<YouTubeDashboardScreen> {
   final _dio = DioClient.instance;
   Map<String, dynamic>? _data;
   bool _loading = true;
-  String? _error;
   int _selectedDays = 7;
 
   static const _dayOptions = [7, 14, 30];
@@ -35,10 +34,7 @@ class _YouTubeDashboardScreenState extends State<YouTubeDashboardScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       final response = await _dio.get(
         '/api/profiles/${widget.profileId}/youtube/dashboard',
@@ -49,10 +45,12 @@ class _YouTubeDashboardScreenState extends State<YouTubeDashboardScreen> {
         _loading = false;
       });
     } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = 'Lỗi kết nối mạng, vui lòng thử lại';
-      });
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải dữ liệu: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -103,61 +101,13 @@ class _YouTubeDashboardScreenState extends State<YouTubeDashboardScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFCC0000)))
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(_error!, style: GoogleFonts.nunito(fontSize: 16, color: Colors.red), textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _load,
-                          icon: const Icon(Icons.refresh, color: Colors.white),
-                          label: Text('Thử lại', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFCC0000),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _data == null || _data!['totalVideos'] == 0
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.videocam_off_outlined, size: 48, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            Text('Chưa có dữ liệu hoạt động YouTube.', style: GoogleFonts.nunito(fontSize: 16, color: Colors.grey)),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _load,
-                              icon: const Icon(Icons.refresh, color: Colors.white),
-                              label: Text('Làm mới', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFCC0000),
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      color: const Color(0xFFCC0000),
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
+          : _data == null
+              ? const Center(child: Text('Không có dữ liệu'))
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: const Color(0xFFCC0000),
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
                     children: [
                       _buildSummaryCards(),
                       const SizedBox(height: 16),
