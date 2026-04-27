@@ -25,6 +25,8 @@ class SocketService {
   final List<SocketCallback> _sosAlertListeners = [];
   // Sprint 9: AI alert listeners — dangerous YouTube content detected
   final List<SocketCallback> _aiAlertListeners = [];
+  // Sprint 10: deviceError — thiết bị chưa được liên kết
+  final List<SocketCallback> _deviceErrorListeners = [];
 
   static SocketService get instance {
     _instance ??= SocketService._();
@@ -71,6 +73,10 @@ class SocketService {
   // aiAlert listeners — Sprint 9: AI detected dangerous YouTube content
   void addAiAlertListener(SocketCallback callback) => _aiAlertListeners.add(callback);
   void removeAiAlertListener(SocketCallback callback) => _aiAlertListeners.remove(callback);
+
+  // deviceError listeners — Sprint 10: device not found in DB
+  void addDeviceErrorListener(SocketCallback callback) => _deviceErrorListeners.add(callback);
+  void removeDeviceErrorListener(SocketCallback callback) => _deviceErrorListeners.remove(callback);
 
   // ★★★ DEPRECATED: kept for backward compat but now just proxy to list-based listeners
   // These are no-op setters; do NOT use them for new code.
@@ -195,6 +201,15 @@ class SocketService {
         print('🪓 [SOCKET] RECEIVED aiAlert: $data (listeners: ${_aiAlertListeners.length})');
         final mapData = Map<String, dynamic>.from(data as Map);
         for (final cb in List.from(_aiAlertListeners)) {
+          cb(mapData);
+        }
+      });
+
+      // Sprint 10: deviceError — device not found in DB (chưa liên kết)
+      _socket!.on('deviceError', (data) {
+        print('⚠️ [SOCKET] RECEIVED deviceError: $data (listeners: ${_deviceErrorListeners.length})');
+        final mapData = Map<String, dynamic>.from(data as Map);
+        for (final cb in List.from(_deviceErrorListeners)) {
           cb(mapData);
         }
       });
