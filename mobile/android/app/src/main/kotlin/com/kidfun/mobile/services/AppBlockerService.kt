@@ -50,7 +50,8 @@ class AppBlockerService : AccessibilityService() {
         )
 
         // Interval (ms) cho periodic per-app limit check khi app đang ở foreground
-        private const val APP_LIMIT_CHECK_INTERVAL_MS = 30_000L
+        // Reduced from 30s to 10s so per-app blocking fires within 10s of limit expiry.
+        private const val APP_LIMIT_CHECK_INTERVAL_MS = 10_000L
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -201,10 +202,22 @@ class AppBlockerService : AccessibilityService() {
     /**
      * Handle TYPE_WINDOW_STATE_CHANGED — detect new video or leaving YouTube.
      * This fires infrequently (only on actual window transitions) so no debounce needed.
+     *
+     * When YouTube resumes from background (app exit or screen unlock), the accessibility
+     * tree may not be populated yet at the moment of the window event. We schedule a
+     * delayed retry so the re-opened/unlocked session is still tracked.
      */
     private fun handleYouTubeWindowChange(event: AccessibilityEvent) {
-        val root = getYouTubeRoot() ?: return
-        val info = YouTubeTracker.extractVideoInfo(root, event) ?: return
+        val root = getYouTubeRoot() ?: run {
+            // YouTube window root not ready yet — retry after UI settles
+            scheduleYouTubeRedetection(1000L)
+            return
+        }
+        val info = YouTubeTracker.extractVideoInfo(root, event) ?: run {
+            // Video info not extractable yet (YouTube UI still loading) — retry after settle
+            scheduleYouTubeRedetection(1000L)
+            return
+        }
 
         // Same video — no action needed
         if (YouTubeTracker.currentVideo?.title == info.title) return
@@ -220,6 +233,24 @@ class AppBlockerService : AccessibilityService() {
 
         YouTubeTracker.currentVideo = info
         android.util.Log.d("YouTubeTracker", "▶️ Started: ${info.title} | ${info.channelName}")
+    }
+
+    /**
+     * Schedule a delayed re-detection of the current YouTube video.
+     * Used after screen unlock or app return when the YouTube UI may not be ready yet
+     * at the moment the window event fires.
+     *
+     * Guards: only fires if YouTube is still foreground and no video is currently tracked.
+     */
+    fun scheduleYouTubeRedetection(delayMs: Long) {
+        handler.postDelayed({
+            if (lastForegroundPackage != YouTubeTracker.YOUTUBE_PACKAGE) return@postDelayed
+            if (YouTubeTracker.currentVideo != null) return@postDelayed
+            val root = getYouTubeRoot() ?: return@postDelayed
+            val info = YouTubeTracker.extractVideoInfo(root, null) ?: return@postDelayed
+            android.util.Log.d("YouTubeTracker", "▶️ Re-detected (retry): ${info.title} | ${info.channelName}")
+            YouTubeTracker.currentVideo = info
+        }, delayMs)
     }
 
     /**
