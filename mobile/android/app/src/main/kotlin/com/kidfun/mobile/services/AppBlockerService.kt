@@ -50,8 +50,21 @@ class AppBlockerService : AccessibilityService() {
         )
 
         // Interval (ms) cho periodic per-app limit check khi app đang ở foreground
-        // Reduced from 30s to 10s so per-app blocking fires within 10s of limit expiry.
-        private const val APP_LIMIT_CHECK_INTERVAL_MS = 10_000L
+        // 5s so per-app blocking fires within 5s of limit expiry.
+        private const val APP_LIMIT_CHECK_INTERVAL_MS = 5_000L
+
+        // System overlay packages — NOT real foreground app changes.
+        // When YouTube enters fullscreen, Android fires TYPE_WINDOW_STATE_CHANGED from
+        // com.android.systemui for nav bar hide animations. Treating this as a foreground
+        // change would incorrectly stop YouTube tracking and corrupt lastForegroundPackage.
+        private val SYSTEM_OVERLAY_PACKAGES = setOf(
+            "com.android.systemui",
+            "android",
+        )
+
+        // Per-app time limit: track which packages have triggered the "bring to front" action
+        // so we only do it once (not every 5s check cycle).
+        var perAppBlockedSet: MutableSet<String> = mutableSetOf()
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -102,13 +115,15 @@ class AppBlockerService : AccessibilityService() {
 
         // 1. App-level blocking (TYPE_WINDOW_STATE_CHANGED only)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            // Always update foreground tracking, even for non-blocked apps
-            if (lastForegroundPackage != packageName) {
+            // System overlay packages (com.android.systemui, android) fire
+            // TYPE_WINDOW_STATE_CHANGED for nav bar / status bar animations — they are NOT
+            // real foreground app changes. Skipping them preserves lastForegroundPackage
+            // (e.g. YouTube) and prevents incorrectly stopping YouTube tracking when the
+            // player enters fullscreen and auto-hides navigation bars.
+            val isSystemOverlay = SYSTEM_OVERLAY_PACKAGES.contains(packageName)
+            if (!isSystemOverlay && lastForegroundPackage != packageName) {
                 if (lastForegroundPackage == YouTubeTracker.YOUTUBE_PACKAGE) {
                     // Only stop tracking if YouTube window is actually gone.
-                    // Accessibility overlay packages (voiceaccess, talkback) fire
-                    // TYPE_WINDOW_STATE_CHANGED while YouTube is still foreground,
-                    // which would incorrectly stop tracking if we don't check.
                     val ytStillVisible = try {
                         windows?.any { it.root?.packageName?.toString() == YouTubeTracker.YOUTUBE_PACKAGE } == true
                     } catch (_: Exception) { false }
@@ -438,6 +453,12 @@ class AppBlockerService : AccessibilityService() {
                 android.util.Log.d("AppLimit", "🚫 BLOCKING $pkg — time limit exceeded")
                 BlockNotificationHelper.showTimeLimitExceeded(this, appName, pkg)
                 performGlobalAction(GLOBAL_ACTION_HOME)
+                // On first BLOCKED detection, also bring KidFun to front.
+                // performGlobalAction(HOME) can fail against fullscreen apps; launching
+                // a new Activity is harder for the foreground app to suppress.
+                if (perAppBlockedSet.add(pkg)) {
+                    bringKidFunToFront()
+                }
             }
             "WARNING" -> {
                 if (!AppLimitChecker.warnedApps.contains(pkg)) {

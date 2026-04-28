@@ -165,6 +165,7 @@ class MainActivity : FlutterActivity() {
                         val limits = call.argument<List<Map<String, Any>>>("limits") ?: emptyList()
                         AppLimitChecker.limits.clear()
                         AppLimitChecker.warnedApps.clear()
+                        AppBlockerService.perAppBlockedSet.clear()
                         for (l in limits) {
                             val pkg = l["packageName"] as String
                             AppLimitChecker.limits[pkg] = AppLimitInfo(
