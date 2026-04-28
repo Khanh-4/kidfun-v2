@@ -264,6 +264,13 @@ class KidFunService : Service() {
                     Intent.ACTION_SCREEN_ON -> {
                         isScreenOn = true
                         prefs.edit().putBoolean(KEY_IS_SCREEN_ON, true).apply()
+                        // BUG 5 FIX: When the screen turns back on, if YouTube was the last
+                        // foreground app, schedule a delayed re-detection. The TYPE_WINDOW_STATE_CHANGED
+                        // that fires on YouTube resume may arrive before the UI is populated,
+                        // so we retry here with a 1.5s delay to ensure tracking resumes.
+                        if (AppBlockerService.lastForegroundPackage == YouTubeTracker.YOUTUBE_PACKAGE) {
+                            AppBlockerService.instance?.scheduleYouTubeRedetection(1500L)
+                        }
                     }
                 }
             }

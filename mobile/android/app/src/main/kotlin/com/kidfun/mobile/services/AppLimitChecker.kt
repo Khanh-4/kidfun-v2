@@ -41,12 +41,17 @@ class AppLimitChecker(private val context: Context) {
         val limit = limits[packageName] ?: return "OK"
 
         val deviceUsed = getTodayUsageSeconds(packageName)
+        val realTimeOffset = getRealTimeOffset(packageName)
         val actualRemaining = if (deviceUsed > 0) {
-            // UsageStats hoạt động — dùng device data, không cộng thêm offset (tránh double-count)
-            limit.dailyLimitMinutes * 60 - deviceUsed
+            // UsageStats has data but may be stale by up to ~2 minutes.
+            // Take the more conservative (lower) of two estimates so a stale UsageStats
+            // reading doesn't silently allow the child to exceed their per-app limit.
+            val fromUsageStats = limit.dailyLimitMinutes * 60 - deviceUsed
+            val fromServer = limit.remainingSeconds - realTimeOffset
+            minOf(fromUsageStats, fromServer)
         } else {
-            // UsageStats không có dữ liệu (emulator / thiếu quyền) — dùng server remaining
-            limit.remainingSeconds - getRealTimeOffset(packageName)
+            // UsageStats has no data (emulator / permission not granted) — use server remaining
+            limit.remainingSeconds - realTimeOffset
         }
 
         android.util.Log.d("AppLimit", "📊 checkStatus pkg=$packageName deviceUsed=${deviceUsed}s serverRemaining=${limit.remainingSeconds}s actualRemaining=${actualRemaining}s")
@@ -64,10 +69,13 @@ class AppLimitChecker(private val context: Context) {
     fun getRemainingMinutes(packageName: String): Int {
         val limit = limits[packageName] ?: return 999
         val deviceUsed = getTodayUsageSeconds(packageName)
+        val realTimeOffset = getRealTimeOffset(packageName)
         val actualRemaining = if (deviceUsed > 0) {
-            limit.dailyLimitMinutes * 60 - deviceUsed
+            val fromUsageStats = limit.dailyLimitMinutes * 60 - deviceUsed
+            val fromServer = limit.remainingSeconds - realTimeOffset
+            minOf(fromUsageStats, fromServer)
         } else {
-            limit.remainingSeconds - getRealTimeOffset(packageName)
+            limit.remainingSeconds - realTimeOffset
         }
         return maxOf(0, actualRemaining / 60)
     }
