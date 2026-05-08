@@ -26,11 +26,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     if (email.isNotEmpty && password.isNotEmpty) {
-      ref.read(authProvider.notifier).login(email, password);
+      await ref.read(authProvider.notifier).login(email, password);
+      if (mounted && ref.read(authProvider) is AuthAuthenticated) {
+        context.go('/home');
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập đủ email và mật khẩu')),
@@ -38,14 +41,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next is AuthAuthenticated) {
+  Future<void> _loginWithGoogle() async {
+    final missingPhoneNumber = await ref.read(authProvider.notifier).loginWithGoogle();
+    if (!mounted) return;
+
+    if (ref.read(authProvider) is AuthAuthenticated) {
+      if (missingPhoneNumber) {
+        await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (context) => _PhonePromptSheet(),
+        );
+      }
+      if (mounted) {
         context.go('/home');
       }
-    });
+    }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isLoading = authState is AuthLoading;
     final errorMessage = authState is AuthError ? authState.message : null;
@@ -198,6 +216,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
             ),
           ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Expanded(child: Divider(color: AppColors.slate200)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Hoặc', style: GoogleFonts.nunito(color: AppColors.slate400, fontSize: 13)),
+              ),
+              const Expanded(child: Divider(color: AppColors.slate200)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: AppTheme.btnHeightLg,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : _loginWithGoogle,
+              icon: Image.network(
+                'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+                width: 24,
+                height: 24,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24),
+              ),
+              label: Text(
+                'Đăng nhập bằng Google',
+                style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.slate700),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.slate200),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusBtn)),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -267,6 +317,74 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               style: GoogleFonts.nunito(color: AppColors.danger, fontSize: 13),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhonePromptSheet extends StatefulWidget {
+  @override
+  __PhonePromptSheetState createState() => __PhonePromptSheetState();
+}
+
+class __PhonePromptSheetState extends State<_PhonePromptSheet> {
+  final _phoneController = TextEditingController();
+
+  void _submit() async {
+    // We could add update phone API, but for now we just close or call an API.
+    // Logic cập nhật số điện thoại sẽ được tích hợp với API Profile ở đây.
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Bổ sung số điện thoại',
+            style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.slate800),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Thêm số điện thoại để bảo mật tài khoản và hỗ trợ phục hồi dễ dàng hơn.',
+            style: GoogleFonts.nunito(fontSize: 14, color: AppColors.slate500),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              hintText: 'Nhập số điện thoại (Không bắt buộc)',
+              prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.slate400),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _submit,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Cập nhật', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Bỏ qua', style: GoogleFonts.nunito(fontSize: 14, color: AppColors.slate500)),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );

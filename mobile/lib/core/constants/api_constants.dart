@@ -9,6 +9,7 @@ class ApiConstants {
   // Auth endpoints
   static const String login = '/api/auth/login';
   static const String register = '/api/auth/register';
+  static const String loginGoogle = '/api/auth/google';
   static const String refreshToken = '/api/auth/refresh-token';
   static const String logout = '/api/auth/logout';
   static const String forgotPassword = '/api/auth/forgot-password';

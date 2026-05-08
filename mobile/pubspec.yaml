@@ -44,10 +44,11 @@ dependencies:
   # Storage
   flutter_secure_storage: ^9.0.0
 
-  # Firebase
+  # Firebase & Auth
   firebase_core: ^2.25.0
   firebase_messaging: ^14.7.0
   flutter_local_notifications: ^17.2.2
+  google_sign_in: ^6.2.1
 
   # UI
   google_fonts: ^8.0.2
