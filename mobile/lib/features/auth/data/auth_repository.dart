@@ -3,6 +3,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../shared/models/user_model.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthRepository {
   final _dio = DioClient.instance;
@@ -45,6 +46,52 @@ class AuthRepository {
       throw Exception('Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
       throw Exception('Lỗi đăng ký: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle() async {
+    try {
+      final googleSignIn = GoogleSignIn(
+        serverClientId: '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com',
+      );
+      // Ensure the user selects the account each time (optional but good for testing)
+      await googleSignIn.signOut();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        throw Exception('Người dùng đã hủy đăng nhập');
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Không thể lấy xác thực từ Google');
+      }
+
+      final response = await _dio.post(ApiConstants.loginGoogle, data: {
+        'idToken': idToken,
+      });
+
+      final data = response.data['data'];
+      await SecureStorage.saveToken(data['token']);
+      await SecureStorage.saveRefreshToken(data['refreshToken']);
+      
+      final user = UserModel.fromJson(data['user']);
+      final missingPhoneNumber = data['missingPhoneNumber'] ?? false;
+
+      return {
+        'user': user,
+        'missingPhoneNumber': missingPhoneNumber,
+      };
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data['message'] != null) {
+        throw Exception(e.response?.data['message']);
+      }
+      throw Exception('Lỗi kết nối. Vui lòng thử lại.');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi đăng nhập Google: $e');
     }
   }
 

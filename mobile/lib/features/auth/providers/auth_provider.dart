@@ -70,6 +70,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> loginWithGoogle() async {
+    state = AuthLoading();
+    try {
+      final result = await _repo.loginWithGoogle();
+      final user = result['user'] as UserModel;
+      final missingPhoneNumber = result['missingPhoneNumber'] as bool;
+      
+      await SecureStorage.saveUserId(user.id);
+      await SecureStorage.saveFullName(user.fullName);
+      await SecureStorage.saveEmail(user.email);
+      state = AuthAuthenticated(user);
+      sendFcmTokenIfAvailable();
+      SocketService.instance.joinFamily(user.id);
+      print('📡 Google Login success: called joinFamily for user ${user.id}');
+      
+      return missingPhoneNumber;
+    } catch (e) {
+      state = AuthError((e as Exception).toString().replaceAll('Exception: ', ''));
+      return false;
+    }
+  }
+
   Future<void> register(String name, String email, String password) async {
     state = AuthLoading();
     try {

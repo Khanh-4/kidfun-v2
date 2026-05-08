@@ -4,8 +4,10 @@ const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const { sendOtpEmail } = require('../services/emailService');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { OAuth2Client } = require('google-auth-library');
 
 const prisma = new PrismaClient();
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com');
 
 // Tạo JWT access token
 const generateToken = (user) => {
@@ -113,6 +115,79 @@ const login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     sendError(res, 'Login failed', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// POST /api/auth/google
+const loginWithGoogle = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return sendError(res, 'ID Token là bắt buộc', 400, 'MISSING_TOKEN');
+    }
+
+    // Verify token
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID || '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com',
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name: fullName } = payload;
+
+    if (!email) {
+      return sendError(res, 'Không thể lấy email từ Google', 400, 'MISSING_EMAIL');
+    }
+
+    // Kiểm tra user đã tồn tại chưa
+    let user = await prisma.user.findUnique({ where: { email } });
+    let isNewUser = false;
+    let missingPhoneNumber = false;
+
+    if (user) {
+      // User đã có, liên kết googleId nếu chưa có
+      if (!user.googleId) {
+        user = await prisma.user.update({
+          where: { email },
+          data: { googleId }
+        });
+      }
+      if (!user.phoneNumber) {
+        missingPhoneNumber = true;
+      }
+    } else {
+      // User chưa tồn tại, tạo mới
+      user = await prisma.user.create({
+        data: {
+          email,
+          googleId,
+          fullName,
+          passwordHash: null, // Không có password
+          phoneNumber: null
+        }
+      });
+      isNewUser = true;
+      missingPhoneNumber = true;
+    }
+
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    sendSuccess(res, {
+      token,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        googleId: user.googleId
+      },
+      isNewUser,
+      missingPhoneNumber
+    });
+  } catch (error) {
+    console.error('Google Login error:', error);
+    sendError(res, 'Google Login failed', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -330,6 +405,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
   register,
   login,
+  loginWithGoogle,
   refreshToken,
   logout,
   updateProfile,
