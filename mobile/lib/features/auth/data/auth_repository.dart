@@ -67,7 +67,7 @@ class AuthRepository {
         throw Exception('Không lấy được xác thực từ Google');
       }
 
-      final response = await _dio.post(ApiConstants.googleLogin, data: {
+      final response = await _dio.post(ApiConstants.loginGoogle, data: {
         'idToken': idToken,
       });
 
