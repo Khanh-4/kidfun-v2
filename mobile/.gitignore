@@ -48,3 +48,6 @@ app.*.map.json
 .env
 **/google-services.json
 **/debug.keystore
+# Release Keystore
+**/key.properties
+**/kidfun-release.keystore
