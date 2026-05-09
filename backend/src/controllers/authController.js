@@ -118,7 +118,40 @@ const login = async (req, res) => {
   }
 };
 
-// POST /api/auth/google
+// Helper: Xử lý tạo/liên kết user từ Google payload
+const _handleGoogleUser = async (googleId, email, fullName) => {
+  let user = await prisma.user.findUnique({ where: { email } });
+  let isNewUser = false;
+  let missingPhoneNumber = false;
+
+  if (user) {
+    if (!user.googleId) {
+      user = await prisma.user.update({
+        where: { email },
+        data: { googleId }
+      });
+    }
+    if (!user.phoneNumber) {
+      missingPhoneNumber = true;
+    }
+  } else {
+    user = await prisma.user.create({
+      data: {
+        email,
+        googleId,
+        fullName,
+        passwordHash: null,
+        phoneNumber: null
+      }
+    });
+    isNewUser = true;
+    missingPhoneNumber = true;
+  }
+
+  return { user, isNewUser, missingPhoneNumber };
+};
+
+// POST /api/auth/google (giữ lại cho tương thích — nhận idToken trực tiếp)
 const loginWithGoogle = async (req, res) => {
   try {
     const { idToken } = req.body;
@@ -126,7 +159,6 @@ const loginWithGoogle = async (req, res) => {
       return sendError(res, 'ID Token là bắt buộc', 400, 'MISSING_TOKEN');
     }
 
-    // Verify token
     const ticket = await googleClient.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID || '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com',
@@ -138,56 +170,85 @@ const loginWithGoogle = async (req, res) => {
       return sendError(res, 'Không thể lấy email từ Google', 400, 'MISSING_EMAIL');
     }
 
-    // Kiểm tra user đã tồn tại chưa
-    let user = await prisma.user.findUnique({ where: { email } });
-    let isNewUser = false;
-    let missingPhoneNumber = false;
-
-    if (user) {
-      // User đã có, liên kết googleId nếu chưa có
-      if (!user.googleId) {
-        user = await prisma.user.update({
-          where: { email },
-          data: { googleId }
-        });
-      }
-      if (!user.phoneNumber) {
-        missingPhoneNumber = true;
-      }
-    } else {
-      // User chưa tồn tại, tạo mới
-      user = await prisma.user.create({
-        data: {
-          email,
-          googleId,
-          fullName,
-          passwordHash: null, // Không có password
-          phoneNumber: null
-        }
-      });
-      isNewUser = true;
-      missingPhoneNumber = true;
-    }
-
+    const { user, isNewUser, missingPhoneNumber } = await _handleGoogleUser(googleId, email, fullName);
     const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const rt = generateRefreshToken(user);
 
     sendSuccess(res, {
       token,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        phoneNumber: user.phoneNumber,
-        googleId: user.googleId
-      },
+      refreshToken: rt,
+      user: { id: user.id, email: user.email, fullName: user.fullName, phoneNumber: user.phoneNumber, googleId: user.googleId },
       isNewUser,
       missingPhoneNumber
     });
   } catch (error) {
     console.error('Google Login error:', error);
     sendError(res, 'Google Login failed', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// GET /api/auth/google/callback — Nhận authorization code từ Google, đổi lấy token, redirect về app
+const googleCallback = async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).send('Missing authorization code');
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID || '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com';
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${process.env.BACKEND_URL || 'https://kidfun-backend-production.up.railway.app'}/api/auth/google/callback`;
+
+    // Đổi authorization code lấy tokens từ Google
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+    const tokens = await tokenResponse.json();
+
+    if (!tokens.id_token) {
+      console.error('Google token exchange failed:', tokens);
+      return res.redirect(`com.kidfun.mobile://oauth2callback?error=token_exchange_failed`);
+    }
+
+    // Verify ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name: fullName } = payload;
+
+    if (!email) {
+      return res.redirect(`com.kidfun.mobile://oauth2callback?error=missing_email`);
+    }
+
+    const { user, isNewUser, missingPhoneNumber } = await _handleGoogleUser(googleId, email, fullName);
+    const token = generateToken(user);
+    const rt = generateRefreshToken(user);
+
+    // Redirect về app với token trong URL
+    const params = new URLSearchParams({
+      token,
+      refreshToken: rt,
+      userId: user.id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+      missingPhoneNumber: missingPhoneNumber.toString(),
+      isNewUser: isNewUser.toString(),
+    });
+
+    return res.redirect(`com.kidfun.mobile://oauth2callback?${params.toString()}`);
+  } catch (error) {
+    console.error('Google Callback error:', error);
+    return res.redirect(`com.kidfun.mobile://oauth2callback?error=server_error`);
   }
 };
 
@@ -406,6 +467,7 @@ module.exports = {
   register,
   login,
   loginWithGoogle,
+  googleCallback,
   refreshToken,
   logout,
   updateProfile,
