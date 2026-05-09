@@ -189,19 +189,8 @@ const loginWithGoogle = async (req, res) => {
 
 // GET /api/auth/google/callback — Nhận authorization code từ Google, đổi lấy token, redirect về app
 const googleCallback = async (req, res) => {
-  // Helper: Trả HTML page với JS redirect thay vì HTTP 302
-  // HTTP 302 redirect tới custom scheme không đóng Chrome Custom Tab trên nhiều thiết bị Android
   const sendAppRedirect = (redirectUrl) => {
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="utf-8"><title>Đang đăng nhập...</title></head>
-      <body>
-        <p>Đang chuyển về ứng dụng KidFun...</p>
-        <script>window.location.href = "${redirectUrl}";</script>
-      </body>
-      </html>
-    `);
+    res.redirect(redirectUrl);
   };
 
   try {
