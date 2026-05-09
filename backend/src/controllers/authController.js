@@ -189,6 +189,21 @@ const loginWithGoogle = async (req, res) => {
 
 // GET /api/auth/google/callback — Nhận authorization code từ Google, đổi lấy token, redirect về app
 const googleCallback = async (req, res) => {
+  // Helper: Trả HTML page với JS redirect thay vì HTTP 302
+  // HTTP 302 redirect tới custom scheme không đóng Chrome Custom Tab trên nhiều thiết bị Android
+  const sendAppRedirect = (redirectUrl) => {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>Đang đăng nhập...</title></head>
+      <body>
+        <p>Đang chuyển về ứng dụng KidFun...</p>
+        <script>window.location.href = "${redirectUrl}";</script>
+      </body>
+      </html>
+    `);
+  };
+
   try {
     const { code } = req.query;
     if (!code) {
@@ -215,7 +230,7 @@ const googleCallback = async (req, res) => {
 
     if (!tokens.id_token) {
       console.error('Google token exchange failed:', tokens);
-      return res.redirect(`com.kidfun.mobile://oauth2callback?error=token_exchange_failed`);
+      return sendAppRedirect('com.kidfun.mobile://oauth2callback?error=token_exchange_failed');
     }
 
     // Verify ID token
@@ -227,14 +242,14 @@ const googleCallback = async (req, res) => {
     const { sub: googleId, email, name: fullName } = payload;
 
     if (!email) {
-      return res.redirect(`com.kidfun.mobile://oauth2callback?error=missing_email`);
+      return sendAppRedirect('com.kidfun.mobile://oauth2callback?error=missing_email');
     }
 
     const { user, isNewUser, missingPhoneNumber } = await _handleGoogleUser(googleId, email, fullName);
     const token = generateToken(user);
     const rt = generateRefreshToken(user);
 
-    // Redirect về app với token trong URL
+    // Redirect về app với token trong URL (dùng JS thay vì HTTP 302)
     const params = new URLSearchParams({
       token,
       refreshToken: rt,
@@ -245,10 +260,10 @@ const googleCallback = async (req, res) => {
       isNewUser: isNewUser.toString(),
     });
 
-    return res.redirect(`com.kidfun.mobile://oauth2callback?${params.toString()}`);
+    return sendAppRedirect(`com.kidfun.mobile://oauth2callback?${params.toString()}`);
   } catch (error) {
     console.error('Google Callback error:', error);
-    return res.redirect(`com.kidfun.mobile://oauth2callback?error=server_error`);
+    return sendAppRedirect('com.kidfun.mobile://oauth2callback?error=server_error');
   }
 };
 
