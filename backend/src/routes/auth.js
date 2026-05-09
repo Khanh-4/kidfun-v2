@@ -12,8 +12,7 @@ router.post('/login', authController.login);
 // POST /api/auth/google - Đăng nhập bằng Google (idToken)
 router.post('/google', authController.loginWithGoogle);
 
-// GET /api/auth/google/callback - OAuth callback từ Google (authorization code flow)
-router.get('/google/callback', authController.googleCallback);
+
 
 // POST /api/auth/refresh-token - Làm mới token (không cần auth, dùng refresh token trong body)
 router.post('/refresh-token', authController.refreshToken);

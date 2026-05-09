@@ -187,74 +187,7 @@ const loginWithGoogle = async (req, res) => {
   }
 };
 
-// GET /api/auth/google/callback — Nhận authorization code từ Google, đổi lấy token, redirect về app
-const googleCallback = async (req, res) => {
-  const sendAppRedirect = (redirectUrl) => {
-    res.redirect(redirectUrl);
-  };
 
-  try {
-    const { code } = req.query;
-    if (!code) {
-      return res.status(400).send('Missing authorization code');
-    }
-
-    const clientId = process.env.GOOGLE_CLIENT_ID || '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com';
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = `${process.env.BACKEND_URL || 'https://kidfun-backend-production.up.railway.app'}/api/auth/google/callback`;
-
-    // Đổi authorization code lấy tokens từ Google
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
-    });
-    const tokens = await tokenResponse.json();
-
-    if (!tokens.id_token) {
-      console.error('Google token exchange failed:', tokens);
-      return sendAppRedirect('com.kidfun.mobile://oauth2callback?error=token_exchange_failed');
-    }
-
-    // Verify ID token
-    const ticket = await googleClient.verifyIdToken({
-      idToken: tokens.id_token,
-      audience: clientId,
-    });
-    const payload = ticket.getPayload();
-    const { sub: googleId, email, name: fullName } = payload;
-
-    if (!email) {
-      return sendAppRedirect('com.kidfun.mobile://oauth2callback?error=missing_email');
-    }
-
-    const { user, isNewUser, missingPhoneNumber } = await _handleGoogleUser(googleId, email, fullName);
-    const token = generateToken(user);
-    const rt = generateRefreshToken(user);
-
-    // Redirect về app với token trong URL (dùng JS thay vì HTTP 302)
-    const params = new URLSearchParams({
-      token,
-      refreshToken: rt,
-      userId: user.id.toString(),
-      email: user.email,
-      fullName: user.fullName,
-      missingPhoneNumber: missingPhoneNumber.toString(),
-      isNewUser: isNewUser.toString(),
-    });
-
-    return sendAppRedirect(`com.kidfun.mobile://oauth2callback?${params.toString()}`);
-  } catch (error) {
-    console.error('Google Callback error:', error);
-    return sendAppRedirect('com.kidfun.mobile://oauth2callback?error=server_error');
-  }
-};
 
 // POST /api/auth/refresh-token
 const refreshToken = async (req, res) => {
@@ -471,7 +404,6 @@ module.exports = {
   register,
   login,
   loginWithGoogle,
-  googleCallback,
   refreshToken,
   logout,
   updateProfile,
