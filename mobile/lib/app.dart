@@ -72,14 +72,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       await ref.read(profileProvider.notifier).fetchProfiles();
       await ref.read(deviceProvider.notifier).fetchDevices();
-    } catch (e) {
-      if (e.toString().contains('401')) {
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) {
-          await ref.read(profileProvider.notifier).fetchProfiles();
-          await ref.read(deviceProvider.notifier).fetchDevices();
-        }
-      }
+    } catch (_) {
+      // Lỗi 401 được xử lý bởi DioClient → AuthEventBus → AuthNotifier.logout()
+      // GoRouter sẽ tự redirect về /login — không cần retry thủ công ở đây
     }
     try {
       if (mounted) {

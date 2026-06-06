@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/auth_repository.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/auth_event_bus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Auth states
@@ -25,9 +27,21 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final _repo = AuthRepository();
+  late final StreamSubscription<String> _forceLogoutSub;
 
   AuthNotifier() : super(AuthLoading()) {
+    // Lắng nghe sự kiện forceLogout từ DioClient (khi refresh token thất bại)
+    _forceLogoutSub = AuthEventBus.instance.onForceLogout.listen((reason) {
+      print('🔒 [Auth] Force logout triggered: $reason');
+      logout();
+    });
     checkAuth();
+  }
+
+  @override
+  void dispose() {
+    _forceLogoutSub.cancel();
+    super.dispose();
   }
 
   Future<void> checkAuth() async {
