@@ -15,6 +15,8 @@ Groq / OpenAI           AI content analysis (YouTube video safety classification
                          Both optional — feature degrades gracefully if keys absent;
                          check GET /api/admin/ai-status.
 Mapbox                  Maps in mobile app (mapbox_maps_flutter, location_service, map_screen).
+Railway                 Backend is deployed here — mobile/lib/core/constants/api_constants.dart
+                         defaults ApiConstants.baseUrl to the Railway production URL.
 ```
 
 ## Backend (`backend/`)
@@ -56,7 +58,8 @@ flutter_local_notifications         local notification display (foreground FCM)
 google_sign_in           native Google Sign-In (in-app account picker)
 flutter_secure_storage   JWT/refresh token storage
 shared_preferences       non-sensitive prefs
-flutter_dotenv           loads .env (bundled Flutter asset) — API base URL etc.
+flutter_dotenv           loads .env (bundled Flutter asset) — MAPBOX_PUBLIC_TOKEN only.
+                          API base URL is a hardcoded const in api_constants.dart, not .env.
 mapbox_maps_flutter      maps (location feature)
 geolocator               GPS / geofence reporting
 qr_flutter, mobile_scanner   device-pairing QR generate + scan

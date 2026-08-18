@@ -40,7 +40,11 @@ Mapbox. Single app used by both parent (control) and child (monitored device) ro
 ```
 main.dart / app.dart   Bootstrap, ProviderScope, go_router config, theme (app.dart is large, ~800 lines)
 
-core/network/dio_client.dart     Dio + JWT interceptor, base URL from .env asset (flutter_dotenv)
+core/network/dio_client.dart     Dio + JWT interceptor. Base URL = ApiConstants.baseUrl, a
+                                  HARDCODED const in core/constants/api_constants.dart (defaults
+                                  to the deployed Railway backend; local/LAN URLs are commented-out
+                                  alternatives in that same file — NOT read from .env)
+core/constants/api_constants.dart  baseUrl + every REST endpoint path constant
 core/network/socket_service.dart Socket.IO client (joins family_{userId} room) — lives under
                                   network/, not services/
 core/services/  notification_service (FCM + flutter_local_notifications), location_service
