@@ -94,9 +94,8 @@ disconnect            →   deviceOffline, device_status_changed (family room)
 
 ## Workers (`backend/src/workers/`)
 
-- `aiAnalysisWorker.js` — scans unanalyzed `YouTubeLog` rows, calls `aiService`, writes `AIAlert` / `BlockedVideo`. Triggered via `/api/admin/run-ai-analysis`.
-- `reportWorker.js` — builds `ReportSnapshot` rows (DAILY/WEEKLY). Triggered via `/api/admin/run-daily-reports` / `run-weekly-reports`.
-- No cron scheduler wired in-process yet — these are invoked externally (see [dependencies.md](dependencies.md)).
+- `aiAnalysisWorker.js` — scans unanalyzed `YouTubeLog` rows, calls `aiService`, writes `AIAlert` / `BlockedVideo`. Only triggered manually via `/api/admin/run-ai-analysis` — no in-process schedule.
+- `reportWorker.js` — builds `ReportSnapshot` rows (DAILY/WEEKLY). Also manually triggerable via `/api/admin/run-daily-reports` / `run-weekly-reports`, **and** self-scheduled: `reportWorker.startScheduler()` is called once at boot in `server.js`, using `setInterval` (checked every 5 min, no `node-cron` dependency) to fire daily reports at 00:05 Asia/Ho_Chi_Minh and weekly reports Monday 00:10 Asia/Ho_Chi_Minh.
 
 ## Related
 

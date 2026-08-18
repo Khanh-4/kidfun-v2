@@ -8,8 +8,8 @@ KidFun v2 — smart parental control system with soft-warning technology. Monore
 
 ```
 backend/                    Express + Prisma + Socket.IO API        (port 3001)
-frontend/parent-dashboard/  React 19 + Vite + MUI, Electron-wrapped (port 3000)
-frontend/child-monitor/     React 19 + Vite + MUI, Electron-wrapped (port 3002)
+frontend/parent-dashboard/  React 19 + Vite + MUI, Electron-wrapped (port 5173, Vite default)
+frontend/child-monitor/     React 19 + Vite + MUI, Electron-wrapped (port 5174, set in vite.config.js)
 frontend/shared/            Shared components/hooks/utils/constants across the two React apps
 mobile/                     Flutter 3.x (Riverpod + go_router + Dio), parent + child roles
 ```

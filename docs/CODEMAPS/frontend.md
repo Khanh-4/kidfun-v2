@@ -2,7 +2,7 @@
 
 # Frontend
 
-## Parent Dashboard (`frontend/parent-dashboard/`, port 3000)
+## Parent Dashboard (`frontend/parent-dashboard/`, port 5173 — Vite default, no override)
 
 React 19 + Vite + MUI. Also builds as an Electron desktop app (`electron/main.cjs` +
 `electron/preload.cjs` → `dist-electron/`).
@@ -16,7 +16,7 @@ src/services/api.js          Axios instance, JWT interceptor, base URL http://lo
 src/services/socketService.js Socket.IO client singleton (joins family_{userId})
 ```
 
-## Child Monitor (`frontend/child-monitor/`, port 3002)
+## Child Monitor (`frontend/child-monitor/`, port 5174, set in `vite.config.js`)
 
 React 19 + Vite + MUI. Also Electron-wrapped (same pattern as parent-dashboard). Much smaller
 surface — this is the on-screen soft-warning overlay, not a full management UI.

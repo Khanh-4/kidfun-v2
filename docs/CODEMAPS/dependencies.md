@@ -76,10 +76,12 @@ No Dart package equivalent; this is hand-written platform channel code, not a pu
 
 ## Scheduled Jobs
 
-No in-process cron/scheduler dependency (e.g. node-cron) is wired up. `workers/aiAnalysisWorker.js`
-and `workers/reportWorker.js` are plain functions triggered on-demand via the `/api/admin/run-*`
-endpoints — an external scheduler (cron, Railway/Render scheduled job, etc.) is expected to call
-these in production.
+No `node-cron`-style dependency, but `reportWorker.js` self-schedules: `server.js` calls
+`reportWorker.startScheduler()` once at boot, which runs a plain `setInterval` (every 5 min) that
+fires `runDailyReports()` at 00:05 and `runWeeklyReports()` on Monday 00:10, both Asia/Ho_Chi_Minh
+time. `aiAnalysisWorker.js` has no self-schedule — it only runs on-demand via
+`/api/admin/run-ai-analysis`, so an external trigger (cron, Railway/Render scheduled job, etc.) is
+still needed for that one in production.
 
 ## Related
 
