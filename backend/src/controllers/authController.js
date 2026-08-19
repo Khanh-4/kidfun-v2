@@ -1,12 +1,11 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
 const { sendOtpEmail } = require('../services/emailService');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { OAuth2Client } = require('google-auth-library');
 
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '130046544171-q4pllsneq42l2cbgc577mah6c6hvjgto.apps.googleusercontent.com');
 
 // Tạo JWT access token

@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 const { haversineDistance } = require('../utils/geoUtils');
 
 // In-memory cache: { "profileId_geofenceId": true/false (isInside) }
