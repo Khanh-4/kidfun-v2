@@ -162,8 +162,7 @@ const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Reset all devices to offline when server starts
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('./utils/prisma');
 prisma.device.updateMany({
   data: { isOnline: false }
 }).then(() => {

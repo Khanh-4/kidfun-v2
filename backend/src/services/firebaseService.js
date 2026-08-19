@@ -1,6 +1,5 @@
 const admin = require('firebase-admin');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 let firebaseInitialized = false; // BUG 3 FIX: newline added (was concatenated on one line)
 
 /**

@@ -1,6 +1,5 @@
 const { analyzeVideo, isAIAvailable } = require('../services/aiService');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 const BATCH_SIZE = 10;
 const ALERT_THRESHOLD = 4;

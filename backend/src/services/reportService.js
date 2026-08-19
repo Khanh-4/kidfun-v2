@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 exports.generateDailyReport = async (profileId, date) => {
   const start = new Date(date);
