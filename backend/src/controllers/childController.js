@@ -1,10 +1,15 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { getCached, setCache, clearCache } = require('../services/cacheService');
 
 // Helper: calculate remaining minutes for a profile today, including bonus
+// Results are cached for 30s to reduce DB load from frequent heartbeat calls
 const calcRemaining = async (profileId, deviceId) => {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
+  const cacheKey = `remaining_${profileId}_${deviceId}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+  const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const dayOfWeek = vnNow.getDay();
 
   const timeLimit = await prisma.timeLimit.findUnique({
     where: {
@@ -14,9 +19,9 @@ const calcRemaining = async (profileId, deviceId) => {
 
   const dailyLimitMinutes = timeLimit?.dailyLimitMinutes || 120;
 
-  const startOfDay = new Date();
+  const startOfDay = new Date(vnNow);
   startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date();
+  const endOfDay = new Date(vnNow);
   endOfDay.setHours(23, 59, 59, 999);
 
   // Auto-close stale ACTIVE sessions from previous days
@@ -50,7 +55,15 @@ const calcRemaining = async (profileId, deviceId) => {
     }
   });
 
-  const totalSeconds = usageLogs.reduce((sum, log) => sum + (log.durationSeconds || 0), 0);
+  const now = new Date();
+  // BUG FIX: open logs (endTime=null, durationSeconds=null) were counted as 0.
+  // Calculate elapsed seconds for open logs so the countdown is accurate on restart.
+  const totalSeconds = usageLogs.reduce((sum, log) => {
+    if (log.durationSeconds !== null) return sum + log.durationSeconds;
+    // Open log — count elapsed time since startTime, capped at end-of-day
+    const effectiveEnd = now < endOfDay ? now : endOfDay;
+    return sum + Math.max(0, Math.floor((effectiveEnd - new Date(log.startTime)) / 1000));
+  }, 0);
   const usedMinutes = Math.round(totalSeconds / 60);
 
   // Get bonus from active session started TODAY only
@@ -62,47 +75,57 @@ const calcRemaining = async (profileId, deviceId) => {
     },
     orderBy: { startTime: 'desc' }
   });
-  const bonusMinutes = activeSession?.bonusMinutes || 0;
+  const sessionBonus = activeSession?.bonusMinutes || 0;
 
-  const remainingMinutes = Math.max(0, dailyLimitMinutes + bonusMinutes - usedMinutes);
+  const extensions = await prisma.timeExtensionRequest.findMany({
+    where: {
+      profileId,
+      status: 'APPROVED',
+      createdAt: { gte: startOfDay, lte: endOfDay }
+    }
+  });
+  const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
 
-  return { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, timeLimit, activeSession };
+  const bonusMinutes = sessionBonus + extensionBonus;
+
+  const limitSeconds = (dailyLimitMinutes + bonusMinutes) * 60;
+  const remainingSeconds = Math.max(0, limitSeconds - totalSeconds);
+  const remainingMinutes = Math.round(remainingSeconds / 60);
+
+  const result = { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession };
+  setCache(cacheKey, result, 30 * 1000); // Cache 30s — invalidate khi Parent thay đổi time limit
+  return result;
 };
 
 // GET /api/child/status
-// Lấy thông tin profile, thời gian, session hiện tại
 const getStatus = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required in X-Device-Code header' });
+      return sendError(res, 'Device code required in X-Device-Code header', 400, 'MISSING_DEVICE_CODE');
     }
 
-    // Tìm device
     const device = await prisma.device.findUnique({
       where: { deviceCode },
       include: { profile: true }
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     if (!device.profileId) {
-      return res.status(400).json({
-        error: 'DEVICE_NOT_ASSIGNED',
-        message: 'Thiết bị chưa được gán cho hồ sơ nào. Vui lòng yêu cầu bố mẹ gán trong Parent Dashboard.'
-      });
+      return sendError(res, 'Thiết bị chưa được gán cho hồ sơ nào. Vui lòng yêu cầu bố mẹ gán trong Parent Dashboard.', 400, 'DEVICE_NOT_ASSIGNED');
     }
 
-    const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, timeLimit, activeSession } =
+    const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
 
-    const dayOfWeek = new Date().getDay();
+    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const dayOfWeek = vnNow.getDay();
 
-    // Response
-    res.json({
+    sendSuccess(res, {
       device: {
         id: device.id,
         deviceName: device.deviceName,
@@ -130,23 +153,23 @@ const getStatus = async (req, res) => {
         totalMinutes: activeSession.totalMinutes || 0,
         bonusMinutes: activeSession.bonusMinutes || 0
       } : null,
-      remainingMinutes
+      remainingMinutes,
+      remainingSeconds
     });
   } catch (error) {
     console.error('Get child status error:', error);
-    res.status(500).json({ error: 'Failed to get status' });
+    sendError(res, 'Failed to get status', 500, 'INTERNAL_ERROR');
   }
 };
 
 // POST /api/child/session/start
-// Bắt đầu session mới
 const startSession = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
     const { appName } = req.body;
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required' });
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
     const device = await prisma.device.findUnique({
@@ -154,11 +177,11 @@ const startSession = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     if (!device.profileId) {
-      return res.status(400).json({ error: 'Device not assigned to a profile' });
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
     }
 
     // End tất cả ACTIVE sessions cũ của device này
@@ -180,6 +203,29 @@ const startSession = async (req, res) => {
           totalMinutes: durationMinutes
         }
       });
+
+      // BUG FIX: close any open UsageLog entries from this session.
+      // Use device.lastSeen as the effective end time — that's the last confirmed
+      // active heartbeat, so we don't count idle time between force-close and restart.
+      // Falls back to now if lastSeen is unavailable.
+      const lastActiveTime = device.lastSeen ? new Date(device.lastSeen) : now;
+      const openLogs = await prisma.usageLog.findMany({
+        where: {
+          deviceId: device.id,
+          endTime: null,
+          startTime: { gte: session.startTime }
+        }
+      });
+      for (const log of openLogs) {
+        const logStart = new Date(log.startTime);
+        // Use lastActiveTime only if it's after the log started, otherwise fall back to now
+        const effectiveEnd = lastActiveTime > logStart ? lastActiveTime : now;
+        const durationSeconds = Math.max(0, Math.floor((effectiveEnd - logStart) / 1000));
+        await prisma.usageLog.update({
+          where: { id: log.id },
+          data: { endTime: effectiveEnd, durationSeconds }
+        });
+      }
     }
 
     // Tạo session mới
@@ -209,8 +255,7 @@ const startSession = async (req, res) => {
       data: { isOnline: true, lastSeen: now }
     });
 
-    res.status(201).json({
-      message: 'Session started successfully',
+    sendSuccess(res, {
       session: {
         id: newSession.id,
         profileId: newSession.profileId,
@@ -218,22 +263,25 @@ const startSession = async (req, res) => {
         startTime: newSession.startTime,
         status: newSession.status
       }
-    });
+    }, 201);
   } catch (error) {
     console.error('Start session error:', error);
-    res.status(500).json({ error: 'Failed to start session' });
+    sendError(res, 'Failed to start session', 500, 'INTERNAL_ERROR');
   }
 };
 
 // POST /api/child/session/heartbeat
-// Cập nhật session đang chạy
 const heartbeat = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
     const { sessionId, elapsedMinutes } = req.body;
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required' });
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    if (!sessionId || !Number.isInteger(Number(sessionId))) {
+      return sendError(res, 'sessionId is required and must be an integer', 400, 'INVALID_SESSION_ID');
     }
 
     const device = await prisma.device.findUnique({
@@ -241,12 +289,12 @@ const heartbeat = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     // Update session
     const session = await prisma.session.update({
-      where: { id: sessionId },
+      where: { id: Number(sessionId) },
       data: { totalMinutes: elapsedMinutes }
     });
 
@@ -291,27 +339,27 @@ const heartbeat = async (req, res) => {
     });
 
     // Calculate remaining time (includes bonus)
-    const { remainingMinutes } = await calcRemaining(session.profileId, device.id);
+    const { remainingMinutes, remainingSeconds } = await calcRemaining(session.profileId, device.id);
 
-    res.json({
-      success: true,
-      remainingMinutes
-    });
+    sendSuccess(res, { remainingMinutes, remainingSeconds });
   } catch (error) {
     console.error('Heartbeat error:', error);
-    res.status(500).json({ error: 'Failed to update heartbeat' });
+    sendError(res, 'Failed to update heartbeat', 500, 'INTERNAL_ERROR');
   }
 };
 
 // POST /api/child/session/end
-// Kết thúc session
 const endSession = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
     const { sessionId, reason } = req.body;
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required' });
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    if (!sessionId || !Number.isInteger(Number(sessionId))) {
+      return sendError(res, 'sessionId is required and must be an integer', 400, 'INVALID_SESSION_ID');
     }
 
     const device = await prisma.device.findUnique({
@@ -319,23 +367,23 @@ const endSession = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     const now = new Date();
     const session = await prisma.session.findUnique({
-      where: { id: sessionId }
+      where: { id: Number(sessionId) }
     });
 
     if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
+      return sendError(res, 'Session not found', 404, 'NOT_FOUND');
     }
 
     const durationMinutes = Math.floor((now - new Date(session.startTime)) / 60000);
 
     // Update session
     await prisma.session.update({
-      where: { id: sessionId },
+      where: { id: Number(sessionId) },
       data: {
         status: 'COMPLETED',
         endTime: now,
@@ -381,30 +429,20 @@ const endSession = async (req, res) => {
       }
     });
 
-    res.json({
-      success: true,
-      totalMinutes: durationMinutes,
-      reason
-    });
+    sendSuccess(res, { totalMinutes: durationMinutes, reason });
   } catch (error) {
     console.error('End session error:', error);
-    res.status(500).json({ error: 'Failed to end session' });
+    sendError(res, 'Failed to end session', 500, 'INTERNAL_ERROR');
   }
 };
 
-// POST /api/child/bonus
-// Lưu bonus minutes khi Parent duyệt thêm giờ
-const addBonus = async (req, res) => {
+// POST /api/child/session/pause — Screen turned off, stop counting usage
+const pauseSession = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
-    const { additionalMinutes } = req.body;
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required' });
-    }
-
-    if (!additionalMinutes || additionalMinutes <= 0) {
-      return res.status(400).json({ error: 'additionalMinutes must be positive' });
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
     const device = await prisma.device.findUnique({
@@ -412,7 +450,129 @@ const addBonus = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    const now = new Date();
+
+    // Close open usage logs — this stops accumulating usage time
+    const openLogs = await prisma.usageLog.findMany({
+      where: {
+        deviceId: device.id,
+        endTime: null
+      }
+    });
+
+    for (const log of openLogs) {
+      const durationSeconds = Math.max(0, Math.floor((now - new Date(log.startTime)) / 1000));
+      await prisma.usageLog.update({
+        where: { id: log.id },
+        data: { endTime: now, durationSeconds }
+      });
+    }
+
+    // Update device lastSeen
+    await prisma.device.update({
+      where: { id: device.id },
+      data: { lastSeen: now }
+    });
+
+    console.log(`⏸️ Session PAUSED: deviceCode=${deviceCode}, closed ${openLogs.length} open logs`);
+
+    // Calculate remaining for response
+    if (device.profileId) {
+      const { remainingMinutes, remainingSeconds } = await calcRemaining(device.profileId, device.id);
+      return sendSuccess(res, { paused: true, remainingMinutes, remainingSeconds });
+    }
+
+    sendSuccess(res, { paused: true });
+  } catch (error) {
+    console.error('Pause session error:', error);
+    sendError(res, 'Failed to pause session', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// POST /api/child/session/resume — Screen turned on, resume counting usage
+const resumeSession = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+
+    if (!deviceCode) {
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    const device = await prisma.device.findUnique({
+      where: { deviceCode }
+    });
+
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    if (!device.profileId) {
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
+    }
+
+    const now = new Date();
+
+    // Ensure active session exists
+    const activeSession = await prisma.session.findFirst({
+      where: { deviceId: device.id, status: 'ACTIVE' },
+      orderBy: { startTime: 'desc' }
+    });
+
+    if (!activeSession) {
+      return sendError(res, 'No active session to resume', 404, 'NO_ACTIVE_SESSION');
+    }
+
+    // Create new usage log entry (startTime only) — this resumes accumulation
+    await prisma.usageLog.create({
+      data: {
+        profileId: device.profileId,
+        deviceId: device.id,
+        appName: 'KidFun Monitor',
+        startTime: now,
+        activityType: 'MONITORING'
+      }
+    });
+
+    // Update device
+    await prisma.device.update({
+      where: { id: device.id },
+      data: { lastSeen: now, isOnline: true }
+    });
+
+    console.log(`▶️ Session RESUMED: deviceCode=${deviceCode}`);
+
+    // Calculate remaining for response
+    const { remainingMinutes, remainingSeconds } = await calcRemaining(device.profileId, device.id);
+    sendSuccess(res, { resumed: true, remainingMinutes, remainingSeconds });
+  } catch (error) {
+    console.error('Resume session error:', error);
+    sendError(res, 'Failed to resume session', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// POST /api/child/bonus
+const addBonus = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+    const { additionalMinutes } = req.body;
+
+    if (!deviceCode) {
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    if (!additionalMinutes || additionalMinutes <= 0) {
+      return sendError(res, 'additionalMinutes must be positive', 400, 'INVALID_INPUT');
+    }
+
+    const device = await prisma.device.findUnique({
+      where: { deviceCode }
+    });
+
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     // Find active session
@@ -422,7 +582,7 @@ const addBonus = async (req, res) => {
     });
 
     if (!activeSession) {
-      return res.status(404).json({ error: 'No active session' });
+      return sendError(res, 'No active session', 404, 'NO_ACTIVE_SESSION');
     }
 
     // Increment bonus
@@ -431,29 +591,30 @@ const addBonus = async (req, res) => {
       data: { bonusMinutes: activeSession.bonusMinutes + additionalMinutes }
     });
 
+    // Invalidate cache so next calcRemaining reflects new bonus
+    clearCache(`remaining_${device.profileId}_`);
+
     // Calculate new remaining
     const { remainingMinutes } = await calcRemaining(device.profileId, device.id);
 
-    res.json({
-      success: true,
+    sendSuccess(res, {
       bonusMinutes: updated.bonusMinutes,
       remainingMinutes
     });
   } catch (error) {
     console.error('Add bonus error:', error);
-    res.status(500).json({ error: 'Failed to add bonus' });
+    sendError(res, 'Failed to add bonus', 500, 'INTERNAL_ERROR');
   }
 };
 
 // POST /api/child/warnings
-// Ghi log warning
 const createWarning = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
     const { warningType, message, remainingMinutes } = req.body;
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required' });
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
     const device = await prisma.device.findUnique({
@@ -461,11 +622,11 @@ const createWarning = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     if (!device.profileId) {
-      return res.status(400).json({ error: 'Device not assigned to a profile' });
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
     }
 
     const warning = await prisma.warning.create({
@@ -477,24 +638,20 @@ const createWarning = async (req, res) => {
       }
     });
 
-    res.status(201).json({
-      success: true,
-      warningId: warning.id
-    });
+    sendSuccess(res, { warningId: warning.id }, 201);
   } catch (error) {
     console.error('Create warning error:', error);
-    res.status(500).json({ error: 'Failed to create warning' });
+    sendError(res, 'Failed to create warning', 500, 'INTERNAL_ERROR');
   }
 };
 
 // GET /api/child/blocked-sites
-// Lấy danh sách blocked sites cho device (dựa trên profileId)
 const getBlockedSites = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
 
     if (!deviceCode) {
-      return res.status(400).json({ error: 'Device code required' });
+      return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
     const device = await prisma.device.findUnique({
@@ -502,21 +659,118 @@ const getBlockedSites = async (req, res) => {
     });
 
     if (!device) {
-      return res.status(404).json({ error: 'Invalid device code' });
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
     }
 
     if (!device.profileId) {
-      return res.status(400).json({ error: 'Device not assigned to a profile' });
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
     }
 
     const blockedSites = await prisma.blockedWebsite.findMany({
       where: { profileId: device.profileId }
     });
 
-    res.json(blockedSites);
+    sendSuccess(res, blockedSites);
   } catch (error) {
     console.error('Get blocked sites error:', error);
-    res.status(500).json({ error: 'Failed to get blocked sites' });
+    sendError(res, 'Failed to get blocked sites', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// GET /api/child/today-limit
+const getTodayLimit = async (req, res) => {
+  try {
+    const deviceCode = req.query.deviceCode || req.headers['x-device-code'];
+
+    const device = await prisma.device.findFirst({
+      where: { deviceCode },
+      include: {
+        profile: {
+          include: { timeLimits: true }
+        }
+      }
+    });
+
+    if (!device || !device.profile) {
+      return sendError(res, 'Device not found or not linked to profile', 404);
+    }
+
+    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const today = vnNow.getDay(); // 0 = Sunday
+    const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
+
+    // fallback to limitMinutes if dailyLimitMinutes is null
+    let baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
+
+    // Gradual reduction: tính limit hiệu lực nếu đang trong tiến trình giảm dần
+    if (
+      todayLimit?.isGradual &&
+      todayLimit.gradualTarget != null &&
+      todayLimit.gradualWeeks &&
+      todayLimit.gradualStartDate
+    ) {
+      const startDate = new Date(todayLimit.gradualStartDate);
+      const weeksElapsed = Math.floor((vnNow - startDate) / (7 * 24 * 60 * 60 * 1000));
+      if (weeksElapsed < todayLimit.gradualWeeks) {
+        const reduction =
+          (baseLimit - todayLimit.gradualTarget) * (weeksElapsed / todayLimit.gradualWeeks);
+        baseLimit = Math.round(baseLimit - reduction);
+      } else {
+        baseLimit = todayLimit.gradualTarget;
+      }
+    }
+
+    // BUG FIX: dùng calcRemaining() thay vì usageSession (bảng không được ghi bởi session APIs)
+    // calcRemaining đọc từ usageLog (được tạo bởi startSession + heartbeat) → chính xác
+    const { usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds } =
+      await calcRemaining(device.profile.id, device.id);
+
+    const limitMinutes = baseLimit + bonusMinutes;
+
+    const dbIsActive = todayLimit?.isActive ?? true;
+    const isLimitEnabled = dbIsActive;
+
+    console.log(`📊 getTodayLimit: deviceCode=${deviceCode}, profileId=${device.profile.id}, today=${today}, baseLimit=${baseLimit}, bonusMinutes=${bonusMinutes}, limitMinutes=${limitMinutes}, usedMinutes=${usedMinutes}, remainingMinutes=${remainingMinutes}, remainingSeconds=${remainingSeconds}`);
+
+    return sendSuccess(res, {
+      profileId: device.profile.id,
+      profileName: device.profile.profileName,
+      dayOfWeek: today,
+      limitMinutes,
+      usedMinutes,
+      remainingMinutes,
+      remainingSeconds,
+      isActive: dbIsActive,
+      isLimitEnabled,
+    });
+  } catch (err) {
+    console.error('❌ getTodayLimit ERROR:', err.message, err.stack);
+    return sendError(res, err.message, 500);
+  }
+};
+
+// POST /api/child/realtime-token — mint JWT riêng cho Supabase Realtime (child app)
+const { mintChildRealtimeToken, REALTIME_TOKEN_TTL_SECONDS } = require('../utils/realtimeAuth');
+const getRealtimeToken = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+    if (!deviceCode) {
+      return sendError(res, 'Device code required in X-Device-Code header', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    const device = await prisma.device.findUnique({ where: { deviceCode } });
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+    if (!device.profileId) {
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
+    }
+
+    const token = mintChildRealtimeToken(device.id, device.profileId);
+    sendSuccess(res, { token, expiresIn: REALTIME_TOKEN_TTL_SECONDS });
+  } catch (err) {
+    console.error('❌ getRealtimeToken (child) ERROR:', err.message);
+    sendError(res, 'Failed to mint realtime token', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -527,5 +781,9 @@ module.exports = {
   endSession,
   addBonus,
   createWarning,
-  getBlockedSites
+  getBlockedSites,
+  getTodayLimit,
+  pauseSession,
+  resumeSession,
+  getRealtimeToken
 };

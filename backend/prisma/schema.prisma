@@ -11,17 +11,21 @@ datasource db {
 model User {
   id           Int       @id @default(autoincrement())
   email        String    @unique
-  passwordHash String
+  passwordHash String?
+  googleId     String?   @unique
   fullName     String
-  phoneNumber       String?
+  phoneNumber  String?
   resetToken        String?
   resetTokenExpiry  DateTime?
+  resetOtp          String?
+  resetOtpExpiry    DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   
   profiles      Profile[]
   devices       Device[]
   notifications Notification[]
+  fcmTokens     FCMToken[]
 }
 
 model Profile {
@@ -33,12 +37,28 @@ model Profile {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  devices      Device[]
-  timeLimits   TimeLimit[]
-  blockedSites BlockedWebsite[]
-  usageLogs    UsageLog[]
-  warnings     Warning[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devices       Device[]
+  timeLimits    TimeLimit[]
+  blockedSites  BlockedWebsite[]
+  usageLogs     UsageLog[]
+  warnings      Warning[]
+  usageSessions UsageSession[]
+  timeExtensionRequests TimeExtensionRequest[]
+  appUsageLogs  AppUsageLog[]
+  blockedApps   BlockedApp[]
+  locationLogs  LocationLog[]
+  geofences     Geofence[]
+  geofenceEvents GeofenceEvent[]
+  sosAlerts     SOSAlert[]
+  appTimeLimits         AppTimeLimit[]
+  blockedCategories     BlockedCategory[]
+  customBlockedDomains  CustomBlockedDomain[]
+  schoolSchedule        SchoolSchedule?
+  youtubeLogs    YouTubeLog[]
+  aiAlerts       AIAlert[]
+  blockedVideos  BlockedVideo[]
+  reportSnapshots ReportSnapshot[]
 }
 
 model Device {
@@ -50,12 +70,21 @@ model Device {
   osVersion  String?
   isOnline   Boolean   @default(false)
   lastSeen   DateTime?
+  pairingCode       String?   @unique
+  pairingCodeExpiry DateTime?
   createdAt  DateTime  @default(now())
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profile      Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  applications Application[]
-  sessions     Session[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile       Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  applications  Application[]
+  sessions      Session[]
+  fcmTokens     FCMToken[]
+  usageSessions UsageSession[]
+  timeExtensionRequests TimeExtensionRequest[]
+  appUsageLogs  AppUsageLog[]
+  locationLogs  LocationLog[]
+  sosAlerts     SOSAlert[]
+  youtubeLogs   YouTubeLog[]
 }
 
 model TimeLimit {
@@ -63,14 +92,47 @@ model TimeLimit {
   profileId         Int
   dayOfWeek         Int
   dailyLimitMinutes Int       @default(120)
+  limitMinutes      Int?      // To match user API request
+  isActive          Boolean   @default(true)
   isGradual         Boolean   @default(false)
   gradualTarget     Int?
   gradualWeeks      Int?
   gradualStartDate  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
   
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   
   @@unique([profileId, dayOfWeek])
+}
+
+model UsageSession {
+  id          Int       @id @default(autoincrement())
+  profileId   Int
+  deviceId    Int
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model TimeExtensionRequest {
+  id             Int       @id @default(autoincrement())
+  profileId      Int
+  deviceId       Int
+  requestMinutes Int       // Số phút xin thêm
+  reason         String?   // Lý do
+  status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  responseMinutes Int?     // Số phút Parent cho (có thể khác requestMinutes)
+  respondedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  profile        Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device         Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 }
 
 model BlockedWebsite {
@@ -146,4 +208,311 @@ model Session {
   status       String    @default("ACTIVE")
 
   device Device @relation(fields: [deviceId], references: [id])
+}
+
+model FCMToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  deviceId  Int?
+  token     String   @unique
+  platform  String   // ANDROID | IOS
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+}
+
+model BlockedApp {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  packageName String
+  appName     String?
+  isBlocked   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, packageName])
+}
+
+model AppUsageLog {
+  id            Int      @id @default(autoincrement())
+  profileId     Int
+  deviceId      Int
+  packageName   String
+  appName       String?
+  usageSeconds  Int
+  date          DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profile  Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, deviceId, packageName, date])
+}
+
+model LocationLog {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  deviceId  Int
+  latitude  Float
+  longitude Float
+  accuracy  Float?   // Độ chính xác GPS (mét)
+  address   String?  // Optional, reverse geocode sau
+  source    String   @default("GPS") // GPS, NETWORK, FUSED
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+// ── Sprint 8: Per-app Time Limit ───────────────────────────────────────────
+
+model AppTimeLimit {
+  id                Int      @id @default(autoincrement())
+  profileId         Int
+  packageName       String
+  appName           String?
+  dailyLimitMinutes Int
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, packageName])
+}
+
+// ── Sprint 8: Web Filtering ────────────────────────────────────────────────
+
+model WebCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  displayName String
+  description String?
+
+  domains   WebCategoryDomain[]
+  blockedBy BlockedCategory[]
+}
+
+model WebCategoryDomain {
+  id         Int         @id @default(autoincrement())
+  categoryId Int
+  domain     String
+
+  category WebCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, domain])
+}
+
+model BlockedCategory {
+  id         Int      @id @default(autoincrement())
+  profileId  Int
+  categoryId Int
+  isBlocked  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category  WebCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  overrides CategoryOverride[]
+
+  @@unique([profileId, categoryId])
+}
+
+model CategoryOverride {
+  id                Int    @id @default(autoincrement())
+  blockedCategoryId Int
+  domain            String
+
+  blockedCategory BlockedCategory @relation(fields: [blockedCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([blockedCategoryId, domain])
+}
+
+model CustomBlockedDomain {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  domain    String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, domain])
+}
+
+// ── Sprint 8: School Mode ──────────────────────────────────────────────────
+
+model SchoolSchedule {
+  id                Int       @id @default(autoincrement())
+  profileId         Int       @unique
+  isEnabled         Boolean   @default(true)
+  templateStartTime String?
+  templateEndTime   String?
+  manualOverride    String?
+  overrideUntil     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  profile      Profile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  daySchedules SchoolDaySchedule[]
+  allowedApps  AllowedSchoolApp[]
+}
+
+model SchoolDaySchedule {
+  id         Int     @id @default(autoincrement())
+  scheduleId Int
+  dayOfWeek  Int
+  isEnabled  Boolean @default(true)
+  startTime  String
+  endTime    String
+
+  schedule SchoolSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, dayOfWeek])
+}
+
+model AllowedSchoolApp {
+  id          Int      @id @default(autoincrement())
+  scheduleId  Int
+  packageName String
+  appName     String?
+  createdAt   DateTime @default(now())
+
+  schedule SchoolSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, packageName])
+}
+
+model Geofence {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  name      String   // "Nhà", "Trường học", "Công viên"
+  latitude  Float
+  longitude Float
+  radius    Int      // Bán kính (mét)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  events  GeofenceEvent[]
+}
+
+model GeofenceEvent {
+  id         Int      @id @default(autoincrement())
+  geofenceId Int
+  profileId  Int
+  type       String   // "ENTER" | "EXIT"
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime @default(now())
+
+  geofence Geofence @relation(fields: [geofenceId], references: [id], onDelete: Cascade)
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+model SOSAlert {
+  id             Int       @id @default(autoincrement())
+  profileId      Int
+  deviceId       Int
+  latitude       Float
+  longitude      Float
+  address        String?
+  audioUrl       String?   // URL file ghi âm (local /uploads/sos-audio/)
+  message        String?   // Optional message từ Child
+  status         String    @default("ACTIVE") // ACTIVE | ACKNOWLEDGED | RESOLVED
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+// ── Sprint 9: YouTube Monitoring + AI Safety ───────────────────────────────
+
+model YouTubeLog {
+  id              Int      @id @default(autoincrement())
+  profileId       Int
+  deviceId        Int
+  videoTitle      String
+  channelName     String?
+  videoId         String?
+  thumbnailUrl    String?
+  watchedAt       DateTime @default(now())
+  durationSeconds Int      @default(0)
+
+  isAnalyzed  Boolean @default(false)
+  dangerLevel Int?    // 1-5 (null = chưa phân tích)
+  category    String? // SAFE | BULLY | SEXUAL | DRUG | VIOLENCE | SELF_HARM | DISTURBING
+  aiSummary   String?
+
+  isBlocked Boolean @default(false)
+
+  profile Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  alerts  AIAlert[]
+
+  @@index([profileId, watchedAt])
+  @@index([isAnalyzed])
+  @@index([dangerLevel])
+}
+
+model AIAlert {
+  id           Int       @id @default(autoincrement())
+  profileId    Int
+  youtubeLogId Int
+  dangerLevel  Int
+  category     String
+  summary      String
+  isRead       Boolean   @default(false)
+  notifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  profile    Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  youtubeLog YouTubeLog @relation(fields: [youtubeLogId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([isRead])
+}
+
+model BlockedVideo {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  videoTitle  String
+  channelName String?
+  videoId     String?
+  reason      String?  // "AI_DETECTED" | "PARENT_MANUAL"
+  createdAt   DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+// ── Sprint 9: Reports & Analytics ─────────────────────────────────────────
+
+model ReportSnapshot {
+  id          Int      @id @default(autoincrement())
+  profileId   Int
+  type        String   // "DAILY" | "WEEKLY"
+  periodStart DateTime
+  periodEnd   DateTime
+  data        Json
+  generatedAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, type, periodStart])
+  @@index([profileId, type, periodStart])
 }

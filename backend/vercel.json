@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    { "path": "/api/cron/ai-analysis", "schedule": "50 16 * * *" },
+    { "path": "/api/cron/daily-reports", "schedule": "5 17 * * *" },
+    { "path": "/api/cron/weekly-reports", "schedule": "10 17 * * 0" }
+  ]
+}

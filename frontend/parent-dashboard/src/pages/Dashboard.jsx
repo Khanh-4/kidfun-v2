@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import profileService from '../services/profileService';
+import api from '../services/api';
 
 function StatCard({ title, value, icon, color, subtitle }) {
   return (
@@ -47,7 +48,14 @@ function StatCard({ title, value, icon, color, subtitle }) {
 
 function ProfileCard({ profile }) {
   const { t } = useTranslation();
-  const usagePercent = Math.min((profile.todayUsage || 0) / (profile.dailyLimit || 120) * 100, 100);
+
+  // Get today's daily limit from timeLimits
+  const todayDOW = new Date().getDay();
+  const todayLimit = profile.timeLimits?.find((tl) => tl.dayOfWeek === todayDOW);
+  const dailyLimit = todayLimit?.dailyLimitMinutes || 120;
+
+  // todayUsage is not available from getAllProfiles, show limit info instead
+  const warningCount = profile._count?.warnings || 0;
 
   return (
     <Card>
@@ -80,25 +88,25 @@ function ProfileCard({ profile }) {
               {t('dashboard.todayUsage')}
             </Typography>
             <Typography variant="body2" fontWeight={500}>
-              {profile.todayUsage || 0} / {profile.dailyLimit || 120} {t('dashboard.minuteUnit')}
+              {dailyLimit} {t('dashboard.minuteUnit')}
             </Typography>
           </Box>
           <LinearProgress
             variant="determinate"
-            value={usagePercent}
+            value={0}
             sx={{
               height: 8,
               borderRadius: 4,
               bgcolor: 'grey.200',
               '& .MuiLinearProgress-bar': {
-                bgcolor: usagePercent > 80 ? 'error.main' : usagePercent > 50 ? 'warning.main' : 'success.main',
+                bgcolor: 'success.main',
               },
             }}
           />
         </Box>
 
         <Typography variant="caption" color="text.secondary">
-          {t('dashboard.warningsToday', { count: profile._count?.warnings || 0 })}
+          {t('dashboard.warningsToday', { count: warningCount })}
         </Typography>
       </CardContent>
     </Card>
@@ -108,22 +116,36 @@ function ProfileCard({ profile }) {
 function Dashboard() {
   const { t } = useTranslation();
   const [profiles, setProfiles] = useState([]);
+  const [deviceCount, setDeviceCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProfiles();
+    loadData();
   }, []);
 
-  const loadProfiles = async () => {
+  const loadData = async () => {
     try {
-      const data = await profileService.getAll();
-      setProfiles(data);
+      const [profilesData, devicesResponse] = await Promise.all([
+        profileService.getAll(),
+        api.get('/devices'),
+      ]);
+      setProfiles(profilesData);
+
+      // Filter out pending devices
+      const linkedDevices = (devicesResponse.data || []).filter(
+        (d) => d.deviceName !== 'Pending Device'
+      );
+      setDeviceCount(linkedDevices.length);
     } catch (error) {
-      console.error('Error loading profiles:', error);
+      console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Compute stats from real data
+  const totalWarnings = profiles.reduce((sum, p) => sum + (p._count?.warnings || 0), 0);
+  const totalUsageLogs = profiles.reduce((sum, p) => sum + (p._count?.usageLogs || 0), 0);
 
   const stats = [
     {
@@ -135,21 +157,21 @@ function Dashboard() {
     },
     {
       title: t('dashboard.devicesTitle'),
-      value: 0,
+      value: deviceCount,
       icon: <DevicesIcon />,
       color: 'secondary',
       subtitle: t('dashboard.devicesSubtitle'),
     },
     {
       title: t('dashboard.avgTimeTitle'),
-      value: '0h',
+      value: totalUsageLogs > 0 ? `${totalUsageLogs}` : '0',
       icon: <TimerIcon />,
       color: 'success',
       subtitle: t('dashboard.avgTimeSubtitle'),
     },
     {
       title: t('dashboard.warningsTitle'),
-      value: 0,
+      value: totalWarnings,
       icon: <WarningIcon />,
       color: 'warning',
       subtitle: t('dashboard.warningsSubtitle'),

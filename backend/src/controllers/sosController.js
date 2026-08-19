@@ -1,0 +1,138 @@
+const prisma = require('../utils/prisma');
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const socketService = require('../services/socketService');
+const { sendSOSPushNotification } = require('../services/fcmService');
+const { uploadSosAudio, getSosAudioSignedUrl } = require('../utils/supabaseStorage');
+
+// POST /api/child/sos — Child gửi SOS (multipart/form-data, no auth)
+exports.createSOS = async (req, res) => {
+  try {
+    const deviceCode = req.body.deviceCode || req.headers['x-device-code'];
+    const { latitude, longitude, message } = req.body;
+
+    if (!deviceCode || !latitude || !longitude) {
+      return sendError(res, 'Missing required fields', 400);
+    }
+
+    const device = await prisma.device.findFirst({
+      where: { deviceCode },
+      include: { profile: { include: { user: true } } },
+    });
+
+    if (!device || !device.profile) {
+      return sendError(res, 'Device not linked', 404);
+    }
+
+    // audioUrl lưu storage path (private bucket), không phải URL công khai.
+    // Playback dùng signed URL sinh động mỗi lần trả về client (xem dưới +
+    // getSOSHistory).
+    // Cô lập lỗi upload audio riêng — SOS là tính năng khẩn cấp, vị trí +
+    // cảnh báo PHẢI luôn tạo được dù audio upload thất bại (mất mạng, bucket
+    // sai cấu hình...), không được để lỗi audio làm mất luôn cả SOS alert.
+    let audioPath = null;
+    if (req.file) {
+      try {
+        audioPath = await uploadSosAudio(req.file.buffer, req.file.originalname, req.file.mimetype);
+      } catch (err) {
+        console.error('❌ [SOS] Audio upload failed, continuing without audio:', err.message);
+      }
+    }
+
+    const sos = await prisma.sOSAlert.create({
+      data: {
+        profileId: device.profile.id,
+        deviceId: device.id,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        audioUrl: audioPath,
+        message: message || null,
+        status: 'ACTIVE',
+      },
+    });
+
+    // Emit Socket.IO ngay lập tức
+    const io = socketService.io;
+    if (io) {
+      const signedAudioUrl = audioPath ? await getSosAudioSignedUrl(audioPath) : null;
+      io.to(`family_${device.profile.userId}`).emit('sosAlert', {
+        sosId: sos.id,
+        profileId: device.profile.id,
+        profileName: device.profile.profileName,
+        latitude: sos.latitude,
+        longitude: sos.longitude,
+        audioUrl: signedAudioUrl,
+        message: sos.message,
+        timestamp: sos.createdAt,
+      });
+    }
+
+    // Push notification CRITICAL (Task 7 implement đầy đủ)
+    await sendSOSPushNotification(device.profile.user, device.profile, sos);
+
+    return sendSuccess(res, { sos }, 201);
+  } catch (err) {
+    console.error('❌ [SOS] Error:', err.message);
+    return sendError(res, err.message, 500);
+  }
+};
+
+// GET /api/profiles/:id/sos — Lịch sử SOS của profile
+exports.getSOSHistory = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.id);
+    const alerts = await prisma.sOSAlert.findMany({
+      where: { profileId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    const alertsWithSignedAudio = await Promise.all(
+      alerts.map(async (alert) => ({
+        ...alert,
+        audioUrl: await getSosAudioSignedUrl(alert.audioUrl),
+      }))
+    );
+    return sendSuccess(res, { alerts: alertsWithSignedAudio });
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+};
+
+// PUT /api/sos/:id/acknowledge — Parent xác nhận đã nhận SOS
+exports.acknowledgeSOS = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const sos = await prisma.sOSAlert.update({
+      where: { id },
+      data: { status: 'ACKNOWLEDGED', acknowledgedAt: new Date() },
+    });
+
+    // Thông báo lại cho child device biết đã được nhận
+    const io = socketService.io;
+    if (io) {
+      const device = await prisma.device.findUnique({ where: { id: sos.deviceId } });
+      if (device) {
+        io.to(`device_${device.deviceCode}`).emit('sosAcknowledged', { sosId: id });
+      }
+    }
+
+    return sendSuccess(res, { sos });
+  } catch (err) {
+    if (err.code === 'P2025') return sendError(res, 'SOS alert not found', 404);
+    return sendError(res, err.message, 500);
+  }
+};
+
+// PUT /api/sos/:id/resolve — Parent đánh dấu đã giải quyết
+exports.resolveSOS = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const sos = await prisma.sOSAlert.update({
+      where: { id },
+      data: { status: 'RESOLVED', resolvedAt: new Date() },
+    });
+    return sendSuccess(res, { sos });
+  } catch (err) {
+    if (err.code === 'P2025') return sendError(res, 'SOS alert not found', 404);
+    return sendError(res, err.message, 500);
+  }
+};

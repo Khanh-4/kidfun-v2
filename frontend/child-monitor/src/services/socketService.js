@@ -2,16 +2,12 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
-console.log('[SocketService] SOCKET_URL:', SOCKET_URL);
-
 class SocketService {
     socket = null;
     listeners = {};
 
-    connect(userId) {
+    connect(userId, deviceCode) {
         if (this.socket?.connected) return;
-
-        console.log('[SocketService] Connecting to:', SOCKET_URL, 'userId:', userId);
 
         this.socket = io(SOCKET_URL, {
             transports: ['websocket', 'polling'],
@@ -20,49 +16,60 @@ class SocketService {
         });
 
         this.socket.on('connect', () => {
-            console.log('🔌 Child connected to server, socketId:', this.socket.id);
-            // Tham gia phòng gia đình
-            console.log('[SocketService] Emitting joinFamily:', { userId, role: 'child' });
+            console.log('[ChildSocket] Connected, socketId:', this.socket.id);
+            // Join family room
             this.socket.emit('joinFamily', { userId, role: 'child' });
+            // Join device room so we receive device-targeted events
+            // (timeExtensionResponse, timeLimitUpdated from controller, etc.)
+            if (deviceCode) {
+                this.socket.emit('joinDevice', { deviceCode });
+            }
         });
 
         this.socket.on('connect_error', (err) => {
-            console.error('🔴 Child socket connect_error:', err.message, 'URL:', SOCKET_URL);
+            console.error('[ChildSocket] connect_error:', err.message);
         });
 
         this.socket.on('disconnect', (reason) => {
-            console.log('❌ Child disconnected, reason:', reason);
+            console.log('[ChildSocket] disconnected:', reason);
         });
 
-        // Lắng nghe khi Parent xóa thiết bị
+        // Parent removed this device
         this.socket.on('deviceRemoved', () => {
-            console.log('🚫 Device removed by parent');
             if (this.listeners.onDeviceRemoved) {
                 this.listeners.onDeviceRemoved();
             }
         });
 
-        // Lắng nghe phản hồi từ Parent
+        // Parent responded to time extension request
         this.socket.on('timeExtensionResponse', (data) => {
-            console.log('📩 Received response:', data);
+            console.log('[ChildSocket] timeExtensionResponse:', data);
             if (this.listeners.onTimeExtensionResponse) {
                 this.listeners.onTimeExtensionResponse(data);
             }
         });
 
-        // Lắng nghe khi Parent thay đổi giới hạn thời gian
+        // Parent changed time limit
         this.socket.on('timeLimitUpdated', (data) => {
-            console.log('⏱️ Time limit updated by parent:', data);
+            console.log('[ChildSocket] timeLimitUpdated:', data);
             if (this.listeners.onTimeLimitUpdated) {
                 this.listeners.onTimeLimitUpdated(data);
             }
         });
 
-        // Lắng nghe khi Parent thay đổi danh sách chặn website
+        // Parent updated blocked sites
         this.socket.on('blockedSitesUpdated', (data) => {
-            console.log('🚫 Blocked sites updated by parent:', data);
+            console.log('[ChildSocket] blockedSitesUpdated:', data);
             if (this.listeners.onBlockedSitesUpdated) {
                 this.listeners.onBlockedSitesUpdated(data);
+            }
+        });
+
+        // Parent updated blocked apps
+        this.socket.on('blockedAppsUpdated', (data) => {
+            console.log('[ChildSocket] blockedAppsUpdated:', data);
+            if (this.listeners.onBlockedAppsUpdated) {
+                this.listeners.onBlockedAppsUpdated(data);
             }
         });
     }
@@ -74,34 +81,38 @@ class SocketService {
         }
     }
 
-    // Đăng ký listener
+    // Register listeners
     onTimeExtensionResponse(callback) {
         this.listeners.onTimeExtensionResponse = callback;
     }
 
-    // Lắng nghe khi Parent xóa thiết bị
     onDeviceRemoved(callback) {
         this.listeners.onDeviceRemoved = callback;
     }
 
-    // Lắng nghe khi Parent thay đổi giới hạn thời gian
     onTimeLimitUpdated(callback) {
         this.listeners.onTimeLimitUpdated = callback;
     }
 
-    // Lắng nghe khi Parent thay đổi danh sách chặn website
     onBlockedSitesUpdated(callback) {
         this.listeners.onBlockedSitesUpdated = callback;
     }
 
-    // Child gửi yêu cầu thêm thời gian
-    requestTimeExtension(userId, deviceName, reason, requestedMinutes = 30) {
-        const data = { userId, deviceName, reason, requestedMinutes };
-        console.log('[SocketService] Emitting requestTimeExtension:', data, 'connected:', this.socket?.connected);
+    onBlockedAppsUpdated(callback) {
+        this.listeners.onBlockedAppsUpdated = callback;
+    }
+
+    // Child requests more time via socket
+    // Uses correct field names matching backend: deviceCode + requestMinutes
+    requestTimeExtension(deviceCode, requestMinutes, reason) {
         if (this.socket) {
-            this.socket.emit('requestTimeExtension', data);
+            this.socket.emit('requestTimeExtension', {
+                deviceCode,
+                requestMinutes,
+                reason,
+            });
         } else {
-            console.error('[SocketService] Cannot emit - socket is null!');
+            console.error('[ChildSocket] Cannot emit - socket is null!');
         }
     }
 }

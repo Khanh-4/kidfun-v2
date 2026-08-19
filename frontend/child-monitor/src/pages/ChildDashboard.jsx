@@ -40,13 +40,14 @@ function ChildDashboard({ device }) {
 
     // UI state
     const [showWarning, setShowWarning] = useState(false);
-    const [warningLevel, setWarningLevel] = useState('warning'); // 'info', 'warning', 'error'
+    const [warningLevel, setWarningLevel] = useState('warning');
     const [showRequestDialog, setShowRequestDialog] = useState(false);
     const [requestReason, setRequestReason] = useState('');
+    const [requestMinutes, setRequestMinutes] = useState(15);
     const [requestSent, setRequestSent] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-    // Derived values — use effectiveLimit (dailyLimit + bonus) for progress bar
+    // Derived values
     const effectiveLimit = status
         ? status.timeLimit.dailyLimitMinutes + (status.timeLimit.bonusMinutes || 0)
         : 120;
@@ -57,6 +58,9 @@ function ChildDashboard({ device }) {
         ? Math.min(100, (timeUsedMinutes / effectiveLimit) * 100)
         : 0;
 
+    // Get deviceCode from localStorage
+    const deviceCode = localStorage.getItem('deviceCode');
+
     // useEffect 1: Load initial status
     useEffect(() => {
         const loadStatus = async () => {
@@ -66,7 +70,7 @@ function ChildDashboard({ device }) {
 
                 const response = await api.get('/child/status');
                 setStatus(response.data);
-                setTimeRemaining(response.data.remainingMinutes * 60); // convert to seconds
+                setTimeRemaining(response.data.remainingMinutes * 60);
 
                 // Start session if not active
                 if (!response.data.activeSession) {
@@ -89,7 +93,7 @@ function ChildDashboard({ device }) {
         loadStatus();
     }, []);
 
-    // useEffect 2: Countdown timer (mỗi giây)
+    // useEffect 2: Countdown timer
     useEffect(() => {
         if (!status || timeRemaining <= 0) {
             if (timeRemaining <= 0 && status) {
@@ -113,7 +117,7 @@ function ChildDashboard({ device }) {
         return () => clearInterval(timer);
     }, [status, timeRemaining]);
 
-    // useEffect 3: Heartbeat (mỗi 60 giây)
+    // useEffect 3: Heartbeat (every 60s)
     useEffect(() => {
         if (!sessionId || !status) return;
 
@@ -128,14 +132,14 @@ function ChildDashboard({ device }) {
                     elapsedMinutes
                 });
 
-                // Update remaining time from server (để sync)
+                // Sync remaining time from server
                 if (response.data.remainingMinutes !== undefined) {
                     setTimeRemaining(response.data.remainingMinutes * 60);
                 }
             } catch (err) {
                 console.error('Heartbeat error:', err);
             }
-        }, 60000); // 60 seconds
+        }, 60000);
 
         return () => clearInterval(interval);
     }, [sessionId, status, timeRemaining, effectiveLimit]);
@@ -146,7 +150,6 @@ function ChildDashboard({ device }) {
 
         const minutes = Math.floor(timeRemaining / 60);
 
-        // 30 phút warning
         if (minutes === 30 && lastWarning !== 30) {
             setLastWarning(30);
             setWarningLevel('info');
@@ -158,7 +161,6 @@ function ChildDashboard({ device }) {
             }).catch(err => console.error('Warning log error:', err));
         }
 
-        // 15 phút warning
         if (minutes === 15 && lastWarning !== 15) {
             setLastWarning(15);
             setWarningLevel('warning');
@@ -170,7 +172,6 @@ function ChildDashboard({ device }) {
             }).catch(err => console.error('Warning log error:', err));
         }
 
-        // 5 phút warning
         if (minutes === 5 && lastWarning !== 5) {
             setLastWarning(5);
             setWarningLevel('error');
@@ -199,7 +200,8 @@ function ChildDashboard({ device }) {
     useEffect(() => {
         if (!status?.device.userId) return;
 
-        socketService.connect(status.device.userId);
+        // Connect with both userId (for family room) and deviceCode (for device room)
+        socketService.connect(status.device.userId, deviceCode);
 
         socketService.onDeviceRemoved(() => {
             localStorage.removeItem('deviceCode');
@@ -214,7 +216,6 @@ function ChildDashboard({ device }) {
                 setStatus(response.data);
                 setTimeRemaining(response.data.remainingMinutes * 60);
 
-                // Unlock if remaining time > 0
                 if (response.data.remainingMinutes > 0 && isLocked) {
                     setIsLocked(false);
                     window.electronAPI?.unlockScreen();
@@ -232,13 +233,11 @@ function ChildDashboard({ device }) {
 
         socketService.onTimeExtensionResponse((data) => {
             if (data.approved) {
-                // Persist bonus to backend
-                api.post('/child/bonus', {
-                    additionalMinutes: data.additionalMinutes
-                }).catch(err => console.error('Save bonus error:', err));
+                // Backend already wrote bonus to DB (via socket handler or REST approve).
+                // Just update local state — no need to call /child/bonus (would double-write).
+                const bonusMinutes = data.responseMinutes || 0;
 
-                // Update remaining time: add only the bonus minutes
-                setTimeRemaining((prev) => prev + data.additionalMinutes * 60);
+                setTimeRemaining((prev) => prev + bonusMinutes * 60);
                 setIsLocked(false);
                 window.electronAPI?.unlockScreen();
 
@@ -247,13 +246,13 @@ function ChildDashboard({ device }) {
                     ...prev,
                     timeLimit: {
                         ...prev.timeLimit,
-                        bonusMinutes: (prev.timeLimit.bonusMinutes || 0) + data.additionalMinutes
+                        bonusMinutes: (prev.timeLimit.bonusMinutes || 0) + bonusMinutes
                     }
                 } : prev);
 
                 setSnackbar({
                     open: true,
-                    message: `Bố mẹ đã duyệt thêm ${data.additionalMinutes} phút!`,
+                    message: `Bố mẹ đã duyệt thêm ${bonusMinutes} phút!`,
                     severity: 'success',
                 });
             } else {
@@ -270,7 +269,7 @@ function ChildDashboard({ device }) {
         };
     }, [status?.device.userId]);
 
-    // useEffect 7: Fetch blocked sites and update hosts file (Electron only)
+    // useEffect 7: Fetch blocked sites (Electron only)
     useEffect(() => {
         if (!status?.profile?.id || !window.electronAPI?.updateBlockedSites) return;
 
@@ -278,16 +277,13 @@ function ChildDashboard({ device }) {
             const websites = sites
                 .filter((s) => s.blockType === 'website')
                 .map((s) => s.blockValue);
-            console.log('[ChildDashboard] Applying blocked websites to hosts:', websites);
             const result = await window.electronAPI.updateBlockedSites(websites);
             console.log('[ChildDashboard] updateBlockedSites result:', result);
         };
 
         const loadBlockedSites = async () => {
             try {
-                console.log('[ChildDashboard] Fetching blocked sites via /child/blocked-sites');
                 const response = await api.get('/child/blocked-sites');
-                console.log('[ChildDashboard] Blocked sites response:', response.data);
                 await applyBlockedSites(response.data);
             } catch (err) {
                 console.error('[ChildDashboard] Load blocked sites error:', err.response?.status, err.message);
@@ -296,9 +292,7 @@ function ChildDashboard({ device }) {
 
         loadBlockedSites();
 
-        // Listen for real-time updates from Parent
         socketService.onBlockedSitesUpdated(async (data) => {
-            console.log('[ChildDashboard] Received blockedSitesUpdated:', data);
             if (data.profileId === status.profile.id) {
                 await applyBlockedSites(data.blockedSites);
                 setSnackbar({
@@ -310,7 +304,7 @@ function ChildDashboard({ device }) {
         });
     }, [status?.profile?.id]);
 
-    // useEffect 8: Listen for lock screen's "request more time" button (Electron IPC)
+    // useEffect 8: Lock screen IPC (Electron)
     useEffect(() => {
         if (!window.electronAPI?.onLockRequestMoreTime) return;
 
@@ -319,7 +313,7 @@ function ChildDashboard({ device }) {
         });
     }, []);
 
-    // useEffect 9: Listen for emergency unlock (Ctrl+Shift+Alt+Q)
+    // useEffect 9: Emergency unlock (Ctrl+Shift+Alt+Q)
     useEffect(() => {
         if (!window.electronAPI?.onEmergencyUnlock) return;
 
@@ -344,19 +338,25 @@ function ChildDashboard({ device }) {
         return `${secs} giây`;
     };
 
-    const handleRequestTime = () => {
-        socketService.requestTimeExtension(
-            status.device.userId,
-            status.device.deviceName,
-            requestReason,
-            30
-        );
+    const handleRequestTime = async () => {
+        // Use REST API for reliability (creates DB record + emits socket + FCM push)
+        try {
+            await api.post('/child/extension-request', {
+                requestMinutes,
+                reason: requestReason,
+            });
+        } catch (err) {
+            // Fallback to socket if REST fails
+            console.error('REST extension request failed, falling back to socket:', err);
+            socketService.requestTimeExtension(deviceCode, requestMinutes, requestReason);
+        }
 
         setRequestSent(true);
         setTimeout(() => {
             setShowRequestDialog(false);
             setRequestSent(false);
             setRequestReason('');
+            setRequestMinutes(15);
         }, 2000);
     };
 
@@ -465,7 +465,7 @@ function ChildDashboard({ device }) {
             {/* Header */}
             <Box sx={{ textAlign: 'center', color: 'white', mb: 3, pt: 2 }}>
                 <Typography variant="h4" fontWeight={700}>
-                    🎮 KidFun
+                    KidFun
                 </Typography>
                 <Chip
                     label={status?.profile?.profileName || 'Đang tải...'}
@@ -547,7 +547,7 @@ function ChildDashboard({ device }) {
                             <TrophyIcon color="warning" />
                         </Avatar>
                         <Box>
-                            <Typography variant="h6">Làm tốt lắm! 🌟</Typography>
+                            <Typography variant="h6">Làm tốt lắm!</Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Hãy tiếp tục tuân thủ giới hạn nhé!
                             </Typography>
@@ -572,7 +572,7 @@ function ChildDashboard({ device }) {
                     <Typography textAlign="center">
                         {getWarningMessage()}
                         <br />
-                        Hãy hoàn thành công việc và nghỉ ngơi nhé! 😊
+                        Hãy hoàn thành công việc và nghỉ ngơi nhé!
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
@@ -585,7 +585,12 @@ function ChildDashboard({ device }) {
             {/* Request More Time Dialog */}
             <Dialog
                 open={showRequestDialog}
-                onClose={() => !requestSent && setShowRequestDialog(false)}
+                onClose={() => {
+                    if (!requestSent) {
+                        setShowRequestDialog(false);
+                        setRequestMinutes(15);
+                    }
+                }}
                 maxWidth="sm"
                 fullWidth
                 sx={{ zIndex: 10000 }}
@@ -604,6 +609,19 @@ function ChildDashboard({ device }) {
                         </Box>
                     ) : (
                         <>
+                            <Typography sx={{ mb: 1 }}>Con muốn xin thêm bao nhiêu phút?</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                                {[15, 30, 45, 60].map((min) => (
+                                    <Chip
+                                        key={min}
+                                        label={`${min} phút`}
+                                        clickable
+                                        color={requestMinutes === min ? 'primary' : 'default'}
+                                        variant={requestMinutes === min ? 'filled' : 'outlined'}
+                                        onClick={() => setRequestMinutes(min)}
+                                    />
+                                ))}
+                            </Box>
                             <Typography sx={{ mb: 2 }}>
                                 Cho bố mẹ biết lý do bạn cần thêm thời gian nhé:
                             </Typography>
@@ -620,13 +638,13 @@ function ChildDashboard({ device }) {
                 </DialogContent>
                 {!requestSent && (
                     <DialogActions sx={{ px: 3, pb: 2 }}>
-                        <Button onClick={() => setShowRequestDialog(false)}>Hủy</Button>
+                        <Button onClick={() => { setShowRequestDialog(false); setRequestMinutes(15); }}>Hủy</Button>
                         <Button
                             variant="contained"
                             onClick={handleRequestTime}
                             disabled={!requestReason.trim()}
                         >
-                            Gửi yêu cầu
+                            Gửi yêu cầu ({requestMinutes} phút)
                         </Button>
                     </DialogActions>
                 )}

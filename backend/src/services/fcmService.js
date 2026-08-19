@@ -1,0 +1,123 @@
+const prisma = require('../utils/prisma');
+const { sendPushToUser, sendToMultipleTokens } = require('./firebaseService');
+
+/**
+ * Push notification khi child vào/ra khỏi geofence.
+ * @param {object} profile - Prisma Profile (cần .userId, .profileName, .id)
+ * @param {object} geofence - Prisma Geofence (cần .name, .id)
+ * @param {string} eventType - "ENTER" | "EXIT"
+ */
+exports.sendGeofencePushNotification = async (profile, geofence, eventType) => {
+  if (!profile) return;
+  try {
+    const title = eventType === 'ENTER'
+      ? `${profile.profileName} đã vào ${geofence.name}`
+      : `${profile.profileName} đã rời ${geofence.name}`;
+
+    const body = eventType === 'ENTER'
+      ? `Con đã đến ${geofence.name} an toàn`
+      : `Con vừa rời khỏi ${geofence.name}`;
+
+    await sendPushToUser(profile.userId, {
+      title,
+      body,
+      data: {
+        type: 'GEOFENCE_EVENT',
+        eventType,
+        profileId: String(profile.id),
+        geofenceId: String(geofence.id),
+        // TC-09/10 FIX: include name fields so mobile handlers can build
+        // correct local notification text without falling back to 'Khu vực'
+        geofenceName: geofence.name,
+        profileName: profile.profileName,
+      },
+    });
+  } catch (err) {
+    console.error('❌ [FCM Geofence] Error:', err.message);
+  }
+};
+
+/**
+ * Push notification SOS khẩn cấp — dùng channel sos_critical, priority max.
+ * @param {object} user - Prisma User (cần .id)
+ * @param {object} profile - Prisma Profile (cần .profileName, .id)
+ * @param {object} sos - Prisma SOSAlert (cần .id, .latitude, .longitude)
+ */
+/**
+ * Push notification khi AI phát hiện video nguy hiểm.
+ * @param {object} user - Prisma User
+ * @param {object} profile - Prisma Profile
+ * @param {object} alert - AIAlert record
+ * @param {object} log - YouTubeLog record
+ */
+exports.sendAIAlertPush = async (user, profile, alert, log) => {
+  if (!user || !profile) return;
+  try {
+    const tokens = await prisma.fCMToken.findMany({ where: { userId: user.id } });
+    if (tokens.length === 0) return;
+
+    const tokenStrings = tokens.map(t => t.token);
+    const dangerEmoji = alert.dangerLevel === 5 ? '🚨' : '⚠️';
+
+    const result = await sendToMultipleTokens(
+      tokenStrings,
+      `${dangerEmoji} Cảnh báo nội dung nguy hiểm`,
+      `${profile.profileName} đã xem: "${(log.videoTitle || '').slice(0, 60)}"\n${alert.summary}`,
+      {
+        type: 'AI_ALERT',
+        alertId: String(alert.id),
+        profileId: String(profile.id),
+        dangerLevel: String(alert.dangerLevel),
+        category: alert.category,
+      },
+    );
+
+    console.log(`🔔 [FCM AI ALERT] Sent to ${tokenStrings.length} devices`);
+
+    if (result?.invalidTokens?.length > 0) {
+      await prisma.fCMToken.deleteMany({ where: { token: { in: result.invalidTokens } } });
+    }
+  } catch (err) {
+    console.error('❌ [FCM AI Alert] Error:', err.message);
+  }
+};
+
+exports.sendSOSPushNotification = async (user, profile, sos) => {
+  if (!user || !profile) return;
+  try {
+    const tokens = await prisma.fCMToken.findMany({
+      where: { userId: user.id },
+    });
+    if (tokens.length === 0) return;
+
+    const tokenStrings = tokens.map(t => t.token);
+
+    // Override android channel sang sos_critical cho SOS
+    const result = await sendToMultipleTokens(
+      tokenStrings,
+      `🆘 SOS KHẨN CẤP từ ${profile.profileName}`,
+      'Con đang cần giúp đỡ! Nhấn để xem vị trí.',
+      {
+        type: 'SOS_ALERT',
+        sosId: String(sos.id),
+        profileId: String(profile.id),
+        profileName: profile.profileName,
+        latitude: String(sos.latitude),
+        longitude: String(sos.longitude),
+      },
+    );
+
+    // Log riêng để dễ debug SOS
+    console.log(`🆘 [FCM SOS] Sent to ${tokenStrings.length} token(s) for profile ${profile.profileName}`);
+
+    // Cleanup stale tokens reported by FCM as invalid
+    if (result?.invalidTokens?.length > 0) {
+      await prisma.fCMToken.deleteMany({
+        where: { token: { in: result.invalidTokens } },
+      });
+      console.log(`🧹 [FCM SOS] Cleaned ${result.invalidTokens.length} stale token(s) for userId ${user.id}`);
+    }
+  } catch (err) {
+    console.error('❌ [FCM SOS] Error:', err.message);
+  }
+};

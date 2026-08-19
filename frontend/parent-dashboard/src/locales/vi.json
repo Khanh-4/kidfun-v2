@@ -39,10 +39,13 @@
     },
     "forgotPassword": {
       "title": "Quên mật khẩu",
-      "description": "Nhập địa chỉ email của bạn. Chúng tôi sẽ gửi liên kết để đặt lại mật khẩu.",
+      "description": "Nhập địa chỉ email của bạn. Chúng tôi sẽ gửi mã OTP để đặt lại mật khẩu.",
       "email": "Email",
-      "submit": "Gửi liên kết đặt lại",
-      "success": "Đã gửi email hướng dẫn đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.",
+      "submit": "Gửi mã OTP",
+      "otpSent": "Mã OTP đã được gửi đến {{email}}. Vui lòng kiểm tra hộp thư (có hiệu lực 15 phút).",
+      "otpLabel": "Mã OTP (6 chữ số)",
+      "resendOtp": "Gửi lại mã OTP",
+      "changeEmail": "Đổi email",
       "backToLogin": "Quay lại đăng nhập",
       "failed": "Đã xảy ra lỗi. Vui lòng thử lại."
     },

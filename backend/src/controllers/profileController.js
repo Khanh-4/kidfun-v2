@@ -1,6 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 const socketService = require('../services/socketService');
+const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { clearCache } = require('../services/cacheService');
 
 // GET /api/profiles
 const getAllProfiles = async (req, res) => {
@@ -14,10 +15,10 @@ const getAllProfiles = async (req, res) => {
         }
       }
     });
-    res.json(profiles);
+    sendSuccess(res, profiles);
   } catch (error) {
     console.error('Get profiles error:', error);
-    res.status(500).json({ error: 'Failed to get profiles' });
+    sendError(res, 'Failed to get profiles', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -25,6 +26,10 @@ const getAllProfiles = async (req, res) => {
 const createProfile = async (req, res) => {
   try {
     const { profileName, dateOfBirth, avatarUrl } = req.body;
+
+    if (!profileName || typeof profileName !== 'string' || profileName.trim().length === 0) {
+      return sendError(res, 'profileName là bắt buộc', 400, 'MISSING_PROFILE_NAME');
+    }
 
     const profile = await prisma.profile.create({
       data: {
@@ -41,19 +46,17 @@ const createProfile = async (req, res) => {
       defaultTimeLimits.push({
         profileId: profile.id,
         dayOfWeek: day,
-        dailyLimitMinutes: day === 0 || day === 6 ? 180 : 120 // Weekend: 3h, Weekday: 2h
+        dailyLimitMinutes: day === 0 || day === 6 ? 180 : 120, // Weekend: 3h, Weekday: 2h
+        limitMinutes: day === 0 || day === 6 ? 180 : 120
       });
     }
-    
+
     await prisma.timeLimit.createMany({ data: defaultTimeLimits });
 
-    res.status(201).json({
-      message: 'Profile created successfully',
-      profile
-    });
+    sendSuccess(res, { profile }, 201);
   } catch (error) {
     console.error('Create profile error:', error);
-    res.status(500).json({ error: 'Failed to create profile' });
+    sendError(res, 'Failed to create profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -76,13 +79,13 @@ const getProfileById = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
-    res.json(profile);
+    sendSuccess(res, profile);
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Failed to get profile' });
+    sendError(res, 'Failed to get profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -105,13 +108,13 @@ const updateProfile = async (req, res) => {
     });
 
     if (profile.count === 0) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ message: 'Profile updated successfully' });
+    sendSuccess(res, { message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    sendError(res, 'Failed to update profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -126,13 +129,13 @@ const deleteProfile = async (req, res) => {
     });
 
     if (profile.count === 0) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ message: 'Profile deleted successfully' });
+    sendSuccess(res, { message: 'Profile deleted successfully' });
   } catch (error) {
     console.error('Delete profile error:', error);
-    res.status(500).json({ error: 'Failed to delete profile' });
+    sendError(res, 'Failed to delete profile', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -142,32 +145,55 @@ const updateTimeLimits = async (req, res) => {
     const profileId = parseInt(req.params.id);
     const { timeLimits } = req.body;
 
+    if (!Array.isArray(timeLimits) || timeLimits.length === 0) {
+      return sendError(res, 'timeLimits phải là mảng không rỗng', 400, 'INVALID_TIME_LIMITS');
+    }
+
     // Verify profile belongs to user
     const profile = await prisma.profile.findFirst({
       where: { id: profileId, userId: req.user.userId }
     });
 
     if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
     }
 
     // Upsert each day's time limit
-    const updates = timeLimits.map((tl) =>
-      prisma.timeLimit.upsert({
+    const updates = timeLimits.map((tl) => {
+      const dayOfWeek = parseInt(tl.dayOfWeek, 10);
+      const rawLimit = tl.limitMinutes !== undefined ? tl.limitMinutes : tl.dailyLimitMinutes;
+      const dailyLimit = parseInt(rawLimit, 10);
+
+      let isActive = true;
+      if (tl.isActive !== undefined) {
+        isActive = tl.isActive;
+      } else if (tl.isLimitEnabled !== undefined) {
+        isActive = tl.isLimitEnabled;
+      } else {
+        isActive = dailyLimit > 0;
+      }
+
+      return prisma.timeLimit.upsert({
         where: {
           profileId_dayOfWeek: {
             profileId,
-            dayOfWeek: tl.dayOfWeek
+            dayOfWeek
           }
         },
-        update: { dailyLimitMinutes: tl.dailyLimitMinutes },
+        update: { 
+          dailyLimitMinutes: dailyLimit,
+          limitMinutes: dailyLimit,
+          isActive
+        },
         create: {
           profileId,
-          dayOfWeek: tl.dayOfWeek,
-          dailyLimitMinutes: tl.dailyLimitMinutes
+          dayOfWeek,
+          dailyLimitMinutes: dailyLimit,
+          limitMinutes: dailyLimit,
+          isActive
         }
-      })
-    );
+      });
+    });
 
     await prisma.$transaction(updates);
 
@@ -177,16 +203,40 @@ const updateTimeLimits = async (req, res) => {
       orderBy: { dayOfWeek: 'asc' }
     });
 
-    // Notify child devices in real-time via Socket.IO
-    socketService.notifyFamily(req.user.userId, 'timeLimitUpdated', {
-      profileId,
-      timeLimits: updated
+    // Tìm tất cả devices thuộc profile này
+    const devices = await prisma.device.findMany({
+      where: { profileId }
     });
 
-    res.json({ message: 'Time limits updated successfully', timeLimits: updated });
+    // Invalidate calcRemaining cache for all devices of this profile
+    clearCache(`remaining_${profileId}_`);
+
+    // TEST 7 FIX: Send HTTP response FIRST so the parent's client fully receives
+    // the successful save confirmation before notifying devices via socket.
+    // Previously, socket emits fired before sendSuccess, creating a race where
+    // the child app fetched new limits before the parent had received its 200 OK.
+    sendSuccess(res, { timeLimits: updated });
+
+    // ── Notify devices & parent AFTER response is sent ──────────────────────
+    if (socketService.io) {
+      devices.forEach(device => {
+        socketService.io.to(`device_${device.deviceCode}`).emit('timeLimitUpdated', {
+          profileId,
+          timeLimits: updated,
+        });
+        console.log(`📡 [SOCKET] Emitted timeLimitUpdated → device_${device.deviceCode}`);
+      });
+    }
+
+    socketService.notifyFamily(req.user.userId, 'timeLimitUpdated', {
+      profileId,
+      timeLimits: updated,
+    });
+
+    console.log(`⏰ Time limits saved for profile ${profileId} → notified ${devices.length} device(s) + parent room`);
   } catch (error) {
     console.error('Update time limits error:', error);
-    res.status(500).json({ error: 'Failed to update time limits' });
+    sendError(res, 'Failed to update time limits', 500, 'INTERNAL_ERROR');
   }
 };
 

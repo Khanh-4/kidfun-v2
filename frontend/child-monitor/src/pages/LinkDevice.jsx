@@ -13,7 +13,7 @@ import { Link as LinkIcon } from '@mui/icons-material';
 import api from '../services/api';
 
 function LinkDevice({ onLinked }) {
-  const [deviceCode, setDeviceCode] = useState('');
+  const [pairingCode, setPairingCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,12 +23,13 @@ function LinkDevice({ onLinked }) {
     setError('');
 
     try {
-      const response = await api.post('/devices/link', { deviceCode: deviceCode.toUpperCase() });
-      localStorage.setItem('deviceCode', deviceCode.toUpperCase());
-      localStorage.setItem('device', JSON.stringify(response.data.device));
-      onLinked(response.data.device);
+      const response = await api.post('/devices/link', { pairingCode: pairingCode.trim() });
+      const device = response.data.device;
+      localStorage.setItem('deviceCode', device.deviceCode);
+      localStorage.setItem('device', JSON.stringify(device));
+      onLinked(device);
     } catch (err) {
-      setError(err.response?.data?.error || 'Mã kết nối không hợp lệ. Vui lòng thử lại.');
+      setError(err.response?.data?.message || 'Mã ghép nối không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -76,7 +77,7 @@ function LinkDevice({ onLinked }) {
             }}
           >
             <Typography variant="body2">
-              Hãy nhờ bố mẹ cung cấp <strong>mã kết nối</strong> từ ứng dụng Parent Dashboard
+              Hãy nhờ bố mẹ tạo <strong>mã ghép nối</strong> từ ứng dụng Parent Dashboard
             </Typography>
           </Box>
 
@@ -91,19 +92,20 @@ function LinkDevice({ onLinked }) {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Nhập mã kết nối"
-              value={deviceCode}
-              onChange={(e) => setDeviceCode(e.target.value.toUpperCase())}
-              placeholder="VD: ABC12345"
+              label="Nhập mã ghép nối (6 số)"
+              value={pairingCode}
+              onChange={(e) => setPairingCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="VD: 123456"
               sx={{ mb: 3 }}
               inputProps={{
-                style: { 
-                  textAlign: 'center', 
-                  fontSize: '1.5rem', 
+                style: {
+                  textAlign: 'center',
+                  fontSize: '1.5rem',
                   fontFamily: 'monospace',
-                  letterSpacing: '0.2em',
+                  letterSpacing: '0.3em',
                 },
-                maxLength: 8,
+                maxLength: 6,
+                inputMode: 'numeric',
               }}
             />
 
@@ -112,7 +114,7 @@ function LinkDevice({ onLinked }) {
               fullWidth
               variant="contained"
               size="large"
-              disabled={loading || deviceCode.length < 6}
+              disabled={loading || pairingCode.length !== 6}
               startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LinkIcon />}
               sx={{ py: 1.5, borderRadius: 2 }}
             >

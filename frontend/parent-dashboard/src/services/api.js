@@ -24,15 +24,22 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor để xử lý response errors
+// Interceptor để unwrap response format { success, data } từ backend
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Backend trả về { success: true, data: <payload> }, unwrap để frontend dùng response.data = payload
+    if (response.data && response.data.success !== undefined && response.data.data !== undefined) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token hết hạn hoặc không hợp lệ
+    const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
+      // Token hết hạn hoặc không hợp lệ (chỉ xử lý khi không phải request đăng nhập)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      window.location.hash = '#/login';
     }
     return Promise.reject(error);
   }

@@ -153,6 +153,7 @@ firebase-service-account.json
 # IDE
 .idea/
 .vscode/settings.json
+.claude/settings.local.json
 *.swp
 *.swo
 
@@ -167,3 +168,12 @@ Thumbs.db
 *.iml
 .metadata
 pubspec.lock
+**/android/app/google-services.json
+.gitnexus
+AGENTS.md
+CLAUDE.md
+plantuml.jar
+reports/
+# Exception: Flutter features/reports is source code, not a report artifact
+!mobile/lib/features/reports/
+!mobile/lib/features/reports/**
