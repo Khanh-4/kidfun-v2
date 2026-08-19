@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/device_repository.dart';
 import '../../../shared/models/device_model.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 
 final deviceProvider = StateNotifierProvider<DeviceNotifier, DeviceState>((ref) {
   return DeviceNotifier();
@@ -28,8 +29,14 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   late final SocketCallback _onDeviceOnline;
   late final SocketCallback _onDeviceOffline;
 
+  // Realtime (Supabase) — chạy song song SocketService, KHÔNG thay thế, cho
+  // tới khi xác nhận Realtime hoạt động ổn định trên thiết bị thật. Payload
+  // không có field (notify-then-refetch) nên luôn refetch toàn bộ.
+  late final RealtimeCallback _onDeviceChangedRealtime;
+
   DeviceNotifier() : super(DeviceLoading()) {
     _setupSocketListeners();
+    _setupRealtimeListeners();
     fetchDevices();
   }
 
@@ -63,6 +70,19 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     SocketService.instance.addDeviceLinkedListener(_onDeviceLinked);
     SocketService.instance.addDeviceOnlineListener(_onDeviceOnline);
     SocketService.instance.addDeviceOfflineListener(_onDeviceOffline);
+  }
+
+  void _setupRealtimeListeners() {
+    print('🔌 [DeviceProvider] Setting up Realtime (Supabase) listeners — dual-run');
+
+    _onDeviceChangedRealtime = (data) {
+      print('📱 [DeviceProvider][Realtime] Device table changed: $data. Refreshing list...');
+      fetchDevices();
+    };
+
+    RealtimeService.instance.addDeviceLinkedListener(_onDeviceChangedRealtime);
+    RealtimeService.instance.addDeviceOnlineListener(_onDeviceChangedRealtime);
+    RealtimeService.instance.addDeviceOfflineListener(_onDeviceChangedRealtime);
   }
 
   void _updateDeviceStatus(int deviceId, bool isOnline) {
@@ -171,10 +191,13 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
 
   @override
   void dispose() {
-    print('🔌 [DeviceProvider] Removing Socket listeners');
+    print('🔌 [DeviceProvider] Removing Socket + Realtime listeners');
     SocketService.instance.removeDeviceLinkedListener(_onDeviceLinked);
     SocketService.instance.removeDeviceOnlineListener(_onDeviceOnline);
     SocketService.instance.removeDeviceOfflineListener(_onDeviceOffline);
+    RealtimeService.instance.removeDeviceLinkedListener(_onDeviceChangedRealtime);
+    RealtimeService.instance.removeDeviceOnlineListener(_onDeviceChangedRealtime);
+    RealtimeService.instance.removeDeviceOfflineListener(_onDeviceChangedRealtime);
     super.dispose();
   }
 }
