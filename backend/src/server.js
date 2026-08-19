@@ -59,10 +59,6 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// Static files — SOS audio uploads
-const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
 // Import routes
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');

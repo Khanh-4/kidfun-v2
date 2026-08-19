@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 const { sendSOSPushNotification } = require('../services/fcmService');
+const { uploadSosAudio, getSosAudioSignedUrl } = require('../utils/supabaseStorage');
 
 // POST /api/child/sos — Child gửi SOS (multipart/form-data, no auth)
 exports.createSOS = async (req, res) => {
@@ -22,7 +23,20 @@ exports.createSOS = async (req, res) => {
       return sendError(res, 'Device not linked', 404);
     }
 
-    const audioUrl = req.file ? `/uploads/sos-audio/${req.file.filename}` : null;
+    // audioUrl lưu storage path (private bucket), không phải URL công khai.
+    // Playback dùng signed URL sinh động mỗi lần trả về client (xem dưới +
+    // getSOSHistory).
+    // Cô lập lỗi upload audio riêng — SOS là tính năng khẩn cấp, vị trí +
+    // cảnh báo PHẢI luôn tạo được dù audio upload thất bại (mất mạng, bucket
+    // sai cấu hình...), không được để lỗi audio làm mất luôn cả SOS alert.
+    let audioPath = null;
+    if (req.file) {
+      try {
+        audioPath = await uploadSosAudio(req.file.buffer, req.file.originalname, req.file.mimetype);
+      } catch (err) {
+        console.error('❌ [SOS] Audio upload failed, continuing without audio:', err.message);
+      }
+    }
 
     const sos = await prisma.sOSAlert.create({
       data: {
@@ -30,7 +44,7 @@ exports.createSOS = async (req, res) => {
         deviceId: device.id,
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
-        audioUrl,
+        audioUrl: audioPath,
         message: message || null,
         status: 'ACTIVE',
       },
@@ -39,13 +53,14 @@ exports.createSOS = async (req, res) => {
     // Emit Socket.IO ngay lập tức
     const io = socketService.io;
     if (io) {
+      const signedAudioUrl = audioPath ? await getSosAudioSignedUrl(audioPath) : null;
       io.to(`family_${device.profile.userId}`).emit('sosAlert', {
         sosId: sos.id,
         profileId: device.profile.id,
         profileName: device.profile.profileName,
         latitude: sos.latitude,
         longitude: sos.longitude,
-        audioUrl: audioUrl ? `${req.protocol}://${req.get('host')}${audioUrl}` : null,
+        audioUrl: signedAudioUrl,
         message: sos.message,
         timestamp: sos.createdAt,
       });
@@ -70,7 +85,13 @@ exports.getSOSHistory = async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    return sendSuccess(res, { alerts });
+    const alertsWithSignedAudio = await Promise.all(
+      alerts.map(async (alert) => ({
+        ...alert,
+        audioUrl: await getSosAudioSignedUrl(alert.audioUrl),
+      }))
+    );
+    return sendSuccess(res, { alerts: alertsWithSignedAudio });
   } catch (err) {
     return sendError(res, err.message, 500);
   }
