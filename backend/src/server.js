@@ -139,22 +139,73 @@ if (!process.env.VERCEL) {
 }
 
 // ── Sprint 9: Admin manual trigger endpoints ──────────────────────────────
+// NOTE: these await the job to completion before responding (instead of
+// fire-and-forget) — on Vercel serverless the function can freeze right
+// after the response is sent, silently killing any unawaited background
+// work. Awaiting keeps this correct on both Railway and Vercel.
 const { authenticate } = require('./middleware/auth');
 const { getProviderStatus } = require('./services/aiService');
 app.get('/api/admin/ai-status', authenticate, (req, res) => {
   res.json({ success: true, data: { providers: getProviderStatus() } });
 });
-app.post('/api/admin/run-ai-analysis', authenticate, (req, res) => {
-  aiWorker.runAnalysisBatch().catch(console.error);
-  res.json({ success: true, data: { message: 'AI analysis started' } });
+app.post('/api/admin/run-ai-analysis', authenticate, async (req, res) => {
+  try {
+    await aiWorker.runAnalysisBatch();
+    res.json({ success: true, data: { message: 'AI analysis completed' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'AI analysis failed' });
+  }
 });
-app.post('/api/admin/run-daily-reports', authenticate, (req, res) => {
-  reportWorker.runDailyReports().catch(console.error);
-  res.json({ success: true, data: { message: 'Daily reports triggered' } });
+app.post('/api/admin/run-daily-reports', authenticate, async (req, res) => {
+  try {
+    await reportWorker.runDailyReports();
+    res.json({ success: true, data: { message: 'Daily reports completed' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Daily reports failed' });
+  }
 });
-app.post('/api/admin/run-weekly-reports', authenticate, (req, res) => {
-  reportWorker.runWeeklyReports().catch(console.error);
-  res.json({ success: true, data: { message: 'Weekly reports triggered' } });
+app.post('/api/admin/run-weekly-reports', authenticate, async (req, res) => {
+  try {
+    await reportWorker.runWeeklyReports();
+    res.json({ success: true, data: { message: 'Weekly reports completed' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Weekly reports failed' });
+  }
+});
+
+// ── Vercel Cron endpoints (GET, CRON_SECRET auth — see middleware/cronAuth.js) ──
+// Replaces the setInterval self-scheduling above when running on Vercel.
+// Configured in vercel.json under "crons".
+const verifyCronSecret = require('./middleware/cronAuth');
+app.get('/api/cron/ai-analysis', verifyCronSecret, async (req, res) => {
+  try {
+    await aiWorker.runAnalysisBatch();
+    res.json({ success: true, data: { message: 'AI analysis completed' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'AI analysis failed' });
+  }
+});
+app.get('/api/cron/daily-reports', verifyCronSecret, async (req, res) => {
+  try {
+    await reportWorker.runDailyReports();
+    res.json({ success: true, data: { message: 'Daily reports completed' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Daily reports failed' });
+  }
+});
+app.get('/api/cron/weekly-reports', verifyCronSecret, async (req, res) => {
+  try {
+    await reportWorker.runWeeklyReports();
+    res.json({ success: true, data: { message: 'Weekly reports completed' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Weekly reports failed' });
+  }
 });
 
 // Error handling middleware
