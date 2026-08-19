@@ -399,6 +399,18 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// GET /api/auth/realtime-token — mint JWT riêng cho Supabase Realtime (parent app)
+const { mintParentRealtimeToken, REALTIME_TOKEN_TTL_SECONDS } = require('../utils/realtimeAuth');
+const getRealtimeToken = (req, res) => {
+  try {
+    const token = mintParentRealtimeToken(req.user.userId);
+    sendSuccess(res, { token, expiresIn: REALTIME_TOKEN_TTL_SECONDS });
+  } catch (error) {
+    console.error('Mint realtime token error:', error.message);
+    sendError(res, 'Failed to mint realtime token', 500, 'INTERNAL_ERROR');
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -410,4 +422,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   resetPasswordWithOtp,
+  getRealtimeToken,
 };

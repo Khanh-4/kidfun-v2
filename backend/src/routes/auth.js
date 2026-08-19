@@ -35,4 +35,7 @@ router.put('/profile', authenticate, authController.updateProfile);
 // PUT /api/auth/change-password - Đổi mật khẩu (cần đăng nhập)
 router.put('/change-password', authenticate, authController.changePassword);
 
+// GET /api/auth/realtime-token - Mint JWT riêng cho Supabase Realtime (cần đăng nhập)
+router.get('/realtime-token', authenticate, authController.getRealtimeToken);
+
 module.exports = router;
