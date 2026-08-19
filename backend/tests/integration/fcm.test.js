@@ -2,7 +2,7 @@ const request = require('supertest');
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
-const { app } = require('../../src/server');
+const app = require('../../src/server');
 
 const TEST_EMAIL = `fcm_test_${Date.now()}@kidfun.test`;
 const TEST_PASSWORD = 'TestPass123!';

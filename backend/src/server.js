@@ -249,4 +249,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   });
 }
 
-module.exports = { app, io };
+// Export the Express app directly (a callable function) — Vercel's Express
+// framework preset auto-detects this file via package.json's "main" field
+// and requires the default export to be a function/server, not an object.
+module.exports = app;
