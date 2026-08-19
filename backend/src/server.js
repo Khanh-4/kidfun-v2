@@ -117,17 +117,26 @@ const socketService = require('./services/socketService');
 socketService.init(io);
 
 // ── Sprint 9: AI Analysis Worker (runs every 10 minutes) ────────────────
+// setInterval self-scheduling only works on a long-running process (Railway).
+// On Vercel (serverless, no persistent process), this is replaced by Vercel
+// Cron hitting POST /api/admin/run-ai-analysis instead.
 const aiWorker = require('./workers/aiAnalysisWorker');
 aiWorker.setSocketIO(io);
-setInterval(() => {
-  aiWorker.runAnalysisBatch().catch(console.error);
-}, 10 * 60 * 1000);
-// Run once on startup after 30s delay (wait for DB connection to settle)
-setTimeout(() => aiWorker.runAnalysisBatch().catch(console.error), 30 * 1000);
+if (!process.env.VERCEL) {
+  setInterval(() => {
+    aiWorker.runAnalysisBatch().catch(console.error);
+  }, 10 * 60 * 1000);
+  // Run once on startup after 30s delay (wait for DB connection to settle)
+  setTimeout(() => aiWorker.runAnalysisBatch().catch(console.error), 30 * 1000);
+}
 
 // ── Sprint 9: Report Scheduler (daily + weekly cron) ─────────────────────
+// Same reasoning: on Vercel this is replaced by Vercel Cron hitting
+// POST /api/admin/run-daily-reports and /run-weekly-reports.
 const reportWorker = require('./workers/reportWorker');
-reportWorker.startScheduler();
+if (!process.env.VERCEL) {
+  reportWorker.startScheduler();
+}
 
 // ── Sprint 9: Admin manual trigger endpoints ──────────────────────────────
 const { authenticate } = require('./middleware/auth');
@@ -161,17 +170,22 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// Reset all devices to offline when server starts
+// Reset all devices to offline when server starts.
+// Only meaningful on a real "boot" (Railway/local) — on Vercel, module code
+// re-runs on every cold start of every function instance, so doing this
+// there would incorrectly flip actually-online devices back to offline.
 const prisma = require('./utils/prisma');
-prisma.device.updateMany({
-  data: { isOnline: false }
-}).then(() => {
-  console.log('📱 All devices reset to offline');
-}).catch(err => {
-  console.error('❌ Failed to reset devices:', err);
-});
+if (!process.env.VERCEL) {
+  prisma.device.updateMany({
+    data: { isOnline: false }
+  }).then(() => {
+    console.log('📱 All devices reset to offline');
+  }).catch(err => {
+    console.error('❌ Failed to reset devices:', err);
+  });
+}
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   httpServer.listen(PORT, HOST, () => {
     console.log(`🚀 KidFun V3 Server running on http://${HOST}:${PORT}`);
     if (HOST === '0.0.0.0') {
