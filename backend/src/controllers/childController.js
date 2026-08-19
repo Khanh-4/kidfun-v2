@@ -749,6 +749,31 @@ const getTodayLimit = async (req, res) => {
   }
 };
 
+// POST /api/child/realtime-token — mint JWT riêng cho Supabase Realtime (child app)
+const { mintChildRealtimeToken, REALTIME_TOKEN_TTL_SECONDS } = require('../utils/realtimeAuth');
+const getRealtimeToken = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+    if (!deviceCode) {
+      return sendError(res, 'Device code required in X-Device-Code header', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    const device = await prisma.device.findUnique({ where: { deviceCode } });
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+    if (!device.profileId) {
+      return sendError(res, 'Device not assigned to a profile', 400, 'DEVICE_NOT_ASSIGNED');
+    }
+
+    const token = mintChildRealtimeToken(device.id, device.profileId);
+    sendSuccess(res, { token, expiresIn: REALTIME_TOKEN_TTL_SECONDS });
+  } catch (err) {
+    console.error('❌ getRealtimeToken (child) ERROR:', err.message);
+    sendError(res, 'Failed to mint realtime token', 500, 'INTERNAL_ERROR');
+  }
+};
+
 module.exports = {
   getStatus,
   startSession,
@@ -759,5 +784,6 @@ module.exports = {
   getBlockedSites,
   getTodayLimit,
   pauseSession,
-  resumeSession
+  resumeSession,
+  getRealtimeToken
 };

@@ -11,6 +11,9 @@ const appUsageController = require('../controllers/appUsageController');
 // GET /api/child/status - Lấy thông tin thời gian, profile, session
 router.get('/status', childController.getStatus);
 
+// POST /api/child/realtime-token - Mint JWT riêng cho Supabase Realtime
+router.post('/realtime-token', childController.getRealtimeToken);
+
 // GET /api/child/today-limit - Lấy time limit hôm nay
 router.get('/today-limit', childController.getTodayLimit);
 
