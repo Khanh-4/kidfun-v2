@@ -9,6 +9,7 @@ import '../../auth/providers/role_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 
 enum _LinkState { input, waiting, success }
 
@@ -90,6 +91,7 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
         final savedDeviceCode = prefs.getString('device_code');
         if (savedDeviceCode != null && savedDeviceCode.isNotEmpty) {
           SocketService.instance.joinDevice(savedDeviceCode);
+          RealtimeService.instance.joinDevice(savedDeviceCode);
           print('📡 Scan QR: called joinDevice for code $savedDeviceCode');
         }
         setState(() {
