@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/services/native_service.dart';
@@ -148,6 +149,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Connect Socket.IO (idempotent — won't duplicate if already connected)
     if (deviceCode != null && deviceCode.isNotEmpty) {
       SocketService.instance.joinDevice(deviceCode);
+      RealtimeService.instance.joinDevice(deviceCode);
       print('📡 Child Dashboard: called joinDevice for code $deviceCode');
     }
 
