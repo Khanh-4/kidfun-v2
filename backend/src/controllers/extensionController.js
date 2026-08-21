@@ -128,7 +128,22 @@ exports.approveExtension = async (req, res) => {
     const requestId = parseInt(req.params.id);
     const { responseMinutes } = req.body;
 
-    // ── Step 1: Update DB record so heartbeat sees the bonus immediately ────
+    // ── Step 1: Verify caller is the owning parent BEFORE mutating (IDOR fix) ──
+    const profiles = await prisma.profile.findMany({
+      where: { userId: req.user.userId },
+      select: { id: true },
+    });
+    const profileIds = profiles.map(p => p.id);
+
+    const existing = await prisma.timeExtensionRequest.findUnique({
+      where: { id: requestId },
+      select: { profileId: true },
+    });
+    if (!existing || !profileIds.includes(existing.profileId)) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    // ── Step 2: Update DB record so heartbeat sees the bonus immediately ────
     const request = await prisma.timeExtensionRequest.update({
       where: { id: requestId },
       data: {
@@ -143,16 +158,6 @@ exports.approveExtension = async (req, res) => {
     });
 
     const actualMinutes = responseMinutes || request.requestMinutes;
-
-    // ── Step 2: Verify caller is the owning parent ───────────────────────────
-    const profiles = await prisma.profile.findMany({
-      where: { userId: req.user.userId },
-      select: { id: true },
-    });
-    const profileIds = profiles.map(p => p.id);
-    if (!profileIds.includes(request.profileId)) {
-      return sendError(res, 'Forbidden', 403);
-    }
 
     // ── Step 3: Notify child device via Socket.IO AFTER DB write ────────────
     if (socketService.io) {
@@ -186,7 +191,22 @@ exports.rejectExtension = async (req, res) => {
   try {
     const requestId = parseInt(req.params.id);
 
-    // ── Step 1: Update DB record ─────────────────────────────────────────────
+    // ── Step 1: Verify caller is the owning parent BEFORE mutating (IDOR fix) ──
+    const profiles = await prisma.profile.findMany({
+      where: { userId: req.user.userId },
+      select: { id: true },
+    });
+    const profileIds = profiles.map(p => p.id);
+
+    const existing = await prisma.timeExtensionRequest.findUnique({
+      where: { id: requestId },
+      select: { profileId: true },
+    });
+    if (!existing || !profileIds.includes(existing.profileId)) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    // ── Step 2: Update DB record ─────────────────────────────────────────────
     const request = await prisma.timeExtensionRequest.update({
       where: { id: requestId },
       data: {
@@ -199,16 +219,6 @@ exports.rejectExtension = async (req, res) => {
         profile: true,
       },
     });
-
-    // ── Step 2: Verify caller is the owning parent ───────────────────────────
-    const profiles = await prisma.profile.findMany({
-      where: { userId: req.user.userId },
-      select: { id: true },
-    });
-    const profileIds = profiles.map(p => p.id);
-    if (!profileIds.includes(request.profileId)) {
-      return sendError(res, 'Forbidden', 403);
-    }
 
     // ── Step 3: Notify child device via Socket.IO AFTER DB write ────────────
     // Giữ nguyên shape event/payload y hệt socketService.js respondTimeExtension
