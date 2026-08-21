@@ -11,4 +11,7 @@ router.get('/pending', extensionController.getPendingRequests);
 // PUT /api/extension-requests/:id/approve - Parent duyệt yêu cầu thêm giờ (BUG 2 FIX)
 router.put('/:id/approve', extensionController.approveExtension);
 
+// PUT /api/extension-requests/:id/reject - Parent từ chối yêu cầu thêm giờ
+router.put('/:id/reject', extensionController.rejectExtension);
+
 module.exports = router;

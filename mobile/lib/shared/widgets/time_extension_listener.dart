@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/network/socket_service.dart';
+import '../../core/network/realtime_service.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/services/notification_service.dart';
 import '../../features/youtube/widgets/ai_alert_dialog.dart';
@@ -24,41 +24,55 @@ class TimeExtensionListener extends ConsumerStatefulWidget {
 
 class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   final Set<int> _activeRequestIds = {};
+  // Dedup cho geofence/AI alert: khác _activeRequestIds (dialog time-extension
+  // được phép hiện lại tới khi Parent phản hồi), 2 loại này chỉ hiện 1 lần mỗi
+  // phiên app — refetch-on-signal (notify-then-refetch) có thể gọi lại nhiều
+  // lần (initState, mỗi signal, mỗi reconnect) nên cần chặn hiện trùng dialog.
+  final Set<int> _seenGeofenceEventIds = {};
+  final Set<int> _seenAiAlertIds = {};
 
   @override
   void initState() {
     super.initState();
-    _setupSocketListener();
+    _setupRealtimeListeners();
     _checkPendingRequests();
     _checkActiveSOS();
+    _checkRecentGeofenceEvents();
+    _checkPendingAiAlerts();
 
-    // BUG 3 FIX: Store named reference so we can remove it in dispose().
-    // Previously the raw socket.on('connect', ...) was never cleaned up, causing
-    // N listeners to stack on every widget recreation → N dialogs per reconnect.
-    SocketService.instance.socket.on('connect', _onSocketReconnect);
+    // BUG 3 FIX (giữ nguyên tinh thần): named reference để remove đúng trong
+    // dispose(), tránh N listener chồng lên nhau mỗi lần widget recreate.
+    RealtimeService.instance.addConnectionRestoredListener(_onRealtimeReconnected);
   }
 
-  // Named handler so it can be deregistered with off() in dispose()
-  void _onSocketReconnect(_) {
-    print('🔄 [SOCKET] Reconnected. Checking pending extension requests...');
+  // Named handler so it can be deregistered in dispose()
+  void _onRealtimeReconnected(Map<String, dynamic> data) {
+    print('🔄 [Realtime] Reconnected. Checking pending extension requests...');
     _checkPendingRequests();
     _checkActiveSOS();
+    _checkRecentGeofenceEvents();
+    _checkPendingAiAlerts();
   }
 
-  void _setupSocketListener() {
-    SocketService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequest);
-    // TC-09-10: Route through list system — raw socket.on() was unreliable because type
-    // errors in the callback silently swallowed exceptions before showDialog was reached
-    SocketService.instance.addGeofenceEventListener(_onGeofenceEvent);
-    // TC-21: Global sosAlert listener so parent sees SOS from any screen
-    SocketService.instance.addSosAlertListener(_onSosAlert);
-    // Sprint 9: Global aiAlert listener so parent sees dangerous content alert from any screen
-    SocketService.instance.addAiAlertListener(_onAiAlert);
+  void _setupRealtimeListeners() {
+    // notify-then-refetch: signal chỉ báo "có thay đổi", không mang field cụ
+    // thể — mỗi wrapper trigger đúng REST refetch tương ứng, sau đó tái dùng
+    // nguyên logic dialog cũ (_onTimeExtensionRequest/_onSosAlert/
+    // _onGeofenceEvent/_onAiAlert) với data thật lấy từ REST.
+    RealtimeService.instance.addTimeExtensionRequestListener(_onTimeExtensionRequestSignal);
+    RealtimeService.instance.addGeofenceEventListener(_onGeofenceEventSignal);
+    RealtimeService.instance.addSosAlertListener(_onSosAlertSignal);
+    RealtimeService.instance.addAiAlertListener(_onAiAlertSignal);
   }
+
+  void _onTimeExtensionRequestSignal(Map<String, dynamic> data) => _checkPendingRequests();
+  void _onGeofenceEventSignal(Map<String, dynamic> data) => _checkRecentGeofenceEvents();
+  void _onSosAlertSignal(Map<String, dynamic> data) => _checkActiveSOS();
+  void _onAiAlertSignal(Map<String, dynamic> data) => _checkPendingAiAlerts();
 
   Future<void> _checkPendingRequests() async {
     // Only parents check pending extension requests
-    if (SocketService.instance.currentRole != 'parent') return;
+    if (RealtimeService.instance.currentRole != 'parent') return;
     try {
       final response = await DioClient.instance.get('/api/extension-requests/pending');
       final requests = response.data['data']['requests'] as List?;
@@ -81,7 +95,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     }
   }
 
-  // TC-09-10: Receives Map<String, dynamic> (SocketService converts raw Map before dispatching)
+  // TC-09-10: Receives Map<String, dynamic> đã map sẵn từ REST (xem
+  // _checkRecentGeofenceEvents) — cùng shape với payload Socket.IO cũ.
   // Uses Timer.run() so showDialog is deferred to the next event loop tick —
   // this avoids calling showDialog mid-frame AND avoids the addPostFrameCallback
   // trap where callbacks only fire when Flutter renders a new frame (causing the
@@ -133,43 +148,6 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     });
   }
 
-  // TC-21: Global sosAlert handler — active from any screen, not just ProfileListScreen.
-  // L2 FIX: Use showDialog directly (via Timer.run) instead of ctx.push + addPostFrameCallback.
-  //
-  // Root cause of original bug: addPostFrameCallback only fires when Flutter schedules
-  // a new frame. When the parent app is open but idle (no animation/scroll), no new
-  // frame is scheduled — so the callback never runs until the user touches the screen.
-  //
-  // Fix: showDialog is called immediately on the next event loop tick (Timer.run),
-  // which works even when the app is completely idle.
-  void _onSosAlert(Map<String, dynamic> data) {
-    if (!mounted) return;
-    // Only parents handle SOS alerts — child app must not show this dialog
-    if (SocketService.instance.currentRole != 'parent') return;
-    final profileName = data['profileName'] as String? ?? 'Bé';
-    final lat = (data['latitude'] as num?)?.toDouble() ?? 0.0;
-    final lng = (data['longitude'] as num?)?.toDouble() ?? 0.0;
-    final audioUrl = data['audioUrl'] as String?;
-    final sosTime = data['timestamp']?.toString();
-
-    Timer.run(() {
-      if (!mounted) return;
-      final ctx = widget.navigatorKey?.currentContext ?? context;
-      showDialog(
-        context: ctx,
-        barrierDismissible: false,
-        builder: (_) => _SOSAlertDialog(
-          profileName: profileName,
-          lat: lat,
-          lng: lng,
-          audioUrl: audioUrl,
-          sosTime: sosTime,
-          navigatorKey: widget.navigatorKey,
-        ),
-      );
-    });
-  }
-
   // TC-21 Step 4: REST check for ACTIVE SOS missed while parent was offline.
   // Guards: (1) Only runs if current socket role is 'parent' — prevents child
   // devices (which share the parent JWT) from showing parent-only SOS dialogs.
@@ -177,7 +155,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   // notification tap), preventing a duplicate dialog stacked on top of the screen.
   Future<void> _checkActiveSOS() async {
     // Guard 1: Parent-only — child devices must not show SOS dialogs
-    if (SocketService.instance.currentRole != 'parent') return;
+    if (RealtimeService.instance.currentRole != 'parent') return;
 
     try {
       final profilesResponse = await DioClient.instance.get('/api/profiles');
@@ -235,10 +213,94 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     }
   }
 
+  // notify-then-refetch cho GeofenceEvent: signal Realtime không mang field
+  // cụ thể nên phải refetch qua REST để lấy type/geofenceName/profileName
+  // thật, rồi tái dùng _onGeofenceEvent (dialog + push notification) y hệt
+  // logic cũ. Chỉ lấy event mới nhất mỗi profile (tránh spam dialog nếu bé
+  // ra vào khu vực nhiều lần), giới hạn 10 phút gần nhất (khớp cutoff SOS).
+  Future<void> _checkRecentGeofenceEvents() async {
+    if (RealtimeService.instance.currentRole != 'parent') return;
+    try {
+      final profilesResponse = await DioClient.instance.get('/api/profiles');
+      final profiles = profilesResponse.data['data'] as List? ?? [];
+      final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
+
+      for (final profile in profiles) {
+        final profileId = profile['id'];
+        final profileName = profile['profileName'] as String? ?? 'Bé';
+
+        final eventsResponse =
+            await DioClient.instance.get('/api/profiles/$profileId/geofences/events');
+        final events = eventsResponse.data['data']['events'] as List? ?? [];
+        if (events.isEmpty) continue;
+
+        final latest = events.first; // Ordered by createdAt desc
+        final eventId = latest['id'] as int?;
+        if (eventId == null || _seenGeofenceEventIds.contains(eventId)) continue;
+
+        final createdAt = DateTime.tryParse(latest['createdAt']?.toString() ?? '');
+        if (createdAt == null || !createdAt.isAfter(cutoff)) continue;
+
+        _seenGeofenceEventIds.add(eventId);
+        _onGeofenceEvent({
+          'type': latest['type']?.toString() ?? '',
+          'geofenceName': latest['geofence']?['name']?.toString() ?? 'Khu vực',
+          'profileName': profileName,
+        });
+      }
+    } catch (e) {
+      print('❌ [REST] Error checking recent geofence events: $e');
+    }
+  }
+
+  // notify-then-refetch cho AIAlert: dùng ?unread=true (giống bộ lọc
+  // AIAlertsScreen đã dùng) thay vì cutoff thời gian — khớp domain model hơn
+  // (alert coi là "mới" tới khi Parent xem trong AIAlertsScreen, không phải
+  // theo mốc thời gian cố định). Vẫn cần _seenAiAlertIds vì dialog này không
+  // tự markRead khi hiện/đóng — không dedup ở client sẽ hiện lại mỗi lần
+  // check chạy lại (initState/signal/reconnect) tới khi Parent vào
+  // AIAlertsScreen xem qua.
+  Future<void> _checkPendingAiAlerts() async {
+    if (RealtimeService.instance.currentRole != 'parent') return;
+    try {
+      final profilesResponse = await DioClient.instance.get('/api/profiles');
+      final profiles = profilesResponse.data['data'] as List? ?? [];
+
+      for (final profile in profiles) {
+        final profileId = profile['id'];
+        final profileName = profile['profileName'] as String? ?? 'Con';
+
+        final alertsResponse = await DioClient.instance
+            .get('/api/profiles/$profileId/ai-alerts', queryParameters: {'unread': 'true'});
+        final alerts = alertsResponse.data['data']['alerts'] as List? ?? [];
+
+        for (final alert in alerts) {
+          final alertId = alert['id'] as int?;
+          if (alertId == null || _seenAiAlertIds.contains(alertId)) continue;
+          _seenAiAlertIds.add(alertId);
+
+          final youtubeLog = alert['youtubeLog'] as Map<String, dynamic>?;
+          _onAiAlert({
+            'alertId': alertId,
+            'profileId': profileId,
+            'profileName': profileName,
+            'videoTitle': youtubeLog?['videoTitle'],
+            'channelName': youtubeLog?['channelName'],
+            'dangerLevel': alert['dangerLevel'],
+            'category': alert['category'],
+            'summary': alert['summary'],
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ [REST] Error checking pending AI alerts: $e');
+    }
+  }
+
   void _onTimeExtensionRequest(Map<String, dynamic> data) {
     if (!mounted) return;
     // Only parents approve/deny time extension requests
-    if (SocketService.instance.currentRole != 'parent') return;
+    if (RealtimeService.instance.currentRole != 'parent') return;
 
     final requestId = data['requestId'] as int?;
     if (requestId == null || _activeRequestIds.contains(requestId)) return;
@@ -318,7 +380,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   void _onAiAlert(Map<String, dynamic> data) {
     if (!mounted) return;
     // Only parents receive AI alerts
-    if (SocketService.instance.currentRole != 'parent') return;
+    if (RealtimeService.instance.currentRole != 'parent') return;
 
     final profileId = data['profileId'] as int?;
     final profileName = data['profileName'] as String? ?? 'Con';
@@ -344,33 +406,52 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     });
   }
 
-  void _respondExtension(int requestId, bool approved, int minutes) {
+  // Chuyển từ socket.emit('respondTimeExtension') sang REST — approve đã có
+  // sẵn PUT .../approve (BUG 2 FIX cũ), reject là REST endpoint mới thêm
+  // riêng cho cutover này. Backend vẫn emit Socket.IO 'timeExtensionResponse'
+  // xuống thiết bị con y hệt trước (child_dashboard_screen.dart chưa cutover,
+  // vẫn cần nghe qua Socket.IO).
+  Future<void> _respondExtension(int requestId, bool approved, int minutes) async {
     // Remove from Set now that Parent has responded — future polls won't re-show this dialog
     _activeRequestIds.remove(requestId);
 
-    SocketService.instance.socket.emit('respondTimeExtension', {
-      'requestId': requestId,
-      'approved': approved,
-      'responseMinutes': minutes,
-    });
-
     final dialogContext = widget.navigatorKey?.currentContext ?? context;
-    ScaffoldMessenger.of(dialogContext).showSnackBar(
-      SnackBar(
-        content: Text(approved ? '✅ Đã duyệt thêm $minutes phút' : '❌ Đã từ chối yêu cầu'),
-        backgroundColor: approved ? Colors.green : Colors.red,
-      ),
-    );
+
+    try {
+      if (approved) {
+        await DioClient.instance.put(
+          '/api/extension-requests/$requestId/approve',
+          data: {'responseMinutes': minutes},
+        );
+      } else {
+        await DioClient.instance.put('/api/extension-requests/$requestId/reject');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(
+          content: Text(approved ? '✅ Đã duyệt thêm $minutes phút' : '❌ Đã từ chối yêu cầu'),
+          backgroundColor: approved ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(
+          content: Text('❌ Lỗi gửi phản hồi: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
-    SocketService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequest);
-    SocketService.instance.removeGeofenceEventListener(_onGeofenceEvent);
-    SocketService.instance.removeSosAlertListener(_onSosAlert);
-    SocketService.instance.removeAiAlertListener(_onAiAlert);
-    // BUG 3 FIX: Remove the named connect handler to prevent stacking
-    SocketService.instance.socket.off('connect', _onSocketReconnect);
+    RealtimeService.instance.removeTimeExtensionRequestListener(_onTimeExtensionRequestSignal);
+    RealtimeService.instance.removeGeofenceEventListener(_onGeofenceEventSignal);
+    RealtimeService.instance.removeSosAlertListener(_onSosAlertSignal);
+    RealtimeService.instance.removeAiAlertListener(_onAiAlertSignal);
+    RealtimeService.instance.removeConnectionRestoredListener(_onRealtimeReconnected);
     super.dispose();
   }
 
