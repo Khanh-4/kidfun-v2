@@ -178,3 +178,60 @@ exports.approveExtension = async (req, res) => {
     return sendError(res, err.message, 500);
   }
 };
+
+// PUT /api/extension-requests/:id/reject
+// REST endpoint: Parent từ chối yêu cầu thêm giờ — mirror của approveExtension,
+// thêm để mobile bỏ hẳn socket.emit('respondTimeExtension') (Realtime cutover).
+exports.rejectExtension = async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+
+    // ── Step 1: Update DB record ─────────────────────────────────────────────
+    const request = await prisma.timeExtensionRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        responseMinutes: null,
+        respondedAt: new Date(),
+      },
+      include: {
+        device: true,
+        profile: true,
+      },
+    });
+
+    // ── Step 2: Verify caller is the owning parent ───────────────────────────
+    const profiles = await prisma.profile.findMany({
+      where: { userId: req.user.userId },
+      select: { id: true },
+    });
+    const profileIds = profiles.map(p => p.id);
+    if (!profileIds.includes(request.profileId)) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    // ── Step 3: Notify child device via Socket.IO AFTER DB write ────────────
+    // Giữ nguyên shape event/payload y hệt socketService.js respondTimeExtension
+    // (approved: false) — child_dashboard_screen.dart vẫn lắng nghe qua Socket.IO.
+    if (socketService.io) {
+      socketService.io
+        .to(`device_${request.device.deviceCode}`)
+        .emit('timeExtensionResponse', {
+          requestId: request.id,
+          approved: false,
+          responseMinutes: 0,
+          status: 'REJECTED',
+        });
+    }
+
+    console.log(`❌ [REST] Extension REJECTED: ${request.profile.profileName} (req #${requestId})`);
+
+    return sendSuccess(res, {
+      requestId: request.id,
+      status: 'REJECTED',
+    });
+  } catch (err) {
+    console.error('rejectExtension error:', err.message);
+    return sendError(res, err.message, 500);
+  }
+};

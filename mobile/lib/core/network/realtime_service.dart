@@ -49,6 +49,7 @@ class RealtimeService {
   final List<RealtimeCallback> _sosAlertListeners = [];
   final List<RealtimeCallback> _aiAlertListeners = [];
   final List<RealtimeCallback> _deviceErrorListeners = [];
+  final List<RealtimeCallback> _connectionRestoredListeners = [];
 
   // ── Listener Management (cùng tên method với SocketService) ─────────────
 
@@ -91,6 +92,14 @@ class RealtimeService {
       _deviceErrorListeners.add(callback);
   void removeDeviceErrorListener(RealtimeCallback callback) =>
       _deviceErrorListeners.remove(callback);
+
+  /// Báo khi kết nối vừa được (tái) thiết lập thành công — dùng để consumer
+  /// tự refetch REST, bù các event có thể đã bỏ lỡ lúc mất kết nối. Khớp vai
+  /// trò với `socket.on('connect', ...)` cũ bên SocketService.
+  void addConnectionRestoredListener(RealtimeCallback callback) =>
+      _connectionRestoredListeners.add(callback);
+  void removeConnectionRestoredListener(RealtimeCallback callback) =>
+      _connectionRestoredListeners.remove(callback);
 
   /// 'parent' | 'child' | null
   String? get currentRole => _currentRole;
@@ -176,6 +185,13 @@ class RealtimeService {
     await sb.Supabase.instance.client.realtime.setAuth(token);
     _scheduleTokenRefresh();
     await _subscribeChannels();
+
+    // Khớp semantics socket.on('connect', ...) cũ: bắn mỗi lần connect thành
+    // công (kể cả lần đầu), không chỉ lúc reconnect — consumer tự refetch,
+    // gọi thừa vài lần không hại gì (idempotent).
+    for (final cb in List<RealtimeCallback>.from(_connectionRestoredListeners)) {
+      cb({'source': 'realtime', 'event': 'connected'});
+    }
   }
 
   void _scheduleTokenRefresh() {
