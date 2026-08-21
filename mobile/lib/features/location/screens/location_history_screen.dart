@@ -7,7 +7,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../data/location_repository.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 
 class LocationHistoryScreen extends StatefulWidget {
   final int profileId;
@@ -41,9 +41,9 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
     _fetchHistory();
     // Auto-refresh when a real-time geofence event (ENTER/EXIT) is received
     // so the user doesn't have to manually re-select today's date (TC-12 fix).
-    // Uses SocketService list system (not raw socket.on) so removal via
+    // Uses RealtimeService list system (not raw socket.on) so removal via
     // removeGeofenceEventListener never touches the global TimeExtensionListener handler.
-    SocketService.instance.addGeofenceEventListener(_onGeofenceEvent);
+    RealtimeService.instance.addGeofenceEventListener(_onGeofenceEvent);
   }
 
   void _onGeofenceEvent(Map<String, dynamic> data) {
@@ -56,7 +56,7 @@ class _LocationHistoryScreenState extends State<LocationHistoryScreen> {
 
   @override
   void dispose() {
-    SocketService.instance.removeGeofenceEventListener(_onGeofenceEvent);
+    RealtimeService.instance.removeGeofenceEventListener(_onGeofenceEvent);
     super.dispose();
   }
 
