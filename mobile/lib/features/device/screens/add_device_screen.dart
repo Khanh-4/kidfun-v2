@@ -7,7 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../providers/device_provider.dart';
 import '../../../shared/models/profile_model.dart';
-import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -33,11 +33,11 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   }
 
   void _setupSocketListeners() {
-    _isSocketConnected = SocketService.instance.isConnected;
+    _isSocketConnected = RealtimeService.instance.isConnected;
     if (!_isSocketConnected) {
-      SocketService.instance.reconnect();
+      RealtimeService.instance.reconnect();
     }
-    SocketService.instance.addDeviceLinkedListener(_handleSuccessfulLink);
+    RealtimeService.instance.addDeviceLinkedListener(_handleSuccessfulLink);
   }
 
   void _handleSuccessfulLink(Map<String, dynamic> data) {
@@ -47,11 +47,11 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
     setState(() => _isLinked = true);
     ref.read(deviceProvider.notifier).fetchDevices();
 
-    final deviceName =
-        data['deviceName']?.toString() ?? 'Thiết bị con';
+    // notify-then-refetch: payload không mang deviceName (khác payload
+    // Socket.IO cũ), dùng text chung — không cần tên thiết bị cụ thể ở đây.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Thiết bị "$deviceName" đã kết nối thành công!',
+        content: Text('Thiết bị đã kết nối thành công!',
             style: GoogleFonts.nunito()),
         backgroundColor: AppColors.success,
         duration: const Duration(seconds: 2),
@@ -65,7 +65,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
 
   @override
   void dispose() {
-    SocketService.instance.removeDeviceLinkedListener(_handleSuccessfulLink);
+    RealtimeService.instance.removeDeviceLinkedListener(_handleSuccessfulLink);
     super.dispose();
   }
 
@@ -91,7 +91,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileProvider);
-    _isSocketConnected = SocketService.instance.isConnected;
+    _isSocketConnected = RealtimeService.instance.isConnected;
 
     return Scaffold(
       backgroundColor: AppColors.slate50,
