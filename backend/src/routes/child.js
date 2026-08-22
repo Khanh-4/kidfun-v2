@@ -42,6 +42,9 @@ router.post('/warnings', warningController.logWarning);
 // POST /api/child/extension-request - Child xin thêm giờ (REST + FCM push to Parent)
 router.post('/extension-request', extensionController.createExtensionRequest);
 
+// GET /api/child/extension-requests/latest-response - Child refetch kết quả duyệt/từ chối gần nhất
+router.get('/extension-requests/latest-response', extensionController.getLatestExtensionResponse);
+
 // GET /api/child/blocked-sites - Lấy danh sách blocked sites (dùng deviceCode)
 router.get('/blocked-sites', childController.getBlockedSites);
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/location_repository.dart';
 
@@ -85,13 +86,15 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _listenLocationUpdates() {
-    SocketService.instance.socket.on('locationUpdated', (data) {
-      if (data['profileId'] == widget.profileId) {
-        _updateChildMarker(data['latitude'] as double, data['longitude'] as double);
-      }
-    });
+    // Realtime cutover: LocationLog INSERT signal (notify-then-refetch, không
+    // mang profileId/lat/lng trong payload) — luôn refetch vị trí mới nhất
+    // qua REST, đã tự lọc theo widget.profileId ở phía server.
+    RealtimeService.instance.addLocationUpdatedListener(_onRealtimeLocationUpdated);
     // geofenceEvent dialog is now handled globally in TimeExtensionListener (TC-09-10).
-    // Registering it here caused dispose() to wipe the global handler via socket.off().
+  }
+
+  void _onRealtimeLocationUpdated(Map<String, dynamic> data) {
+    _fetchCurrentLocation();
   }
 
   Future<void> _updateChildMarker(double lat, double lng) async {
@@ -376,7 +379,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    SocketService.instance.socket.off('locationUpdated');
+    RealtimeService.instance.removeLocationUpdatedListener(_onRealtimeLocationUpdated);
     _nameController.dispose();
     super.dispose();
   }
