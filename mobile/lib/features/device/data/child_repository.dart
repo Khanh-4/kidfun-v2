@@ -96,6 +96,19 @@ class ChildRepository {
     return response.data['data']['remainingSeconds'] as int? ?? 0;
   }
 
+  /// GET /api/child/extension-requests/latest-response — refetch sau khi nhận
+  /// Realtime signal (TimeExtensionRequest UPDATE), thay cho field đọc trực
+  /// tiếp từ socket payload cũ (notify-then-refetch, xem RealtimeService).
+  Future<ExtensionResponseModel?> getLatestExtensionResponse(String deviceCode) async {
+    final response = await _dio.get(
+      '/api/child/extension-requests/latest-response',
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+    final data = response.data['data']['request'];
+    if (data == null) return null;
+    return ExtensionResponseModel.fromJson(data as Map<String, dynamic>);
+  }
+
   /// POST /api/child/sos — Gởi tín hiệu SOS
   /// [audioPath] là nullable — nếu null (ví dụ khi không có quyền micro), gửi SOS mà không kèm file âm thanh
   Future<void> sendSOS({
@@ -157,6 +170,22 @@ class TodayLimitModel {
       remainingMinutes: json['remainingMinutes'] as int? ?? 0,
       remainingSeconds: json['remainingSeconds'] as int? ?? (json['remainingMinutes'] as int? ?? 0) * 60,
       isLimitEnabled: enabled,
+    );
+  }
+}
+
+class ExtensionResponseModel {
+  final int id;
+  final String status; // APPROVED | REJECTED
+  final int responseMinutes;
+
+  ExtensionResponseModel({required this.id, required this.status, required this.responseMinutes});
+
+  factory ExtensionResponseModel.fromJson(Map<String, dynamic> json) {
+    return ExtensionResponseModel(
+      id: json['id'] as int,
+      status: json['status'] as String,
+      responseMinutes: json['responseMinutes'] as int? ?? 0,
     );
   }
 }

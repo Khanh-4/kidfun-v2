@@ -245,3 +245,43 @@ exports.rejectExtension = async (req, res) => {
     return sendError(res, err.message, 500);
   }
 };
+
+// GET /api/child/extension-requests/latest-response
+// Child refetch sau khi nhận Realtime signal (TimeExtensionRequest UPDATE) — payload
+// Postgres Changes không mang field (notify-then-refetch), nên child cần endpoint
+// riêng để biết yêu cầu gần nhất của MÌNH đã được duyệt/từ chối chưa, thay cho
+// việc đọc trực tiếp field `approved`/`responseMinutes` từ socket.on() cũ.
+exports.getLatestExtensionResponse = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+    if (!deviceCode) {
+      return sendError(res, 'Device code required in X-Device-Code header', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    const device = await prisma.device.findUnique({ where: { deviceCode } });
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    const request = await prisma.timeExtensionRequest.findFirst({
+      where: { deviceId: device.id, status: { not: 'PENDING' } },
+      orderBy: { respondedAt: 'desc' },
+    });
+
+    if (!request) {
+      return sendSuccess(res, { request: null });
+    }
+
+    return sendSuccess(res, {
+      request: {
+        id: request.id,
+        status: request.status,
+        responseMinutes: request.responseMinutes,
+        respondedAt: request.respondedAt,
+      },
+    });
+  } catch (err) {
+    console.error('getLatestExtensionResponse error:', err.message);
+    return sendError(res, err.message, 500);
+  }
+};

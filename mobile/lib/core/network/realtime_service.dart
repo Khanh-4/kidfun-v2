@@ -45,11 +45,19 @@ class RealtimeService {
   final List<RealtimeCallback> _deviceOnlineListeners = [];
   final List<RealtimeCallback> _deviceOfflineListeners = [];
   final List<RealtimeCallback> _timeExtensionRequestListeners = [];
+  final List<RealtimeCallback> _timeExtensionResponseListeners = [];
   final List<RealtimeCallback> _geofenceEventListeners = [];
   final List<RealtimeCallback> _sosAlertListeners = [];
   final List<RealtimeCallback> _aiAlertListeners = [];
   final List<RealtimeCallback> _deviceErrorListeners = [];
   final List<RealtimeCallback> _connectionRestoredListeners = [];
+  final List<RealtimeCallback> _timeLimitUpdatedListeners = [];
+  final List<RealtimeCallback> _blockedAppsUpdatedListeners = [];
+  final List<RealtimeCallback> _blockedDomainsUpdatedListeners = [];
+  final List<RealtimeCallback> _blockedVideosUpdatedListeners = [];
+  final List<RealtimeCallback> _appTimeLimitUpdatedListeners = [];
+  final List<RealtimeCallback> _schoolScheduleUpdatedListeners = [];
+  final List<RealtimeCallback> _locationUpdatedListeners = [];
 
   // ── Listener Management (cùng tên method với SocketService) ─────────────
 
@@ -72,6 +80,14 @@ class RealtimeService {
       _timeExtensionRequestListeners.add(callback);
   void removeTimeExtensionRequestListener(RealtimeCallback callback) =>
       _timeExtensionRequestListeners.remove(callback);
+
+  /// UPDATE trên TimeExtensionRequest (status → APPROVED/REJECTED) — phía
+  /// Child dùng để biết yêu cầu của mình vừa được phản hồi (khác với
+  /// addTimeExtensionRequestListener ở trên là INSERT, phía Parent).
+  void addTimeExtensionResponseListener(RealtimeCallback callback) =>
+      _timeExtensionResponseListeners.add(callback);
+  void removeTimeExtensionResponseListener(RealtimeCallback callback) =>
+      _timeExtensionResponseListeners.remove(callback);
 
   void addGeofenceEventListener(RealtimeCallback callback) =>
       _geofenceEventListeners.add(callback);
@@ -100,6 +116,43 @@ class RealtimeService {
       _connectionRestoredListeners.add(callback);
   void removeConnectionRestoredListener(RealtimeCallback callback) =>
       _connectionRestoredListeners.remove(callback);
+
+  void addTimeLimitUpdatedListener(RealtimeCallback callback) =>
+      _timeLimitUpdatedListeners.add(callback);
+  void removeTimeLimitUpdatedListener(RealtimeCallback callback) =>
+      _timeLimitUpdatedListeners.remove(callback);
+
+  void addBlockedAppsUpdatedListener(RealtimeCallback callback) =>
+      _blockedAppsUpdatedListeners.add(callback);
+  void removeBlockedAppsUpdatedListener(RealtimeCallback callback) =>
+      _blockedAppsUpdatedListeners.remove(callback);
+
+  void addBlockedDomainsUpdatedListener(RealtimeCallback callback) =>
+      _blockedDomainsUpdatedListeners.add(callback);
+  void removeBlockedDomainsUpdatedListener(RealtimeCallback callback) =>
+      _blockedDomainsUpdatedListeners.remove(callback);
+
+  void addBlockedVideosUpdatedListener(RealtimeCallback callback) =>
+      _blockedVideosUpdatedListeners.add(callback);
+  void removeBlockedVideosUpdatedListener(RealtimeCallback callback) =>
+      _blockedVideosUpdatedListeners.remove(callback);
+
+  void addAppTimeLimitUpdatedListener(RealtimeCallback callback) =>
+      _appTimeLimitUpdatedListeners.add(callback);
+  void removeAppTimeLimitUpdatedListener(RealtimeCallback callback) =>
+      _appTimeLimitUpdatedListeners.remove(callback);
+
+  void addSchoolScheduleUpdatedListener(RealtimeCallback callback) =>
+      _schoolScheduleUpdatedListeners.add(callback);
+  void removeSchoolScheduleUpdatedListener(RealtimeCallback callback) =>
+      _schoolScheduleUpdatedListeners.remove(callback);
+
+  /// INSERT trên LocationLog — dùng bởi map_screen.dart (phía Parent) để
+  /// biết cần refetch vị trí mới nhất qua REST (GET .../location/current).
+  void addLocationUpdatedListener(RealtimeCallback callback) =>
+      _locationUpdatedListeners.add(callback);
+  void removeLocationUpdatedListener(RealtimeCallback callback) =>
+      _locationUpdatedListeners.remove(callback);
 
   /// 'parent' | 'child' | null
   String? get currentRole => _currentRole;
@@ -253,6 +306,14 @@ class RealtimeService {
     );
 
     channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'TimeExtensionRequest',
+      callback: (payload) => _notify(
+          _timeExtensionResponseListeners, 'TimeExtensionRequest', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
       event: sb.PostgresChangeEvent.insert,
       schema: 'public',
       table: 'GeofenceEvent',
@@ -272,6 +333,62 @@ class RealtimeService {
       schema: 'public',
       table: 'AIAlert',
       callback: (payload) => _notify(_aiAlertListeners, 'AIAlert', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'TimeLimit',
+      callback: (payload) =>
+          _notify(_timeLimitUpdatedListeners, 'TimeLimit', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'BlockedApp',
+      callback: (payload) =>
+          _notify(_blockedAppsUpdatedListeners, 'BlockedApp', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'CustomBlockedDomain',
+      callback: (payload) => _notify(
+          _blockedDomainsUpdatedListeners, 'CustomBlockedDomain', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'BlockedVideo',
+      callback: (payload) =>
+          _notify(_blockedVideosUpdatedListeners, 'BlockedVideo', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'AppTimeLimit',
+      callback: (payload) =>
+          _notify(_appTimeLimitUpdatedListeners, 'AppTimeLimit', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'SchoolSchedule',
+      callback: (payload) =>
+          _notify(_schoolScheduleUpdatedListeners, 'SchoolSchedule', payload.eventType.name),
+    );
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'LocationLog',
+      callback: (payload) =>
+          _notify(_locationUpdatedListeners, 'LocationLog', payload.eventType.name),
     );
 
     channel.subscribe();
