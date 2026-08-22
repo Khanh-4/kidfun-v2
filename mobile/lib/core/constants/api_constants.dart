@@ -1,6 +1,9 @@
 class ApiConstants {
-  // Production server (Railway)
-  static const String baseUrl = 'https://kidfun-backend-production.up.railway.app';
+  // Production server (Vercel)
+  static const String baseUrl = 'https://kidfun-backend.vercel.app';
+
+  // Cũ (Railway, trước khi migrate sang Vercel):
+  // static const String baseUrl = 'https://kidfun-backend-production.up.railway.app';
 
   // Uncomment cho dev local:
   // static const String baseUrl = 'http://10.0.2.2:3001'; // Android emulator
