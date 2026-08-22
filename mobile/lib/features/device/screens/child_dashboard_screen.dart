@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/network/socket_service.dart';
+import '../../../core/network/realtime_service.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/services/native_service.dart';
@@ -62,6 +63,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   Timer? _usageSyncTimer;
   Timer? _screenPollTimer;
   bool _isScreenPaused = false; // true when screen is off and timer paused
+
+  // Realtime cutover: dedup cho timeExtensionResponse (refetch có thể trả
+  // cùng 1 request nhiều lần — chỉ xử lý mỗi requestId một lần).
+  final Set<int> _seenExtensionResponseIds = {};
 
   // SOS Task 7
   bool _isSOSing = false;
@@ -148,6 +153,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     // Connect Socket.IO (idempotent — won't duplicate if already connected)
     if (deviceCode != null && deviceCode.isNotEmpty) {
       SocketService.instance.joinDevice(deviceCode);
+      RealtimeService.instance.joinDevice(deviceCode);
       print('📡 Child Dashboard: called joinDevice for code $deviceCode');
     }
 
@@ -876,50 +882,106 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     );
   }
 
+  // ── Realtime signal handlers (notify-then-refetch, PR Nhóm E cutover) ────
+  // timeLimitUpdated/blockedAppsUpdated/blockedDomainsUpdated/blockedVideosUpdated/
+  // appTimeLimitUpdated/schoolScheduleUpdated không còn qua Socket.IO — xem
+  // RealtimeService cho danh sách bảng Postgres tương ứng.
+
+  void _onRealtimeTimeLimitUpdated(Map<String, dynamic> data) {
+    print('🔔 [Realtime] TimeLimit changed. Applying delta to countdown.');
+    _fetchAndApplyNewLimit();
+  }
+
+  void _onRealtimeBlockedAppsUpdated(Map<String, dynamic> data) {
+    print('🔔 [Realtime] BlockedApp changed — re-syncing blocked apps');
+    _syncBlockedApps();
+  }
+
+  void _onRealtimeBlockedDomainsUpdated(Map<String, dynamic> data) {
+    print('🔔 [Realtime] CustomBlockedDomain changed — syncing policies');
+    if (_deviceCode != null) PolicyService.instance.syncAll(_deviceCode!);
+  }
+
+  void _onRealtimeBlockedVideosUpdated(Map<String, dynamic> data) {
+    print('🔔 [Realtime] BlockedVideo changed — syncing blocked videos');
+    if (_deviceCode != null) YouTubeService.instance.forceSyncBlocked(_deviceCode!);
+  }
+
+  void _onRealtimeAppTimeLimitUpdated(Map<String, dynamic> data) {
+    print('🔔 [Realtime] AppTimeLimit changed — syncing policies');
+    if (_deviceCode != null) PolicyService.instance.syncAll(_deviceCode!);
+  }
+
+  void _onRealtimeSchoolScheduleUpdated(Map<String, dynamic> data) {
+    print('🔔 [Realtime] SchoolSchedule changed — syncing policies');
+    if (_deviceCode != null) PolicyService.instance.syncAll(_deviceCode!);
+  }
+
+  void _onRealtimeTimeExtensionResponse(Map<String, dynamic> data) {
+    print('🔔 [Realtime] TimeExtensionRequest updated — checking result');
+    _checkExtensionResponse();
+  }
+
+  /// Refetch kết quả duyệt/từ chối gần nhất của CHÍNH thiết bị này. Áp dụng
+  /// extension qua _fetchAndApplyNewLimit() (refetch REST, không đọc field
+  /// responseMinutes để tính tay — tránh lệch nếu Parent duyệt 2 lần liên tiếp).
+  Future<void> _checkExtensionResponse() async {
+    if (_deviceCode == null) return;
+    try {
+      final resp = await _childRepo.getLatestExtensionResponse(_deviceCode!);
+      if (resp == null || _seenExtensionResponseIds.contains(resp.id)) return;
+      _seenExtensionResponseIds.add(resp.id);
+
+      final approved = resp.status == 'APPROVED';
+      if (mounted) setState(() => _waitingForResponse = false);
+
+      if (approved && resp.responseMinutes > 0) {
+        await _fetchAndApplyNewLimit();
+        // Huỷ lịch khoá native cũ (tính theo _endTime trước khi có thêm giờ),
+        // khớp hành vi socket.on('timeExtensionResponse') cũ.
+        NativeService.cancelScheduledLock().catchError((e) => null);
+      }
+
+      if (mounted) {
+        _showResultDialog(approved, resp.responseMinutes);
+      }
+    } catch (e) {
+      print('❌ [Realtime] _checkExtensionResponse error: $e');
+    }
+  }
+
   void _setupSocketListeners() {
     final socket = SocketService.instance.socket;
 
-    // Always call off() before on() to ensure idempotent listener registration.
-    // Without this, every _onAppResumed → _initializeDashboard → _setupSocketListeners cycle
-    // stacks an additional listener, causing N dialogs per event after N resume cycles.
+    // Always call off()/remove before on()/add to ensure idempotent listener
+    // registration. Without this, every _onAppResumed → _initializeDashboard →
+    // _setupSocketListeners cycle stacks an additional listener, causing N
+    // dialogs per event after N resume cycles.
 
-    socket.off('timeLimitUpdated');
-    socket.on('timeLimitUpdated', (data) async {
-      print('🔔 [SOCKET] timeLimitUpdated received. Applying delta to countdown.');
-      await _fetchAndApplyNewLimit();
-    });
+    RealtimeService.instance.removeTimeLimitUpdatedListener(_onRealtimeTimeLimitUpdated);
+    RealtimeService.instance.addTimeLimitUpdatedListener(_onRealtimeTimeLimitUpdated);
 
-    socket.off('blockedAppsUpdated');
-    socket.on('blockedAppsUpdated', (data) async {
-      print('🔔 [SOCKET] blockedAppsUpdated received — re-syncing blocked apps');
-      await _syncBlockedApps();
-    });
+    RealtimeService.instance.removeBlockedAppsUpdatedListener(_onRealtimeBlockedAppsUpdated);
+    RealtimeService.instance.addBlockedAppsUpdatedListener(_onRealtimeBlockedAppsUpdated);
 
     // Sprint 8: Web filtering, per-app limits, school mode real-time sync
-    socket.off('blockedDomainsUpdated');
-    socket.on('blockedDomainsUpdated', (data) async {
-      print('🔔 [SOCKET] blockedDomainsUpdated — syncing policies');
-      if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
-    });
+    RealtimeService.instance.removeBlockedDomainsUpdatedListener(_onRealtimeBlockedDomainsUpdated);
+    RealtimeService.instance.addBlockedDomainsUpdatedListener(_onRealtimeBlockedDomainsUpdated);
 
-    socket.off('blockedVideosUpdated');
-    socket.on('blockedVideosUpdated', (_) {
-      print('🔔 [SOCKET] blockedVideosUpdated — syncing blocked videos');
-      if (_deviceCode != null) YouTubeService.instance.forceSyncBlocked(_deviceCode!);
-    });
+    RealtimeService.instance.removeBlockedVideosUpdatedListener(_onRealtimeBlockedVideosUpdated);
+    RealtimeService.instance.addBlockedVideosUpdatedListener(_onRealtimeBlockedVideosUpdated);
 
-    socket.off('appTimeLimitUpdated');
-    socket.on('appTimeLimitUpdated', (data) async {
-      print('🔔 [SOCKET] appTimeLimitUpdated — syncing policies');
-      if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
-    });
+    RealtimeService.instance.removeAppTimeLimitUpdatedListener(_onRealtimeAppTimeLimitUpdated);
+    RealtimeService.instance.addAppTimeLimitUpdatedListener(_onRealtimeAppTimeLimitUpdated);
 
-    socket.off('schoolScheduleUpdated');
-    socket.on('schoolScheduleUpdated', (data) async {
-      print('🔔 [SOCKET] schoolScheduleUpdated — syncing policies');
-      if (_deviceCode != null) await PolicyService.instance.syncAll(_deviceCode!);
-    });
+    RealtimeService.instance.removeSchoolScheduleUpdatedListener(_onRealtimeSchoolScheduleUpdated);
+    RealtimeService.instance.addSchoolScheduleUpdatedListener(_onRealtimeSchoolScheduleUpdated);
 
+    RealtimeService.instance.removeTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
+    RealtimeService.instance.addTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
+
+    // locationRequested: lệnh tức thời, không gắn DB row — CHƯA cutover, vẫn
+    // qua Socket.IO (cần Realtime Broadcast channel riêng, xem RealtimeService).
     socket.off('locationRequested');
     socket.on('locationRequested', (data) async {
       print('📍 [SOCKET] locationRequested from parent — sending location now');
@@ -942,52 +1004,6 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 10: deviceError — thiết bị chưa được liên kết trong DB
     SocketService.instance.addDeviceErrorListener(_onDeviceError);
-
-    socket.off('timeExtensionResponse');
-    socket.on('timeExtensionResponse', (data) async {
-      print('🔔 [SOCKET] RECEIVED timeExtensionResponse: $data');
-      final approved = data['approved'] as bool;
-      final responseMinutes = data['responseMinutes'] as int? ?? 0;
-
-      if (mounted) {
-        setState(() => _waitingForResponse = false);
-        if (approved && responseMinutes > 0) {
-          // Apply extension directly from socket payload — no HTTP round-trip needed.
-          // This gives instant UI feedback. _currentTotalLimitMinutes is updated so
-          // subsequent _fetchAndApplyNewLimit() calls see deltaMinutes=0 and don't
-          // apply the extension a second time.
-          setState(() {
-            _currentTotalLimitMinutes += responseMinutes;
-            final isExpired = _remainingSeconds <= 0 ||
-                _endTime == null ||
-                _endTime!.isBefore(DateTime.now());
-            if (isExpired) {
-              _endTime = DateTime.now().add(Duration(minutes: responseMinutes));
-            } else {
-              _endTime = _endTime!.add(Duration(minutes: responseMinutes));
-            }
-            final secs =
-                (_endTime!.difference(DateTime.now()).inMilliseconds / 1000)
-                    .round();
-            _remainingSeconds = secs > 0 ? secs : 0;
-            if (_remainingSeconds > 30 * 60) _hasShown30m = false;
-            if (_remainingSeconds > 15 * 60) _hasShown15m = false;
-            if (_remainingSeconds > 5 * 60) _hasShown5m = false;
-          });
-          _saveEndTime();
-          _startCountdown();
-          NativeService.cancelScheduledLock().catchError((e) => null);
-          // Dismiss locked screen if showing — setState triggers build() to show dashboard
-          if (_isTimeUpDialogShowing && mounted) {
-            setState(() => _isTimeUpDialogShowing = false);
-            NativeService.exitLockedState().catchError((e) => null);
-          }
-        }
-        if (mounted) {
-          _showResultDialog(approved, responseMinutes);
-        }
-      }
-    });
   }
 
   void _onDeviceError(Map<String, dynamic> data) {
@@ -1046,9 +1062,16 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     
     // Remove socket listeners
     SocketService.instance.removeDeviceErrorListener(_onDeviceError);
-    SocketService.instance.socket.off('timeLimitUpdated');
-    SocketService.instance.socket.off('timeExtensionResponse');
-    SocketService.instance.socket.off('blockedAppsUpdated');
+
+    // Remove Realtime listeners
+    RealtimeService.instance.removeTimeLimitUpdatedListener(_onRealtimeTimeLimitUpdated);
+    RealtimeService.instance.removeBlockedAppsUpdatedListener(_onRealtimeBlockedAppsUpdated);
+    RealtimeService.instance.removeBlockedDomainsUpdatedListener(_onRealtimeBlockedDomainsUpdated);
+    RealtimeService.instance.removeBlockedVideosUpdatedListener(_onRealtimeBlockedVideosUpdated);
+    RealtimeService.instance.removeAppTimeLimitUpdatedListener(_onRealtimeAppTimeLimitUpdated);
+    RealtimeService.instance.removeSchoolScheduleUpdatedListener(_onRealtimeSchoolScheduleUpdated);
+    RealtimeService.instance.removeTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
+
     LocationService.instance.stop();
     YouTubeService.instance.stop();
     _sosTimer?.cancel();
