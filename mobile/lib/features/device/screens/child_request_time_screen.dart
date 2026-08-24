@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/network/socket_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../data/child_repository.dart';
 
 enum _RequestState { form, sending, sent }
 
@@ -18,6 +18,7 @@ class ChildRequestTimeScreen extends StatefulWidget {
 
 class _ChildRequestTimeScreenState extends State<ChildRequestTimeScreen>
     with TickerProviderStateMixin {
+  final _childRepo = ChildRepository();
   _RequestState _state = _RequestState.form;
   String? _deviceCode;
 
@@ -80,24 +81,31 @@ class _ChildRequestTimeScreenState extends State<ChildRequestTimeScreen>
           ? _reasons[_selectedReasonIndex!]['label']!
           : '';
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_canSubmit || _deviceCode == null) return;
 
     setState(() => _state = _RequestState.sending);
 
-    SocketService.instance.socket.emit('requestTimeExtension', {
-      'deviceCode': _deviceCode,
-      'requestMinutes': _selectedMinutes,
-      'reason': _selectedReasonLabel +
-          (_noteController.text.trim().isNotEmpty
-              ? ': ${_noteController.text.trim()}'
-              : ''),
-    });
-
-    // Chuyển sang trạng thái sent sau 1.5 giây
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    try {
+      await _childRepo.createExtensionRequest(
+        deviceCode: _deviceCode!,
+        requestMinutes: _selectedMinutes!,
+        reason: _selectedReasonLabel +
+            (_noteController.text.trim().isNotEmpty
+                ? ': ${_noteController.text.trim()}'
+                : ''),
+      );
       if (mounted) setState(() => _state = _RequestState.sent);
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _state = _RequestState.form);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Gửi yêu cầu thất bại, thử lại nhé: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // ── Build ────────────────────────────────────────────────────────────
