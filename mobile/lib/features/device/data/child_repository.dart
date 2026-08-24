@@ -96,6 +96,21 @@ class ChildRepository {
     return response.data['data']['remainingSeconds'] as int? ?? 0;
   }
 
+  /// POST /api/child/extension-request — Child xin thêm giờ (REST, thay cho
+  /// socket.emit('requestTimeExtension') cũ — Socket.IO không hoạt động ổn định
+  /// trên backend serverless Vercel nên request không bao giờ tới nơi).
+  Future<void> createExtensionRequest({
+    required String deviceCode,
+    required int requestMinutes,
+    required String reason,
+  }) async {
+    await _dio.post(
+      '/api/child/extension-request',
+      data: {'requestMinutes': requestMinutes, 'reason': reason},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+  }
+
   /// GET /api/child/extension-requests/latest-response — refetch sau khi nhận
   /// Realtime signal (TimeExtensionRequest UPDATE), thay cho field đọc trực
   /// tiếp từ socket payload cũ (notify-then-refetch, xem RealtimeService).
