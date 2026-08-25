@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,10 +22,15 @@ class AddDeviceScreen extends ConsumerStatefulWidget {
 class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   ProfileModel? _selectedProfile;
   String? _pairingCode;
+  DateTime? _expiresAt;
+  Duration _remaining = Duration.zero;
+  Timer? _countdownTimer;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isSocketConnected = false;
   bool _isLinked = false;
+
+  bool get _isCodeExpired => _expiresAt != null && _remaining <= Duration.zero;
 
   @override
   void initState() {
@@ -66,26 +72,55 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   @override
   void dispose() {
     RealtimeService.instance.removeDeviceLinkedListener(_handleSuccessfulLink);
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _generateCode() async {
     if (_selectedProfile == null) return;
+    _countdownTimer?.cancel();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _pairingCode = null;
+      _expiresAt = null;
     });
     try {
-      final code = await ref
+      final result = await ref
           .read(deviceProvider.notifier)
           .generatePairingCode(_selectedProfile!.id);
-      if (mounted) setState(() => _pairingCode = code);
+      if (mounted) {
+        setState(() {
+          _pairingCode = result.code;
+          _expiresAt = result.expiresAt;
+          _remaining = result.expiresAt.difference(DateTime.now());
+        });
+        _startCountdown();
+      }
     } catch (e) {
       if (mounted) setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final expiresAt = _expiresAt;
+      if (expiresAt == null || !mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = expiresAt.difference(DateTime.now());
+      setState(() => _remaining = remaining.isNegative ? Duration.zero : remaining);
+      if (_remaining == Duration.zero) timer.cancel();
+    });
+  }
+
+  String _formatRemaining(Duration d) {
+    final minutes = d.inMinutes.toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   @override
@@ -366,28 +401,38 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Waiting label
+          // Waiting / expired label
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.indigo600,
+                decoration: BoxDecoration(
+                  color: _isCodeExpired ? AppColors.danger : AppColors.indigo600,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
-                'Đang chờ kết nối...',
+                _isCodeExpired
+                    ? 'Mã đã hết hạn'
+                    : 'Đang chờ kết nối... (${_formatRemaining(_remaining)})',
                 style: GoogleFonts.nunito(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.indigo600),
+                    color: _isCodeExpired ? AppColors.danger : AppColors.indigo600),
               ),
             ],
           ),
+          if (_isCodeExpired) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Mã đã hết hiệu lực. Nhấn "Tạo mã mới" bên dưới rồi nhập ngay trên thiết bị con.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(fontSize: 12, color: AppColors.slate500),
+            ),
+          ],
           const SizedBox(height: 20),
           // QR code
           Center(

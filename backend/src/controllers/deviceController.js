@@ -152,7 +152,9 @@ const generatePairingCode = async (req, res) => {
 
     // Tạo mã code 6 số random
     const pairingCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const pairingCodeExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+    // 15 phút — đủ thời gian để phụ huynh chuyển mã sang thiết bị con
+    // (mở app, đăng nhập/đăng ký, vào màn nhập mã) trước khi mã hết hạn
+    const pairingCodeExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
     // Tạo device nháp
     const device = await prisma.device.create({
@@ -194,7 +196,7 @@ const linkDevice = async (req, res) => {
     });
 
     if (!pendingDevice) {
-      return sendError(res, 'Pairing code is invalid or expired', 400, 'INVALID_CODE');
+      return sendError(res, 'Mã liên kết không hợp lệ hoặc đã hết hạn. Vui lòng xin phụ huynh tạo mã mới.', 400, 'INVALID_CODE');
     }
 
     // Kiểm tra nếu deviceCode phần cứng đã có trong DB thì lấy id cũ ghi đè, nếu không thì dùng record pending
