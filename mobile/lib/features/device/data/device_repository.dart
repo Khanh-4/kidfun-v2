@@ -9,7 +9,8 @@ import '../../../shared/models/device_model.dart';
 class DeviceRepository {
   final _dio = DioClient.instance;
 
-  Future<String> generatePairingCode(int profileId) async {
+  Future<({String code, DateTime expiresAt})> generatePairingCode(
+      int profileId) async {
     try {
       print('📡 [DeviceRepo] Generating pairing code for profile: $profileId');
       final response = await _dio.post(
@@ -19,9 +20,11 @@ class DeviceRepository {
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
       }
-      final code = response.data['data']['pairingCode'];
-      print('📡 [DeviceRepo] Pairing code generated: $code');
-      return code;
+      final data = response.data['data'];
+      final code = data['pairingCode'] as String;
+      final expiresAt = DateTime.parse(data['expiresAt'] as String);
+      print('📡 [DeviceRepo] Pairing code generated: $code (expires $expiresAt)');
+      return (code: code, expiresAt: expiresAt);
     } on DioException catch (e) {
       print('❌ [DeviceRepo] generatePairingCode DioError: ${e.message}');
       if (e.response != null && e.response?.data['message'] != null) {
