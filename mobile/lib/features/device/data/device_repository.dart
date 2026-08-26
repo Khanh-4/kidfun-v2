@@ -9,7 +9,7 @@ import '../../../shared/models/device_model.dart';
 class DeviceRepository {
   final _dio = DioClient.instance;
 
-  Future<({String code, DateTime expiresAt})> generatePairingCode(
+  Future<({String code, DateTime expiresAt, int deviceId})> generatePairingCode(
       int profileId) async {
     try {
       print('📡 [DeviceRepo] Generating pairing code for profile: $profileId');
@@ -23,8 +23,9 @@ class DeviceRepository {
       final data = response.data['data'];
       final code = data['pairingCode'] as String;
       final expiresAt = DateTime.parse(data['expiresAt'] as String);
+      final deviceId = data['deviceId'] as int;
       print('📡 [DeviceRepo] Pairing code generated: $code (expires $expiresAt)');
-      return (code: code, expiresAt: expiresAt);
+      return (code: code, expiresAt: expiresAt, deviceId: deviceId);
     } on DioException catch (e) {
       print('❌ [DeviceRepo] generatePairingCode DioError: ${e.message}');
       if (e.response != null && e.response?.data['message'] != null) {
@@ -35,6 +36,21 @@ class DeviceRepository {
       print('❌ [DeviceRepo] generatePairingCode error: $e');
       if (e is Exception) rethrow;
       throw Exception('Lỗi tạo mã QR: $e');
+    }
+  }
+
+  // Xác thực deviceId cụ thể (được tạo lúc generate-pairing-code) đã thật sự
+  // link chưa — dùng để lọc bỏ false-positive từ tín hiệu realtime "device
+  // changed" chung chung (vốn cũng bắn lúc INSERT device nháp, trước khi
+  // child xác nhận). isOnline chỉ được set true đúng lúc link thật xảy ra.
+  Future<bool> isDeviceLinked(int deviceId) async {
+    try {
+      final response = await _dio.get('/api/devices/$deviceId/status');
+      if (response.data['success'] == false) return false;
+      return response.data['data']['isOnline'] == true;
+    } catch (e) {
+      print('❌ [DeviceRepo] isDeviceLinked error: $e');
+      return false;
     }
   }
 

@@ -35,7 +35,10 @@ const io = new Server(httpServer, {
 // Rate limiting
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 phút
-  max: 200, // 200 requests/phút/IP (thoải mái cho child heartbeat + parent polling)
+  // 1000 requests/phút/IP — key theo IP nên nhiều thuê bao mạng di động VN
+  // dùng chung 1 IP (CGNAT) sẽ cộng dồn vào cùng 1 rổ giới hạn; 200 từng gây
+  // 429 oan cho user hợp lệ khi test trên 4G/5G dù chỉ thao tác 1 lần.
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later' },

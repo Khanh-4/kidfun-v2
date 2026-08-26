@@ -286,7 +286,13 @@ class RealtimeService {
       table: 'Device',
       callback: (payload) {
         final type = payload.eventType.name;
-        if (payload.eventType == sb.PostgresChangeEvent.insert) {
+        // Việc link thật sự luôn là UPDATE (ghi đè device nháp hoặc device
+        // phần cứng đã tồn tại) — INSERT chỉ xảy ra lúc generate-pairing-code
+        // tạo device nháp, KHÔNG phải lúc child xác nhận. Báo cả 2 loại vì
+        // consumer (add_device_screen) tự verify lại qua REST theo deviceId
+        // cụ thể trước khi coi là đã liên kết thật (tránh false-positive).
+        if (payload.eventType == sb.PostgresChangeEvent.insert ||
+            payload.eventType == sb.PostgresChangeEvent.update) {
           _notify(_deviceLinkedListeners, 'Device', type);
         }
         // UPDATE có thể là online hoặc offline — không đọc field isOnline ở
