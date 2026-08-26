@@ -91,9 +91,13 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     await fetchDevices();
   }
 
-  Future<({String code, DateTime expiresAt})> generatePairingCode(
+  Future<({String code, DateTime expiresAt, int deviceId})> generatePairingCode(
       int profileId) {
     return _repo.generatePairingCode(profileId);
+  }
+
+  Future<bool> checkDeviceLinked(int deviceId) {
+    return _repo.isDeviceLinked(deviceId);
   }
 
   @override

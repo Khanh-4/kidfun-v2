@@ -23,12 +23,14 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   ProfileModel? _selectedProfile;
   String? _pairingCode;
   DateTime? _expiresAt;
+  int? _pendingDeviceId;
   Duration _remaining = Duration.zero;
   Timer? _countdownTimer;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isSocketConnected = false;
   bool _isLinked = false;
+  bool _isCheckingLink = false;
 
   bool get _isCodeExpired => _expiresAt != null && _remaining <= Duration.zero;
 
@@ -47,25 +49,34 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   }
 
   void _handleSuccessfulLink(Map<String, dynamic> data) {
-    if (!mounted || _isLinked) return;
-    if (_pairingCode == null) return;
+    if (!mounted || _isLinked || _isCheckingLink) return;
+    final deviceId = _pendingDeviceId;
+    if (_pairingCode == null || deviceId == null) return;
 
-    setState(() => _isLinked = true);
-    ref.read(deviceProvider.notifier).fetchDevices();
+    // Tín hiệu realtime "Device changed" cũng bắn lúc generate-pairing-code
+    // tự INSERT device nháp (trước khi child xác nhận) — không thể tin mù.
+    // Verify lại qua REST đúng deviceId này: chỉ coi là liên kết thật khi
+    // isOnline == true, giá trị chỉ được set lúc link thật xảy ra.
+    _isCheckingLink = true;
+    ref.read(deviceProvider.notifier).checkDeviceLinked(deviceId).then((linked) {
+      _isCheckingLink = false;
+      if (!mounted || !linked || _isLinked) return;
 
-    // notify-then-refetch: payload không mang deviceName (khác payload
-    // Socket.IO cũ), dùng text chung — không cần tên thiết bị cụ thể ở đây.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Thiết bị đã kết nối thành công!',
-            style: GoogleFonts.nunito()),
-        backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      setState(() => _isLinked = true);
+      ref.read(deviceProvider.notifier).fetchDevices();
 
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Thiết bị đã kết nối thành công!',
+              style: GoogleFonts.nunito()),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) context.pop();
+      });
     });
   }
 
@@ -84,6 +95,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
       _errorMessage = null;
       _pairingCode = null;
       _expiresAt = null;
+      _pendingDeviceId = null;
     });
     try {
       final result = await ref
@@ -93,6 +105,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
         setState(() {
           _pairingCode = result.code;
           _expiresAt = result.expiresAt;
+          _pendingDeviceId = result.deviceId;
           _remaining = result.expiresAt.difference(DateTime.now());
         });
         _startCountdown();
@@ -508,6 +521,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
           OutlinedButton(
             onPressed: () => setState(() {
               _pairingCode = null;
+              _pendingDeviceId = null;
               _errorMessage = null;
             }),
             style: OutlinedButton.styleFrom(
