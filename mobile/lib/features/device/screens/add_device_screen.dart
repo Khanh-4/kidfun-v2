@@ -46,6 +46,15 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
       RealtimeService.instance.reconnect();
     }
     RealtimeService.instance.addDeviceLinkedListener(_handleSuccessfulLink);
+    // Bù trường hợp con xác nhận mã lúc app cha đang chạy ngầm: kênh Realtime
+    // tạm ngưng nên event deviceLinked bị bỏ lỡ. Khi app mở lại,
+    // RealtimeService.onAppResumed() reconnect và bắn connectionRestored —
+    // recheck REST ngay lúc đó, khớp pattern time_extension_listener.dart.
+    RealtimeService.instance.addConnectionRestoredListener(_onRealtimeReconnected);
+  }
+
+  void _onRealtimeReconnected(Map<String, dynamic> data) {
+    _handleSuccessfulLink(data);
   }
 
   void _handleSuccessfulLink(Map<String, dynamic> data) {
@@ -83,6 +92,7 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   @override
   void dispose() {
     RealtimeService.instance.removeDeviceLinkedListener(_handleSuccessfulLink);
+    RealtimeService.instance.removeConnectionRestoredListener(_onRealtimeReconnected);
     _countdownTimer?.cancel();
     super.dispose();
   }
