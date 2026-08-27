@@ -580,13 +580,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 }
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-  final roleState = ref.watch(roleProvider);
+// Cầu nối Riverpod → GoRouter: chỉ báo "có gì đó đổi, hãy re-run redirect()
+// trên vị trí hiện tại", KHÔNG tạo GoRouter mới. Trước đây routerProvider là
+// Provider thường watch(authProvider)/watch(roleProvider) trực tiếp trong
+// body → mỗi lần auth/role đổi state (kể cả AsyncValue.loading() thoáng qua)
+// Riverpod coi là "khác" (so sánh theo reference, các class này không
+// override ==) → dispose provider cũ, tạo GoRouter HOÀN TOÀN MỚI → toàn bộ
+// Navigator/widget tree bị huỷ và dựng lại từ initialLocation, xoá sạch state
+// local của màn hình đang mở (vd ScanQrScreen mất hết mã đang gõ, trông như
+// app "reload liên tục"). refreshListenable giữ nguyên GoRouter/Navigator,
+// chỉ re-evaluate redirect — đúng cách go_router khuyến nghị dùng với state
+// bên ngoài router.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(Ref ref) {
+    ref.listen(authProvider, (_, __) => notifyListeners());
+    ref.listen(roleProvider, (_, __) => notifyListeners());
+  }
+}
 
-  return GoRouter(
+final routerProvider = Provider<GoRouter>((ref) {
+  final refreshNotifier = _RouterRefreshNotifier(ref);
+
+  final router = GoRouter(
     navigatorKey: navigatorKey,
     initialLocation: '/splash',
+    refreshListenable: refreshNotifier,
     routes: [
       GoRoute(
         path: '/splash',
@@ -782,6 +800,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
+      // Đọc trực tiếp (không watch) — redirect chạy lại mỗi khi refreshListenable
+      // báo có thay đổi hoặc mỗi lần điều hướng, luôn cần giá trị mới nhất.
+      final authState = ref.read(authProvider);
+      final roleState = ref.read(roleProvider);
+
       final isSplash = state.matchedLocation == '/splash';
       final isAuthScreen = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
@@ -836,6 +859,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
   );
+
+  ref.onDispose(() {
+    refreshNotifier.dispose();
+    router.dispose();
+  });
+
+  return router;
 });
 
 class MyApp extends ConsumerWidget {
