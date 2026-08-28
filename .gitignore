@@ -179,3 +179,15 @@ reports/
 !mobile/lib/features/reports/**
 .vercel
 .env*
+
+# Sách/tài liệu tham khảo tải về — KHÔNG commit lên repo public.
+# Cụ thể là bản PDF "System Design Interview" (~22MB) đang nằm ở thư mục gốc:
+# vừa nặng, vừa là sách có bản quyền, chỉ cần một lần `git add .` là nó lên
+# GitHub công khai. Dùng glob thay vì gõ nguyên tên file vì tên có ký tự
+# nháy đơn Unicode (’) dễ sai khi gõ tay.
+/System Design Interview*.pdf
+
+# Thư mục do agent/tooling sinh ra, không phải mã nguồn dự án
+.agents/
+.reports/
+scratch/
