@@ -2,6 +2,22 @@ const admin = require('firebase-admin');
 const prisma = require('../utils/prisma');
 let firebaseInitialized = false; // BUG 3 FIX: newline added (was concatenated on one line)
 
+// Vercel runtime logs cho thấy 1 request từng bị "Task timed out after 60
+// seconds" trên /api/index đúng lúc có lỗi FCM (registration-token-not-
+// registered) — admin.messaging() không có timeout riêng, nên nếu Firebase
+// chậm/treo, request bị await sendPushToUser(...) (extensionController.js)
+// chiếm hết toàn bộ budget 60s của function thay vì fail nhanh.
+const FCM_TIMEOUT_MS = 8000;
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 /**
  * Initialize Firebase Admin SDK
  * - Production: đọc env FIREBASE_SERVICE_ACCOUNT (JSON string)
@@ -69,7 +85,8 @@ async function sendPushNotification(token, title, body, data = {}) {
   };
 
   try {
-    const response = await admin.messaging().send(message);
+    const response = await withTimeout(
+      admin.messaging().send(message), FCM_TIMEOUT_MS, 'FCM send');
     console.log('Push notification sent:', response);
     return response;
   } catch (error) {
@@ -120,7 +137,10 @@ async function sendToMultipleTokens(tokens, title, body, data = {}) {
   };
 
   try {
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const response = await withTimeout(
+      admin.messaging().sendEachForMulticast(message),
+      FCM_TIMEOUT_MS,
+      'FCM sendEachForMulticast');
     console.log(`🔔 [FCM] sendEachForMulticast → successCount=${response.successCount} failureCount=${response.failureCount} (total tokens: ${tokens.length})`);
 
     // Collect invalid tokens for cleanup + log each result for debugging
