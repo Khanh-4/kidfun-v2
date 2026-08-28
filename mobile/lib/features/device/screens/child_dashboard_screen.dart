@@ -36,7 +36,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   bool _isLoading = true;
   bool _hasToken = false;
-  bool _isSocketConnected = false;
+  // Badge "Đang giám sát" đọc trạng thái Realtime (Supabase), KHÔNG phải
+  // Socket.IO: Socket.IO đã chết hẳn trên backend serverless Vercel (logcat
+  // thực tế: "not upgraded to websocket, HTTP status code: 404" mỗi lần
+  // joinDevice), nên biến cũ _isRealtimeConnected luôn false → badge luôn hiện
+  // đỏ "Mất kết nối" dù app đang giám sát bình thường qua Realtime.
+  bool _isRealtimeConnected = false;
   bool _isDeviceLinked = true; // false khi server trả về deviceError
   String? _deviceCode;
   Timer? _connectionCheckTimer;
@@ -161,13 +166,13 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _connectionCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) {
         setState(() {
-          _isSocketConnected = SocketService.instance.isConnected;
+          _isRealtimeConnected = RealtimeService.instance.isConnected;
         });
       }
     });
 
     // Initial check
-    setState(() => _isSocketConnected = SocketService.instance.isConnected);
+    setState(() => _isRealtimeConnected = RealtimeService.instance.isConnected);
 
     // Sprint 5: Start foreground service for 24/7 monitoring
     NativeService.startForegroundService();
@@ -1452,7 +1457,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: _isSocketConnected
+                  color: _isRealtimeConnected
                       ? const Color(0xFF34D399)
                       : Colors.red.shade300,
                   shape: BoxShape.circle,
@@ -1462,7 +1467,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           ),
           const SizedBox(width: 6),
           Text(
-            _isSocketConnected ? 'Đang giám sát' : 'Mất kết nối',
+            _isRealtimeConnected ? 'Đang giám sát' : 'Mất kết nối',
             style: GoogleFonts.nunito(
               fontSize: 12,
               color: Colors.white.withOpacity(0.80),
