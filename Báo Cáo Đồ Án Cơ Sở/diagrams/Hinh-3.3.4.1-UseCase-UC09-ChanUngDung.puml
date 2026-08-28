@@ -1,0 +1,52 @@
+@startuml
+' Hình 3.3.4.1 - Use Case chi tiết UC-09: Chặn ứng dụng
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Phụ huynh" as PH
+actor "Backend API" as BE
+actor "Hệ thống\n(AccessibilityService)" as AS
+actor "Trẻ em" as TE
+
+rectangle "UC-09 — Chặn ứng dụng" {
+  usecase "Chọn ứng dụng để chặn\ntheo packageName" as UC
+  usecase "Đồng bộ danh sách app\ntừ thiết bị Child" as I1
+  usecase "Lưu BlockedApp\n(POST/DELETE)" as I2
+  usecase "Phát blockedAppsUpdated\n(Socket.IO)" as I3
+  usecase "Phát hiện app bị chặn\n(TYPE_WINDOW_STATE_CHANGED)" as I4
+  usecase "Đưa trẻ về Home Screen\n(< 500ms)" as I5
+}
+
+PH --> UC
+UC ..> I1 : <<include>>
+UC ..> I2 : <<include>>
+UC ..> I3 : <<include>>
+I2 --> BE
+I3 --> BE
+AS --> I4
+I4 ..> I5 : <<include>>
+TE ..> I4 : mở app bị chặn
+
+note bottom of UC
+**Tiền điều kiện:** Thiết bị Child đã liên kết và đã cấp quyền Accessibility Service.
+**Ngoại lệ:** Child offline → fetch danh sách mới qua GET /api/child/policy;
+chưa cấp quyền Accessibility → app Child hiển thị cảnh báo thường trú.
+end note
+@enduml

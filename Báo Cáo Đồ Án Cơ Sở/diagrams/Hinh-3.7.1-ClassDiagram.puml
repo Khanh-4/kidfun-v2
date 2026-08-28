@@ -1,0 +1,373 @@
+@startuml
+' Hình 3.7.1 - Sơ đồ Class Diagram đầy đủ 32 lớp
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam DefaultFontName "DejaVu Sans"
+skinparam DefaultFontSize 12
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  AttributeFontSize 11
+  ArrowColor #5b5fc7
+}
+skinparam packageBackgroundColor #FBFBFE
+skinparam packageBorderColor #c7c9e8
+hide circle
+
+package "Nhóm lõi — Tài khoản & Định danh" #F4F5FF {
+  class User {
+    +id : Int «PK»
+    +email : String «unique»
+    +passwordHash : String?
+    +googleId : String? «unique»
+    +fullName : String
+    +phoneNumber : String?
+    +resetToken / resetOtp : String?
+    +resetTokenExpiry / resetOtpExpiry : DateTime?
+    +createdAt / updatedAt : DateTime
+    --
+    +register() / +login()
+    +forgotPassword()
+    +verifyOtp() / +resetPassword()
+  }
+  class Profile {
+    +id : Int «PK»
+    +userId : Int «FK»
+    +profileName : String
+    +dateOfBirth : DateTime?
+    +avatarUrl : String?
+    +isActive : Boolean = true
+    +createdAt : DateTime
+    --
+    +getActiveDevices()
+    +getCurrentUsageMinutes()
+    +getRemainingMinutes()
+  }
+  class Device {
+    +id : Int «PK»
+    +userId : Int «FK»
+    +profileId : Int? «FK»
+    +deviceName : String
+    +deviceCode : String «unique»
+    +osVersion : String?
+    +isOnline : Boolean = false
+    +lastSeen : DateTime?
+    +pairingCode : String? «unique»
+    +pairingCodeExpiry : DateTime?
+    --
+    +generatePairingCode()
+    +link(pairingCode)
+    +updateOnlineStatus()
+    +sendPolicyUpdate()
+  }
+  class FCMToken {
+    +id : Int «PK»
+    +userId : Int «FK»
+    +deviceId : Int? «FK»
+    +token : String «unique»
+    +platform : String
+  }
+  class Notification {
+    +id : Int «PK»
+    +userId : Int «FK»
+    +title : String
+    +message : String?
+    +type : String
+    +isRead : Boolean = false
+  }
+}
+
+package "Nhóm kiểm soát thời gian" #F4F5FF {
+  class TimeLimit {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +dayOfWeek : Int (0–6)
+    +dailyLimitMinutes : Int = 120
+    +isActive : Boolean = true
+    +isGradual : Boolean = false
+    +gradualTarget / gradualWeeks : Int?
+    +gradualStartDate : DateTime?
+    --
+    {unique} (profileId, dayOfWeek)
+    +applyGradualReduction()
+    +getEffectiveLimit(currentDate)
+  }
+  class UsageSession {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int «FK»
+    +startTime : DateTime
+    +endTime : DateTime?
+    +isActive : Boolean = true
+    --
+    +start() / +end()
+    +getDurationMinutes()
+  }
+  class Session {
+    +id : Int «PK»
+    +profileId : Int?
+    +deviceId : Int «FK»
+    +startTime / endTime : DateTime
+    +totalMinutes : Int?
+    +bonusMinutes : Int = 0
+    +status : String = ACTIVE
+  }
+  class TimeExtensionRequest {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int «FK»
+    +requestMinutes : Int
+    +reason : String?
+    +status : String
+    +responseMinutes : Int?
+    +respondedAt : DateTime?
+    --
+    +approve(responseMinutes)
+    +reject() / +expire()
+  }
+}
+
+package "Nhóm chặn ứng dụng & website" #F4F5FF {
+  class BlockedApp {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +packageName : String
+    +appName : String?
+    +isBlocked : Boolean = true
+  }
+  class AppTimeLimit {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +packageName : String
+    +dailyLimitMinutes : Int
+    +isActive : Boolean = true
+  }
+  class Application {
+    +id : Int «PK»
+    +deviceId : Int «FK»
+    +appName : String
+    +category : String = Other
+    +isBlocked : Boolean = false
+    +timeLimitMinutes : Int?
+  }
+  class BlockedWebsite {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +blockType : String
+    +blockValue : String
+  }
+  class WebCategory {
+    +id : Int «PK»
+    +name : String «unique»
+    +displayName : String
+    +description : String?
+  }
+  class WebCategoryDomain {
+    +id : Int «PK»
+    +categoryId : Int «FK»
+    +domain : String
+  }
+  class BlockedCategory {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +categoryId : Int «FK»
+    +isBlocked : Boolean = true
+  }
+  class CategoryOverride {
+    +id : Int «PK»
+    +blockedCategoryId : Int «FK»
+    +domain : String
+  }
+  class CustomBlockedDomain {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +domain : String
+    +reason : String?
+  }
+}
+
+package "Nhóm theo dõi hoạt động" #F4F5FF {
+  class UsageLog {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int?
+    +appName : String
+    +websiteUrl : String?
+    +startTime / endTime : DateTime
+    +durationSeconds : Int?
+    +activityType : String
+  }
+  class AppUsageLog {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int «FK»
+    +packageName : String
+    +usageSeconds : Int
+    +date : DateTime
+  }
+  class Warning {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int?
+    +warningType : String
+    +message : String
+    +userResponse : String?
+    +warnedAt : DateTime
+  }
+  class ReportSnapshot {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +type : String
+    +periodStart / periodEnd : DateTime
+    +data : Json
+    +generatedAt : DateTime
+  }
+}
+
+package "Nhóm vị trí & khẩn cấp" #F4F5FF {
+  class LocationLog {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int «FK»
+    +latitude / longitude : Float
+    +accuracy : Float?
+    +address : String?
+    +source : String = GPS
+  }
+  class Geofence {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +name : String
+    +latitude / longitude : Float
+    +radius : Int (mét)
+    +isActive : Boolean = true
+  }
+  class GeofenceEvent {
+    +id : Int «PK»
+    +geofenceId : Int «FK»
+    +profileId : Int «FK»
+    +type : String (ENTER|EXIT)
+    +latitude / longitude : Float
+  }
+  class SOSAlert {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int «FK»
+    +latitude / longitude : Float
+    +address : String?
+    +audioUrl : String?
+    +status : String = ACTIVE
+    +acknowledgedAt / resolvedAt : DateTime?
+    --
+    +acknowledge() / +resolve()
+  }
+}
+
+package "Nhóm chế độ học (Sprint 8)" #F4F5FF {
+  class SchoolSchedule {
+    +id : Int «PK»
+    +profileId : Int «FK, unique»
+    +isEnabled : Boolean = true
+    +templateStartTime : String?
+    +templateEndTime : String?
+    +manualOverride : String?
+    +overrideUntil : DateTime?
+  }
+  class SchoolDaySchedule {
+    +id : Int «PK»
+    +scheduleId : Int «FK»
+    +dayOfWeek : Int (0–6)
+    +isEnabled : Boolean = true
+    +startTime / endTime : String (HH:mm)
+  }
+  class AllowedSchoolApp {
+    +id : Int «PK»
+    +scheduleId : Int «FK»
+    +packageName : String
+    +appName : String?
+  }
+}
+
+package "Nhóm YouTube & AI (Sprint 9)" #F4F5FF {
+  class YouTubeLog {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +deviceId : Int «FK»
+    +videoTitle : String
+    +channelName / videoId : String?
+    +watchedAt : DateTime
+    +isAnalyzed : Boolean = false
+    +dangerLevel : Int? (1–5)
+    +category : String?
+    +aiSummary : String?
+  }
+  class AIAlert {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +youtubeLogId : Int «FK»
+    +dangerLevel : Int
+    +category : String
+    +summary : String
+    +isRead : Boolean = false
+  }
+  class BlockedVideo {
+    +id : Int «PK»
+    +profileId : Int «FK»
+    +videoTitle : String
+    +videoId : String?
+    +reason : String?
+  }
+}
+
+User "1" *-- "0..*" Profile
+User "1" *-- "0..*" Device
+User "1" *-- "0..*" Notification
+User "1" *-- "0..*" FCMToken
+
+Profile "1" *-- "0..*" Device
+Profile "1" *-- "0..7" TimeLimit
+Profile "1" *-- "0..*" UsageSession
+Profile "1" *-- "0..*" TimeExtensionRequest
+Profile "1" *-- "0..*" BlockedApp
+Profile "1" *-- "0..*" AppTimeLimit
+Profile "1" *-- "0..*" BlockedWebsite
+Profile "1" *-- "0..*" BlockedCategory
+Profile "1" *-- "0..*" CustomBlockedDomain
+Profile "1" *-- "0..*" UsageLog
+Profile "1" *-- "0..*" AppUsageLog
+Profile "1" *-- "0..*" Warning
+Profile "1" *-- "0..*" ReportSnapshot
+Profile "1" *-- "0..*" LocationLog
+Profile "1" *-- "0..*" Geofence
+Profile "1" *-- "0..*" GeofenceEvent
+Profile "1" *-- "0..*" SOSAlert
+Profile "1" *-- "0..*" YouTubeLog
+Profile "1" *-- "0..*" AIAlert
+Profile "1" *-- "0..*" BlockedVideo
+Profile "1" *-- "0..1" SchoolSchedule
+
+Device "1" o-- "0..*" Application
+Device "1" o-- "0..*" Session
+Device "1" o-- "0..*" AppUsageLog
+Device "1" o-- "0..*" FCMToken
+
+WebCategory "1" *-- "0..*" WebCategoryDomain
+WebCategory "1" *-- "0..*" BlockedCategory
+BlockedCategory "1" *-- "0..*" CategoryOverride
+SchoolSchedule "1" *-- "0..*" SchoolDaySchedule
+SchoolSchedule "1" *-- "0..*" AllowedSchoolApp
+Geofence "1" *-- "0..*" GeofenceEvent
+YouTubeLog "1" *-- "0..*" AIAlert
+
+' --- Ép bố cục 7 package thành lưới 2 hàng cho vừa khung hình ---
+Notification -[hidden]down- UsageLog
+Session -[hidden]down- LocationLog
+CustomBlockedDomain -[hidden]down- SchoolSchedule
+AIAlert -[hidden]up- BlockedVideo
+UsageLog -[hidden]right- LocationLog
+LocationLog -[hidden]right- SchoolSchedule
+SchoolSchedule -[hidden]right- YouTubeLog
+@enduml

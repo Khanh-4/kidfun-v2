@@ -1,0 +1,55 @@
+@startuml
+' Hình 3.3.7.1 - Use Case chi tiết UC-22: Kích hoạt SOS
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Trẻ em" as TE
+actor "Phụ huynh" as PH
+actor "Backend API" as BE
+
+rectangle "UC-22 — Kích hoạt SOS" {
+  usecase "Kích hoạt cảnh báo SOS" as UC
+  usecase "Nhấn giữ nút SOS 2 giây" as I1
+  usecase "Lấy vị trí GPS\n(Geolocator)" as I2
+  usecase "Ghi âm hiện trường 5 giây" as I3
+  usecase "Gửi SOSAlert\n(multipart + Socket.IO)" as I4
+  usecase "Gửi FCM ưu tiên cao nhất\n+ chuông 30s" as I5
+  usecase "Xem vị trí trên bản đồ\n/ Nghe ghi âm" as I6
+  usecase "Xác nhận đã xem\n(acknowledge)" as I7
+}
+
+TE --> UC
+PH --> I6
+PH --> I7
+UC ..> I1 : <<include>>
+UC ..> I2 : <<include>>
+UC ..> I3 : <<include>>
+UC ..> I4 : <<include>>
+I4 ..> I5 : <<include>>
+I5 --> BE
+I4 --> BE
+
+note bottom of UC
+**Tiền điều kiện:** Thiết bị Child đã bật GPS, đã cấp quyền
+ACCESS_FINE_LOCATION và RECORD_AUDIO.
+**Ngoại lệ:** Không lấy được GPS → gửi vị trí gần nhất từ LocationLog;
+mất Internet → giữ trong queue, retry mỗi 10 giây.
+end note
+@enduml

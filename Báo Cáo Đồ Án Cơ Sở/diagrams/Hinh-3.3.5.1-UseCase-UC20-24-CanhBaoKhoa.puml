@@ -1,0 +1,58 @@
+@startuml
+' Hình 3.3.5.1 - Use Case chi tiết UC-20 + UC-24: Cảnh báo mềm và Khóa thiết bị (USP)
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Hệ thống\n(KidFunService)" as HT
+actor "Trẻ em" as TE
+
+rectangle "UC-20 + UC-24 — Cảnh báo mềm & Khóa thiết bị (USP)" {
+  usecase "UC-23\nGửi cảnh báo mềm" as UC23
+  usecase "UC-24\nKhóa thiết bị" as UC24
+  usecase "UC-20\nNhận cảnh báo mềm" as UC20
+  usecase "Đọc UsageStats\n(usedMinutesToday)" as I1
+  usecase "Tính remainingMinutes" as I2
+  usecase "Phát cảnh báo mốc\n30 / 15 / 5 phút" as I3
+  usecase "Lưu bản ghi Warning" as I4
+  usecase "Khóa màn hình\n(DevicePolicyManager.lockNow)" as I5
+  usecase "Hiển thị Lock Screen\nKiosk Mode" as I6
+  usecase "Xin thêm giờ" as E1
+}
+
+HT --> UC23
+HT --> UC24
+TE --> UC20
+UC23 ..> I1 : <<include>>
+UC23 ..> I2 : <<include>>
+UC23 ..> I3 : <<include>>
+UC23 ..> I4 : <<include>>
+UC24 ..> I5 : <<include>>
+UC24 ..> I6 : <<include>>
+UC20 ..> I3 : <<include>>
+E1 ..> UC20 : <<extend>>
+E1 ..> UC24 : <<extend>>
+
+note bottom of UC24
+**Tiền điều kiện:** Thiết bị đã cấu hình TimeLimit; đã cấp quyền
+UsageStats, Device Admin, Display over other apps.
+**Ngoại lệ:** Mất quyền UsageStats → thông báo thường trú;
+thiết bị tắt nguồn khi đang khóa → BootReceiver khôi phục trạng thái khóa.
+end note
+@enduml

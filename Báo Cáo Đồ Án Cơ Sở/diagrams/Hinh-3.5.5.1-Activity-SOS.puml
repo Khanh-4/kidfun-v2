@@ -1,0 +1,63 @@
+@startuml
+' Hình 3.5.5.1 - Activity Diagram: Kích hoạt SOS
+skinparam dpi 150
+skinparam shadowing false
+skinparam DefaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  DiamondBackgroundColor #FFF3D6
+  DiamondBorderColor #e0a800
+  ArrowColor #5b5fc7
+  StartColor #6366f1
+  EndColor #f472b6
+  BarColor #6366f1
+}
+
+start
+:Trẻ nhấn giữ nút SOS trên Child Dashboard;
+:Hiển thị CircularProgressIndicator quay 360°;
+if (Giữ đủ 2 giây?) then (Buông tay sớm)
+  :Hủy thao tác, không gửi SOS;
+  stop
+else (Đủ 2 giây)
+endif
+if (Đã cấp quyền GPS + Microphone?) then (Chưa)
+  :Yêu cầu quyền runtime;
+  note right
+    Từ chối GPS → vẫn gửi SOS với
+    vị trí gần nhất từ LocationLog.
+    Từ chối Microphone → bỏ qua ghi âm,
+    chỉ gửi vị trí GPS.
+  end note
+else (Đã cấp)
+endif
+fork
+  :Lấy vị trí GPS —
+  getCurrentPosition(high), 2-5 giây;
+fork again
+  :Ghi âm 5 giây bằng record
+  → lưu file .m4a tạm;
+end fork
+:Gửi POST /api/sos (multipart)
++ emit Socket.IO 'sosAlert';
+if (Có kết nối Internet?) then (Mất kết nối)
+  :Đẩy payload vào queue,
+  retry mỗi 10 giây đến khi gửi được;
+else (Có kết nối)
+endif
+:Backend lưu SOSAlert (status = ACTIVE),
+upload audio, gửi FCM ưu tiên cao,
+phát Socket.IO 'sosAlert';
+:Parent nhận cảnh báo — FCM trên màn hình khóa
++ chuông 30s, hoặc popup full-screen khi app mở;
+if (Phụ huynh xử lý thế nào?) then (Nhấn "Đã xem")
+  :PUT /api/sos/:id/acknowledge
+  → status = ACKNOWLEDGED;
+else (Gọi điện trực tiếp)
+  :Kết thúc luồng ngoài ứng dụng;
+endif
+:Trẻ thấy thông báo
+"Phụ huynh đã nhận được cảnh báo";
+stop
+@enduml

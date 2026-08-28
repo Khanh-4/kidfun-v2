@@ -1,0 +1,46 @@
+@startuml
+' Hình 3.4.1.1 - Sequence Diagram: Đăng nhập và khởi tạo phiên làm việc
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam DefaultFontName "DejaVu Sans"
+skinparam sequenceMessageAlign center
+skinparam sequence {
+  ArrowColor #5b5fc7
+  LifeLineBorderColor #b9bdf0
+  ParticipantBackgroundColor #EEF0FF
+  ParticipantBorderColor #6366f1
+  ActorBackgroundColor #FDE7F1
+  ActorBorderColor #f472b6
+}
+
+actor "Người dùng" as U
+participant "Flutter UI\n(Login Screen)" as UI
+participant "Dio\nHTTP Client" as DIO
+participant "Backend\n(authController)" as BE
+database "PostgreSQL" as DB
+participant "flutter_\nsecure_storage" as SS
+participant "Socket.IO\nServer" as SIO
+
+U -> UI : Nhập email + mật khẩu
+UI -> DIO : login(email, password)
+DIO -> BE : POST /api/auth/login
+BE -> DB : prisma.user.findUnique({ email })
+DB --> BE : User record
+alt Mật khẩu đúng (bcrypt.compare)
+  BE -> BE : jsonwebtoken.sign({userId, email}, 24h)
+  BE --> DIO : 200 OK { token, user }
+  DIO --> UI : Đăng nhập thành công
+  UI -> SS : Lưu JWT token (Android Keystore)
+  UI -> SIO : connect(auth: { token })
+  SIO -> SIO : Xác thực JWT → join('family_{userId}')
+  SIO --> UI : connected
+  UI -> BE : POST /api/fcm-tokens (đăng ký FCM)
+  BE --> UI : 200 OK
+  UI -> U : Điều hướng vào Dashboard (Parent/Child)
+else Sai thông tin hoặc lỗi mạng
+  BE --> DIO : 401 Unauthorized / 429 Too Many Requests
+  DIO --> UI : Lỗi đăng nhập
+  UI -> U : Hiển thị "Email hoặc mật khẩu không đúng"
+end
+@enduml

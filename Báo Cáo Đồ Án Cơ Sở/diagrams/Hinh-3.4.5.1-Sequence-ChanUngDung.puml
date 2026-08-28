@@ -1,0 +1,43 @@
+@startuml
+' Hình 3.4.5.1 - Sequence Diagram: Phát hiện và chặn ứng dụng (Android Native)
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam DefaultFontName "DejaVu Sans"
+skinparam sequenceMessageAlign center
+skinparam sequence {
+  ArrowColor #5b5fc7
+  LifeLineBorderColor #b9bdf0
+  ParticipantBackgroundColor #EEF0FF
+  ParticipantBorderColor #6366f1
+  ActorBackgroundColor #FDE7F1
+  ActorBorderColor #f472b6
+}
+
+actor "Phụ huynh" as PH
+participant "App Parent" as PUI
+participant "Backend API" as BE
+participant "App Child\n(Flutter)" as CUI
+participant "AppBlocker\nService (Kotlin)" as ABS
+participant "Android\nSystem" as OS
+actor "Trẻ em" as TE
+
+PH -> PUI : Bật Switch chặn ứng dụng (vd: TikTok)
+PUI -> BE : POST /api/blocked-apps { profileId, packageName }
+BE -> BE : Insert BlockedApp
+BE -> CUI : Socket.IO 'blockedAppsUpdated'
+CUI -> ABS : MethodChannel updateBlockedList(newList)
+ABS -> ABS : Ghi danh sách vào SharedPreferences
+... Trẻ em mở ứng dụng bị chặn ...
+TE -> OS : Chạm icon TikTok trên Home Screen
+OS -> ABS : AccessibilityEvent TYPE_WINDOW_STATE_CHANGED
+ABS -> ABS : Kiểm tra packageName thuộc blockedSet ?
+alt packageName bị chặn
+  ABS -> OS : showBlockedToast("Ứng dụng đã bị phụ huynh chặn")
+  ABS -> OS : performGlobalAction(GLOBAL_ACTION_HOME)
+  OS -> TE : Đưa trẻ về Home Screen (< 500ms)
+  ABS -> BE : POST /api/blocked-attempts (ghi log cho báo cáo)
+else Không bị chặn
+  ABS -> ABS : Cho phép ứng dụng chạy bình thường
+end
+@enduml

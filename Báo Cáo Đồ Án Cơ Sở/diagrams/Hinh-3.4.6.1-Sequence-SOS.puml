@@ -1,0 +1,48 @@
+@startuml
+' Hình 3.4.6.1 - Sequence Diagram: Cảnh báo SOS khẩn cấp
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam DefaultFontName "DejaVu Sans"
+skinparam sequenceMessageAlign center
+skinparam sequence {
+  ArrowColor #5b5fc7
+  LifeLineBorderColor #b9bdf0
+  ParticipantBackgroundColor #EEF0FF
+  ParticipantBorderColor #6366f1
+  ActorBackgroundColor #FDE7F1
+  ActorBorderColor #f472b6
+}
+
+actor "Trẻ em" as TE
+participant "App Child" as CUI
+participant "Geolocator\n(GPS)" as GEO
+participant "Record\n(ghi âm)" as REC
+participant "Backend API" as BE
+participant "FCM Admin" as FCM
+participant "App Parent" as PUI
+actor "Phụ huynh" as PH
+
+TE -> CUI : Nhấn giữ nút SOS 2 giây
+CUI -> CUI : CircularProgressIndicator hoàn thành 360°
+par Thu thập dữ liệu khẩn cấp
+  CUI -> GEO : getCurrentPosition(LocationAccuracy.high)
+  GEO --> CUI : { latitude, longitude }
+also
+  CUI -> REC : Ghi âm 5 giây → file .m4a tạm
+  REC --> CUI : audio file
+end
+par Gửi cảnh báo
+  CUI -> BE : POST /api/sos (multipart: GPS + audio)
+also
+  CUI -> BE : socket.emit('sosAlert')
+end
+BE -> BE : Lưu SOSAlert (status = ACTIVE) + lưu file audio
+BE -> FCM : sendCritical(priority: high, sound: sos_alarm)
+FCM -> PUI : Push ưu tiên cao nhất + chuông kéo dài 30s
+BE -> PUI : Socket.IO 'sosAlert' (room family_{userId})
+PUI -> PH : Popup full-screen: địa chỉ + bản đồ + nút "Nghe ghi âm"
+PH -> PUI : Nhấn "Đã xem"
+PUI -> BE : PUT /api/sos/:id/acknowledge
+BE --> PUI : status = ACKNOWLEDGED
+@enduml

@@ -1,0 +1,54 @@
+@startuml
+' Hình 3.5.1.1 - Activity Diagram: Liên kết thiết bị Child với hồ sơ qua QR
+skinparam dpi 150
+skinparam shadowing false
+skinparam DefaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  DiamondBackgroundColor #FFF3D6
+  DiamondBorderColor #e0a800
+  ArrowColor #5b5fc7
+  StartColor #6366f1
+  EndColor #f472b6
+  BarColor #6366f1
+}
+
+start
+:Phụ huynh chọn hồ sơ con,
+nhấn "Thêm thiết bị";
+repeat
+  :Backend sinh pairingCode
+  (8 ký tự, hết hạn 10 phút);
+  :App Parent hiển thị QR fullscreen
+  + đồng hồ đếm ngược 10 phút;
+repeat while (Trẻ quét mã kịp thời hạn?) is (Hết hạn → tạo lại) not (Quét được)
+->Quét được;
+:App Child mở chức năng "Quét QR";
+if (Đã cấp quyền Camera?) then (Chưa)
+  :Yêu cầu quyền CAMERA;
+  if (Trẻ đồng ý cấp quyền?) then (Từ chối)
+    :Hướng dẫn vào Settings cấp quyền;
+    stop
+  else (Đồng ý)
+  endif
+else (Đã có)
+endif
+:Mở camera, quét và giải mã QR
+→ {pairingCode, profileId, serverUrl};
+:Gửi POST /api/devices/pairing/complete;
+if (Backend xác thực pairingCode?) then (Hết hạn / đã dùng)
+  :Trả 410 Gone / 409 Conflict,
+  App Child hiển thị thông báo lỗi;
+  stop
+else (Hợp lệ)
+  :Tạo Device, ký và trả deviceJwt;
+endif
+:App Child lưu deviceJwt,
+khởi động KidFunService (Foreground Service);
+:Backend phát Socket.IO 'deviceLinked'
+→ App Parent đóng dialog QR;
+:Thiết bị Child hiển thị "Online",
+sẵn sàng được giám sát;
+stop
+@enduml

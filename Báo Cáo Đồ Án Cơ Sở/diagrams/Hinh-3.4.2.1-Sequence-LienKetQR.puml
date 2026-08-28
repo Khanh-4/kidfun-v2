@@ -1,0 +1,47 @@
+@startuml
+' Hình 3.4.2.1 - Sequence Diagram: Liên kết thiết bị qua QR Code
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam DefaultFontName "DejaVu Sans"
+skinparam sequenceMessageAlign center
+skinparam sequence {
+  ArrowColor #5b5fc7
+  LifeLineBorderColor #b9bdf0
+  ParticipantBackgroundColor #EEF0FF
+  ParticipantBorderColor #6366f1
+  ActorBackgroundColor #FDE7F1
+  ActorBorderColor #f472b6
+}
+
+actor "Phụ huynh" as PH
+participant "App Parent" as PUI
+participant "Backend API" as BE
+database "PostgreSQL" as DB
+participant "App Child" as CUI
+participant "Camera\n(mobile_scanner)" as CAM
+participant "KidFunService\n(Kotlin)" as KS
+actor "Trẻ em" as TE
+
+PH -> PUI : Nhấn "Thêm thiết bị"
+PUI -> BE : POST /api/devices/pairing/generate { profileId }
+BE -> DB : Lưu Device.pairingCode (8 ký tự, hạn 10 phút)
+BE --> PUI : { pairingCode, qrPayload }
+PUI -> PUI : Render mã QR fullscreen (qr_flutter)
+... Trẻ em quét mã trong thời hạn 10 phút ...
+TE -> CUI : Chọn "Quét mã QR"
+CUI -> CAM : Mở camera
+CAM --> CUI : Decode QR → { pairingCode, profileId, serverUrl }
+CUI -> BE : POST /api/devices/pairing/complete\n{ pairingCode, deviceName, osVersion }
+alt pairingCode hợp lệ & còn hạn
+  BE -> DB : prisma.device.create({ profileId, userId })
+  BE --> CUI : { deviceCode, deviceJwt }
+  CUI -> KS : MethodChannel → khởi động KidFunService
+  KS --> CUI : Foreground Service đang chạy
+  BE -> PUI : Socket.IO 'deviceLinked'
+  PUI -> PH : Đóng dialog QR, thiết bị mới hiển thị "Online"
+else Mã hết hạn / đã sử dụng
+  BE --> CUI : 410 Gone / 409 Conflict
+  CUI -> TE : "Mã đã hết hạn, yêu cầu phụ huynh tạo mã mới"
+end
+@enduml
