@@ -1,0 +1,55 @@
+@startuml
+' Hình 3.3.2.1 - Use Case chi tiết UC-06 + UC-07: Liên kết thiết bị qua QR Code
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Phụ huynh" as PH
+actor "Trẻ em" as TE
+actor "Backend API" as BE
+
+rectangle "UC-06 + UC-07 — Liên kết thiết bị qua QR Code" {
+  usecase "UC-06\nTạo mã QR liên kết" as UC6
+  usecase "UC-07\nQuét QR liên kết thiết bị" as UC7
+  usecase "Sinh pairingCode\n(8 ký tự, hết hạn 10 phút)" as I1
+  usecase "Hiển thị QR fullscreen\n+ đếm ngược" as I2
+  usecase "Cấp quyền Camera" as I3
+  usecase "Xác thực pairingCode\n+ tạo Device" as I4
+  usecase "Khởi động KidFunService" as I5
+  usecase "Thông báo deviceLinked\n(Socket.IO)" as I6
+}
+
+PH --> UC6
+TE --> UC7
+UC6 ..> I1 : <<include>>
+UC6 ..> I2 : <<include>>
+UC7 ..> I3 : <<include>>
+UC7 ..> I4 : <<include>>
+UC7 ..> I5 : <<include>>
+UC7 ..> I6 : <<include>>
+I1 --> BE
+I4 --> BE
+I6 --> BE
+
+note bottom of UC7
+**Tiền điều kiện:** Phụ huynh đã có hồ sơ con; cả hai thiết bị có Internet.
+**Ngoại lệ:** Từ chối quyền Camera → hướng dẫn vào Settings;
+mã hết hạn → 410 Gone; mã đã dùng → 409 Conflict.
+end note
+@enduml

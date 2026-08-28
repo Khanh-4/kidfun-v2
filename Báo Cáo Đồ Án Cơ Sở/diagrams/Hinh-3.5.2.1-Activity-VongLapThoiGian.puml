@@ -1,0 +1,69 @@
+@startuml
+' Hình 3.5.2.1 - Activity Diagram: Vòng lặp kiểm soát thời gian (KidFunService) - CORE
+skinparam dpi 150
+skinparam shadowing false
+skinparam DefaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  DiamondBackgroundColor #FFF3D6
+  DiamondBorderColor #e0a800
+  ArrowColor #5b5fc7
+  StartColor #6366f1
+  EndColor #f472b6
+  BarColor #6366f1
+}
+
+start
+:KidFunService khởi động
+(sau khi liên kết thiết bị hoặc
+qua BootReceiver sau khi reboot);
+if (Có hồ sơ và TimeLimit?) then (Không)
+  :Service ở trạng thái idle,
+  kiểm tra lại sau 60 giây;
+  stop
+else (Có)
+endif
+:Xác định dayOfWeek hiện tại,
+lấy TimeLimit của ngày đó;
+if (TimeLimit active?) then (Không active)
+  :Hiển thị "Hôm nay không giới hạn",
+  ngủ 1 giờ rồi kiểm tra lại;
+  stop
+else (Active)
+endif
+repeat
+  :Đọc UsageStatsManager → usedMinutes;
+  note right
+    Reset hằng ngày lúc 00:00:
+    AppLimitChecker.reset() đặt usedMinutes = 0,
+    bonusMinutes = 0, isLocked = false.
+  end note
+  :remainingMinutes =
+  dailyLimitMinutes + bonusMinutes − usedMinutes;
+  :Emit remainingMinutes về Flutter UI
+  (EventChannel — cập nhật đồng hồ đếm ngược);
+  switch (remainingMinutes đạt mốc nào?)
+  case ( > 30 phút )
+    :Tiếp tục đếm, chưa cảnh báo;
+  case ( = 30 phút )
+    :Soft Warning 30 — Notification
+    + Vibrate + Ringtone + AlertDialog,
+    lưu Warning(SOFT_30);
+  case ( = 15 phút )
+    :Soft Warning 15 (mức cao hơn),
+    lưu Warning(SOFT_15);
+  case ( = 5 phút )
+    :Soft Warning 5 (mức tối đa,
+    popup không tắt được bằng Back),
+    lưu Warning(SOFT_5);
+  case ( <= 0 phút )
+    :Kích hoạt Lock Screen —
+    DevicePolicyManager.lockNow(),
+    isLocked = true, AppBlockerService
+    chặn mọi app, Flutter hiển thị
+    Lock Screen UI (immersive sticky);
+  endswitch
+repeat while (Service còn chạy?) is (Có — chờ 30 giây) not (Service dừng)
+stop
+@enduml

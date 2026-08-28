@@ -1,0 +1,44 @@
+@startuml
+' Hình 3.4.3.1 - Sequence Diagram: Cảnh báo mềm và Khóa thiết bị (USP)
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam DefaultFontName "DejaVu Sans"
+skinparam sequenceMessageAlign center
+skinparam sequence {
+  ArrowColor #5b5fc7
+  LifeLineBorderColor #b9bdf0
+  ParticipantBackgroundColor #EEF0FF
+  ParticipantBorderColor #6366f1
+  ActorBackgroundColor #FDE7F1
+  ActorBorderColor #f472b6
+}
+
+participant "KidFunService\n(Kotlin)" as KS
+participant "UsageStats\nManager" as USM
+participant "Flutter UI" as UI
+participant "DevicePolicy\nManager" as DPM
+participant "AppBlocker\nService" as ABS
+participant "Backend API" as BE
+
+loop Vòng lặp 30 giây / lần
+  KS -> USM : queryUsageStats(INTERVAL_DAILY, midnight, now)
+  USM --> KS : usedMinutes
+  KS -> KS : remainingMinutes = limit + bonus - used
+  KS -> UI : EventChannel 'usage_stats' (cập nhật đồng hồ đếm ngược)
+  alt remainingMinutes chạm mốc 30 / 15 / 5 phút
+    KS -> KS : Notification + Vibrator + Ringtone (mức tăng dần)
+    KS -> UI : MethodChannel → AlertDialog "Còn N phút!"
+    KS -> BE : POST /api/warnings (SOFT_30 | SOFT_15 | SOFT_5)
+  else remainingMinutes <= 0
+    KS -> DPM : lockNow() — khóa màn hình hệ thống
+    KS -> KS : SharedPreferences.isLocked = true
+    KS -> ABS : Chặn mọi ứng dụng khác KidFun
+    KS -> UI : Route → Lock Screen UI (immersive sticky)
+    KS -> BE : POST /api/warnings (LOCK)
+  else remainingMinutes > 30
+    KS -> KS : Tiếp tục đếm, chưa cảnh báo
+  end
+end
+note over KS : Lúc 00:00 — AppLimitChecker.reset()\nđặt usedMinutes = 0, bonusMinutes = 0, isLocked = false
+@enduml

@@ -1,0 +1,53 @@
+@startuml
+' Hình 3.3.6.1 - Use Case chi tiết UC-21 + UC-12: Yêu cầu thêm giờ real-time (USP)
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Trẻ em" as TE
+actor "Phụ huynh" as PH
+actor "Hệ thống\n(Socket.IO / FCM)" as SV
+
+rectangle "UC-21 + UC-12 — Yêu cầu thêm giờ real-time (USP)" {
+  usecase "UC-21\nGửi yêu cầu thêm giờ" as UC21
+  usecase "UC-12\nXử lý yêu cầu thêm giờ" as UC12
+  usecase "Nhập lý do + chọn số phút\n(5/15/30/60)" as I1
+  usecase "Gửi yêu cầu\n(REST + Socket.IO)" as I2
+  usecase "Thông báo phụ huynh\n(Socket online / FCM offline)" as I3
+  usecase "Duyệt / Từ chối\n+ điều chỉnh số phút" as I4
+  usecase "Cộng bonusMinutes\n/ Mở khóa thiết bị" as I5
+}
+
+TE --> UC21
+PH --> UC12
+UC21 ..> I1 : <<include>>
+UC21 ..> I2 : <<include>>
+UC21 ..> I3 : <<include>>
+UC12 ..> I4 : <<include>>
+UC12 ..> I5 : <<include>>
+I3 --> SV
+I5 --> SV
+
+note bottom of UC21
+**Tiền điều kiện:** Cả hai thiết bị có Internet; thiết bị Child đang ở
+Lock Screen hoặc còn cảnh báo mềm.
+**Ngoại lệ:** Phụ huynh không phản hồi trong 30 phút → trạng thái EXPIRED;
+dùng quá bonusMinutes → quay lại vòng lặp cảnh báo + khóa.
+end note
+@enduml

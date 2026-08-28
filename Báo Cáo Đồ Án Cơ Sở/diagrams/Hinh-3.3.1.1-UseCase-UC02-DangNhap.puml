@@ -1,0 +1,55 @@
+@startuml
+' Hình 3.3.1.1 - Use Case chi tiết UC-02: Đăng nhập hệ thống
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Phụ huynh" as PH
+actor "Trẻ em" as TE
+actor "Google Identity" as GG
+actor "Backend API" as BE
+
+rectangle "UC-02 — Đăng nhập hệ thống" {
+  usecase "Đăng nhập\n(email + mật khẩu)" as UC
+  usecase "Xác thực mật khẩu\n(bcrypt.compare)" as I1
+  usecase "Cấp JWT token\n(hết hạn 24h)" as I2
+  usecase "Đăng ký FCM token" as I3
+  usecase "Đăng nhập bằng Google\n(idToken)" as E1
+  usecase "Khôi phục mật khẩu\n(OTP qua email)" as E2
+}
+
+PH --> UC
+TE --> UC
+UC ..> I1 : <<include>>
+UC ..> I2 : <<include>>
+UC ..> I3 : <<include>>
+E1 ..> UC : <<extend>>
+E2 ..> UC : <<extend>>
+I1 --> BE
+I2 --> BE
+I3 --> BE
+E1 --> GG
+
+note bottom of UC
+**Tiền điều kiện:** App đã cài đặt; người dùng đã có tài khoản.
+**Kết quả:** Nhận JWT token, điều hướng vào Dashboard tương ứng.
+**Ngoại lệ:** Sai email/mật khẩu → 401; > 5 lần sai/phút → 429;
+mất kết nối mạng → hiển thị thông báo lỗi.
+end note
+@enduml

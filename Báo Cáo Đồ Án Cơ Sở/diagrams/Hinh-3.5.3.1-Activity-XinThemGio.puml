@@ -1,0 +1,64 @@
+@startuml
+' Hình 3.5.3.1 - Activity Diagram: Xử lý yêu cầu thêm giờ end-to-end (USP)
+skinparam dpi 150
+skinparam shadowing false
+skinparam DefaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  DiamondBackgroundColor #FFF3D6
+  DiamondBorderColor #e0a800
+  ArrowColor #5b5fc7
+  StartColor #6366f1
+  EndColor #f472b6
+  BarColor #6366f1
+}
+
+start
+:(Trẻ) Ở màn hình cảnh báo hoặc Lock Screen,
+nhấn "Xin thêm giờ";
+:Hiển thị Form — TextField lý do
++ Slider số phút (5 / 15 / 30 / 60);
+if (Lý do >= 10 ký tự?) then (Không hợp lệ)
+  :Hiển thị lỗi inline, không gửi;
+  stop
+else (Hợp lệ)
+endif
+:Child gửi HTTP + emit Socket.IO đồng thời;
+:Backend lưu TimeExtensionRequest (PENDING);
+if (Parent có Socket online?) then (Online)
+  :Emit 'timeExtensionRequest' đến Parent;
+else (Offline)
+  :Gửi FCM push notification
+  với 2 nút hành động;
+endif
+:Parent nhận thông báo (popup trong app
+hoặc FCM trên thanh thông báo);
+if (Parent phản hồi trong 30 phút?) then (Không)
+  :Backend đặt status = EXPIRED,
+  Child nhận "Phụ huynh chưa phản hồi";
+  stop
+else (Có phản hồi)
+endif
+if (Quyết định của Parent?) then (Từ chối)
+  :status = REJECTED, emit response,
+  Child hiển thị "Phụ huynh đã từ chối";
+  stop
+else (Đồng ý)
+  :Parent điều chỉnh số phút duyệt,
+  status = APPROVED + responseMinutes;
+endif
+:Child nhận APPROVED → MethodChannel →
+AppLimitChecker.addBonus(responseMinutes);
+if (Đang ở Lock Screen?) then (Có)
+  :unlock() — isLocked = false,
+  dừng AppBlockerService chặn,
+  thoát Lock Screen UI;
+else (Không)
+  :Chỉ cập nhật counter, không mở khóa;
+endif
+:Hiển thị Toast "Phụ huynh cho thêm X phút";
+:Quay lại vòng lặp kiểm soát thời gian
+với bonusMinutes mới;
+stop
+@enduml

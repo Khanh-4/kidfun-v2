@@ -1,0 +1,45 @@
+@startuml
+' Hình 3.5.4.1 - Activity Diagram: Phát hiện và chặn ứng dụng (App Blocking)
+skinparam dpi 150
+skinparam shadowing false
+skinparam DefaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  DiamondBackgroundColor #FFF3D6
+  DiamondBorderColor #e0a800
+  ArrowColor #5b5fc7
+  StartColor #6366f1
+  EndColor #f472b6
+  BarColor #6366f1
+}
+
+start
+:AppBlockerService (AccessibilityService)
+đã được cấp quyền và đang chạy;
+repeat
+  :Nhận AccessibilityEvent
+  TYPE_WINDOW_STATE_CHANGED;
+  :Lấy event.packageName (app trẻ vừa mở)
+  + blockedSet từ SharedPreferences;
+  if (packageName thuộc blockedSet?) then (Có)
+    :showBlockedToast(appName)
+    — hiển thị Toast 2 giây;
+    :performGlobalAction(GLOBAL_ACTION_HOME)
+    — đưa trẻ về Home Screen (< 500ms);
+    :POST /api/blocked-attempts
+    — ghi log cho báo cáo của Parent;
+  else (Không)
+    :Cho phép ứng dụng chạy bình thường;
+  endif
+repeat while (Service còn chạy?) is (Có — chờ sự kiện kế tiếp) not (Service dừng)
+stop
+
+note right
+  Khi Backend phát Socket.IO 'blockedAppsUpdated',
+  Flutter forward qua MethodChannel →
+  AppBlockerService.updateBlockedSet(newList)
+  ghi đè SharedPreferences, áp dụng ngay
+  cho lần kiểm tra kế tiếp.
+end note
+@enduml

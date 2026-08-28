@@ -1,0 +1,50 @@
+@startuml
+' Hình 3.4.4.1 - Sequence Diagram: Yêu cầu thêm giờ real-time end-to-end (USP)
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam DefaultFontName "DejaVu Sans"
+skinparam sequenceMessageAlign center
+skinparam sequence {
+  ArrowColor #5b5fc7
+  LifeLineBorderColor #b9bdf0
+  ParticipantBackgroundColor #EEF0FF
+  ParticipantBorderColor #6366f1
+  ActorBackgroundColor #FDE7F1
+  ActorBorderColor #f472b6
+}
+
+actor "Trẻ em" as TE
+participant "App Child" as CUI
+participant "Backend\n(Socket + REST)" as BE
+participant "FCM Admin" as FCM
+participant "App Parent" as PUI
+actor "Phụ huynh" as PH
+participant "KidFunService\n(Kotlin)" as KS
+
+TE -> CUI : Nhập lý do + chọn số phút (5/15/30/60)
+par Gửi yêu cầu đồng thời
+  CUI -> BE : POST /api/extension-requests
+also
+  CUI -> BE : socket.emit('requestTimeExtension')
+end
+BE -> BE : Lưu TimeExtensionRequest (status = PENDING)
+alt Phụ huynh đang online
+  BE -> PUI : socket.emit('timeExtensionRequest')
+else Phụ huynh offline
+  BE -> FCM : sendNotification(actions: APPROVE / REJECT)
+  FCM -> PUI : Push notification (2 nút hành động)
+end
+PUI -> PH : Hiển thị yêu cầu (tên con, lý do, số phút)
+PH -> PUI : Đồng ý (điều chỉnh số phút) hoặc Từ chối
+PUI -> BE : PUT /api/extension-requests/:id/respond
+BE -> BE : Cập nhật status, responseMinutes, respondedAt
+BE -> CUI : socket.emit('timeExtensionResponse')
+alt Kết quả APPROVED
+  CUI -> KS : MethodChannel → addBonus(responseMinutes)
+  KS -> KS : Nếu đang Lock Screen → unlock()
+  CUI -> TE : "Phụ huynh cho thêm X phút, dùng hợp lý nhé!"
+else Kết quả REJECTED / EXPIRED
+  CUI -> TE : "Phụ huynh đã từ chối / chưa phản hồi yêu cầu"
+end
+@enduml

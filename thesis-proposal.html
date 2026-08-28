@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đề Xuất Đề Tài Đồ Án Chuyên Ngành — KidFun V2</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap');
+
+    :root {
+      --primary: #1e3a8a;
+      --primary-light: #3b82f6;
+      --accent: #f59e0b;
+      --accent2: #10b981;
+      --accent3: #8b5cf6;
+      --accent4: #ef4444;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 11pt;
+    }
+
+    /* ── COVER PAGE ── */
+    .cover {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 40%, #1d4ed8 70%, #2563eb 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 40px;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -100px;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.15);
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      bottom: -80px; left: -80px;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: rgba(245,158,11,0.1);
+    }
+
+    .cover-badge {
+      background: rgba(245,158,11,0.2);
+      border: 1px solid rgba(245,158,11,0.5);
+      color: #fcd34d;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 6px 20px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+    }
+
+    .cover-logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin-bottom: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .cover h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 36pt;
+      font-weight: 800;
+      color: #ffffff;
+      text-align: center;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    }
+
+    .cover-subtitle {
+      font-size: 14pt;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      font-weight: 400;
+      margin-bottom: 50px;
+      max-width: 600px;
+    }
+
+    .cover-divider {
+      width: 80px; height: 3px;
+      background: linear-gradient(90deg, #f59e0b, #ef4444);
+      border-radius: 2px;
+      margin: 0 auto 40px;
+    }
+
+    .cover-meta {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .cover-meta-item {
+      text-align: center;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .cover-meta-item .label {
+      font-size: 8pt;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .cover-meta-item .value {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .cover-ideas-count {
+      position: absolute;
+      top: 40px; right: 50px;
+      text-align: right;
+      color: rgba(255,255,255,0.4);
+      font-size: 9pt;
+    }
+
+    /* ── OVERVIEW PAGE ── */
+    .page {
+      padding: 50px 60px;
+      page-break-after: always;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .page-last {
+      page-break-after: avoid;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 30px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .section-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .section-icon.blue { background: #eff6ff; }
+    .section-icon.amber { background: #fffbeb; }
+    .section-icon.green { background: #f0fdf4; }
+    .section-icon.purple { background: #faf5ff; }
+    .section-icon.red { background: #fef2f2; }
+
+    .section-title {
+      font-size: 20pt;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .section-sub {
+      font-size: 10pt;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    /* ── PROJECT OVERVIEW ── */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .overview-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .overview-card-title {
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 10px;
+    }
+
+    .feature-tag {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 9pt;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin: 3px 2px;
+      border: 1px solid #bfdbfe;
+    }
+
+    .tech-tag {
+      display: inline-block;
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 9pt;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin: 3px 2px;
+      border: 1px solid #bbf7d0;
+    }
+
+    .data-tag {
+      display: inline-block;
+      background: #faf5ff;
+      color: #6b21a8;
+      font-size: 9pt;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin: 3px 2px;
+      border: 1px solid #e9d5ff;
+    }
+
+    /* ── THESIS CARD ── */
+    .thesis-cover {
+      min-height: 100vh;
+      padding: 60px;
+      page-break-after: always;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .thesis-number {
+      font-size: 80pt;
+      font-weight: 900;
+      line-height: 1;
+      opacity: 0.06;
+      position: absolute;
+      top: 40px; right: 50px;
+      font-family: 'Playfair Display', serif;
+    }
+
+    .thesis-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+      width: fit-content;
+    }
+
+    .thesis-h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26pt;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 12px;
+    }
+
+    .thesis-tagline {
+      font-size: 13pt;
+      font-weight: 400;
+      color: var(--text-light);
+      margin-bottom: 32px;
+      font-style: italic;
+    }
+
+    .thesis-divider {
+      height: 3px;
+      border-radius: 2px;
+      margin-bottom: 32px;
+      width: 60px;
+    }
+
+    .kpi-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .kpi-box {
+      flex: 1;
+      min-width: 140px;
+      border-radius: 12px;
+      padding: 16px 20px;
+      border: 1px solid;
+      text-align: center;
+    }
+
+    .kpi-label {
+      font-size: 8pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      opacity: 0.6;
+    }
+
+    .kpi-stars {
+      font-size: 14pt;
+    }
+
+    .kpi-text {
+      font-size: 11pt;
+      font-weight: 700;
+    }
+
+    .section-block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .section-block-title {
+      font-size: 11pt;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-block-title .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .module-item {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      border-left: 3px solid;
+    }
+
+    .module-item:last-child { margin-bottom: 0; }
+
+    .module-title {
+      font-size: 11pt;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .module-desc {
+      font-size: 10pt;
+      color: var(--text-light);
+      line-height: 1.6;
+    }
+
+    .module-tech {
+      margin-top: 8px;
+    }
+
+    .tag-small {
+      display: inline-block;
+      font-size: 8pt;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin: 2px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .novelty-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+
+    .novelty-dot {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9pt;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .novelty-text {
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+
+    .data-model-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+      margin-top: 10px;
+    }
+
+    .data-model-table th {
+      background: #f1f5f9;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 9pt;
+      letter-spacing: 0.5px;
+    }
+
+    .data-model-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .data-model-table tr:last-child td { border-bottom: none; }
+
+    /* ── COMPARISON TABLE ── */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+
+    .compare-table th {
+      padding: 12px 16px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 10pt;
+    }
+
+    .compare-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .compare-table tr:first-child th:first-child { text-align: left; }
+    .compare-table td:first-child { text-align: left; font-weight: 600; }
+
+    .compare-table th:nth-child(2) { background: #fef3c7; color: #92400e; }
+    .compare-table td:nth-child(2) { background: #fffbeb; }
+    .compare-table tr:nth-child(even) td { background: #f9f9f9; }
+    .compare-table tr:nth-child(even) td:nth-child(2) { background: #fdf6e3; }
+
+    .star-cell { color: #f59e0b; letter-spacing: -1px; }
+
+    /* ── RECOMMENDATION ── */
+    .recommend-card {
+      background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+      border-radius: 16px;
+      padding: 30px;
+      color: white;
+      margin-bottom: 20px;
+    }
+
+    .recommend-card h3 {
+      font-size: 15pt;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .recommend-card p {
+      font-size: 11pt;
+      opacity: 0.85;
+      line-height: 1.7;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+
+    .timeline-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10pt;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .timeline-content { flex: 1; }
+    .timeline-title { font-weight: 700; font-size: 11pt; margin-bottom: 3px; }
+    .timeline-desc { font-size: 10pt; color: var(--text-light); }
+
+    /* ── FOOTER ── */
+    .footer {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9pt;
+      color: var(--text-light);
+    }
+
+    /* ── COLOR THEMES ── */
+    .theme-blue   { --th: #1d4ed8; --th-light: #eff6ff; --th-border: #bfdbfe; --th-text: #1e40af; }
+    .theme-amber  { --th: #d97706; --th-light: #fffbeb; --th-border: #fde68a; --th-text: #92400e; }
+    .theme-green  { --th: #059669; --th-light: #f0fdf4; --th-border: #a7f3d0; --th-text: #065f46; }
+    .theme-purple { --th: #7c3aed; --th-light: #faf5ff; --th-border: #ddd6fe; --th-text: #5b21b6; }
+
+    @media print {
+      body { background: white; }
+      .page { page-break-after: always; padding: 40px 50px; }
+      .thesis-cover { page-break-after: always; }
+      .cover { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════ COVER ═══ -->
+<div class="cover">
+  <div class="cover-ideas-count">4 Đề Tài Đề Xuất<br/>Đồ Án Chuyên Ngành</div>
+
+  <div class="cover-badge">🎓 Đại học Công nghệ TP.HCM — HUTECH</div>
+
+  <div class="cover-logo">🧒</div>
+
+  <h1>Đề Xuất Hướng<br/>Đồ Án Chuyên Ngành</h1>
+
+  <p class="cover-subtitle">
+    Phát triển từ nền tảng KidFun V2 — Hệ thống kiểm soát thời gian sử dụng thiết bị thông minh cho trẻ em
+  </p>
+
+  <div class="cover-divider"></div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <div class="label">Dự án nền tảng</div>
+      <div class="value">KidFun V2.0</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Nhóm</div>
+      <div class="value">Nhóm 60</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Số đề tài đề xuất</div>
+      <div class="value">4 Hướng</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Học kỳ</div>
+      <div class="value">Đồ án chuyên ngành</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OVERVIEW ═══ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon blue">📋</div>
+    <div>
+      <div class="section-title">Tổng Quan Project Nền Tảng</div>
+      <div class="section-sub">KidFun V2 — Smart Parental Control System</div>
+    </div>
+  </div>
+
+  <p style="font-size:11pt; line-height:1.8; margin-bottom:24px; color:#374151;">
+    <strong>KidFun V2</strong> là hệ thống kiểm soát thời gian sử dụng thiết bị thông minh dành cho trẻ em, giúp phụ huynh
+    quản lý và giám sát toàn diện hoạt động số của con em. Hệ thống đã được phát triển đến Sprint 9 với kiến trúc
+    đa nền tảng bao gồm Backend API, Parent Dashboard (Electron/React), Child Monitor (Electron/React), và
+    Mobile App (Flutter). Đây là nền tảng kỹ thuật vững chắc để phát triển lên đồ án chuyên ngành.
+  </p>
+
+  <div class="overview-grid">
+    <div class="overview-card">
+      <div class="overview-card-title">🏗️ Kiến trúc hệ thống</div>
+      <div style="font-size:10pt; color:#374151; line-height:1.7;">
+        <strong>Backend:</strong> Node.js + Express + Prisma ORM + PostgreSQL + Socket.IO<br/>
+        <strong>Desktop:</strong> Electron + React 19 + Material UI v7<br/>
+        <strong>Mobile:</strong> Flutter + Riverpod + Firebase<br/>
+        <strong>AI:</strong> Groq API + OpenRouter (Llama 4)
+      </div>
+    </div>
+    <div class="overview-card">
+      <div class="overview-card-title">📊 Các tính năng đã có</div>
+      <div>
+        <span class="feature-tag">Quản lý thời gian</span>
+        <span class="feature-tag">Chặn website/app</span>
+        <span class="feature-tag">YouTube monitoring</span>
+        <span class="feature-tag">AI content analysis</span>
+        <span class="feature-tag">GPS & Geofencing</span>
+        <span class="feature-tag">SOS Alert</span>
+        <span class="feature-tag">School Mode</span>
+        <span class="feature-tag">Real-time Socket.IO</span>
+        <span class="feature-tag">FCM Notifications</span>
+        <span class="feature-tag">Báo cáo thống kê</span>
+      </div>
+    </div>
+    <div class="overview-card">
+      <div class="overview-card-title">🗄️ Dữ liệu hành vi có sẵn (Database Models)</div>
+      <div>
+        <span class="data-tag">AppUsageLog</span>
+        <span class="data-tag">UsageSession</span>
+        <span class="data-tag">YouTubeLog + AIAlert</span>
+        <span class="data-tag">LocationLog</span>
+        <span class="data-tag">GeofenceEvent</span>
+        <span class="data-tag">ReportSnapshot</span>
+        <span class="data-tag">TimeExtensionRequest</span>
+        <span class="data-tag">SOSAlert</span>
+        <span class="data-tag">Warning</span>
+      </div>
+    </div>
+    <div class="overview-card">
+      <div class="overview-card-title">🛠️ Tech Stack</div>
+      <div>
+        <span class="tech-tag">Node.js / Express</span>
+        <span class="tech-tag">PostgreSQL</span>
+        <span class="tech-tag">React 19</span>
+        <span class="tech-tag">Flutter</span>
+        <span class="tech-tag">Socket.IO</span>
+        <span class="tech-tag">Firebase / FCM</span>
+        <span class="tech-tag">Groq AI</span>
+        <span class="tech-tag">Electron</span>
+        <span class="tech-tag">Mapbox</span>
+        <span class="tech-tag">Prisma ORM</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-block" style="background:#f0fdf4; border-color:#a7f3d0;">
+    <div class="section-block-title" style="color:#065f46;">
+      <div class="dot" style="background:#059669;"></div>
+      Điểm mạnh làm nền tảng cho đồ án chuyên ngành
+    </div>
+    <div style="font-size:10pt; color:#374151; line-height:1.8;">
+      ✅ &nbsp;<strong>Dữ liệu đa chiều thực tế</strong> — Screen time, Location, Content Safety, SOS, Geofence events<br/>
+      ✅ &nbsp;<strong>AI đã tích hợp sẵn</strong> — aiService.js với Groq + OpenRouter, phân tích nội dung YouTube<br/>
+      ✅ &nbsp;<strong>Cơ sở dữ liệu 25+ models</strong> — phong phú cho Data Mining & Analytics<br/>
+      ✅ &nbsp;<strong>Kiến trúc microservice-ready</strong> — dễ dàng thêm module AI/DW mới<br/>
+      ✅ &nbsp;<strong>Real-world context</strong> — bài toán thực tiễn, có giá trị xã hội rõ ràng
+    </div>
+  </div>
+
+  <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:20px;">
+    <div style="font-weight:700; color:#92400e; margin-bottom:8px;">📌 Định hướng mở rộng</div>
+    <div style="font-size:10pt; color:#78350f; line-height:1.8;">
+      Các đề tài sau <strong>kế thừa toàn bộ hạ tầng KidFun V2</strong> và bổ sung các module chuyên sâu mới.
+      Cách tiếp cận này giúp tiết kiệm thời gian xây dựng nền tảng, tập trung vào nghiên cứu chuyên sâu,
+      và có thể demo sản phẩm thực tế ngay từ đầu.
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Tổng quan hệ thống</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 1 COVER ═══════════════════ -->
+<div class="thesis-cover theme-blue" style="background: linear-gradient(160deg, #eff6ff 0%, #dbeafe 40%, #bfdbfe 100%);">
+  <div class="thesis-number" style="color: #1d4ed8;">01</div>
+
+  <div class="thesis-badge" style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd;">
+    <span>🧠</span> Đề Tài 01 — Hướng AI & Machine Learning
+  </div>
+
+  <div class="thesis-h1" style="color:#1e3a8a;">
+    Hệ thống Phân tích và Dự đoán<br/>Hành vi Sử dụng Thiết bị<br/>của Trẻ em bằng Machine Learning
+  </div>
+
+  <div class="thesis-tagline">
+    "Từ dữ liệu hành vi thực tế → mô hình học máy → cảnh báo thông minh cho phụ huynh"
+  </div>
+
+  <div class="thesis-divider" style="background: linear-gradient(90deg, #1d4ed8, #60a5fa);"></div>
+
+  <div class="kpi-row">
+    <div class="kpi-box" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+      <div class="kpi-label">Học thuật</div>
+      <div class="kpi-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#f0fdf4; border-color:#a7f3d0; color:#065f46;">
+      <div class="kpi-label">Thực tiễn</div>
+      <div class="kpi-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#faf5ff; border-color:#ddd6fe; color:#5b21b6;">
+      <div class="kpi-label">Độ khó</div>
+      <div class="kpi-text">Trung bình</div>
+    </div>
+    <div class="kpi-box" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
+      <div class="kpi-label">Khuyến nghị</div>
+      <div class="kpi-text">⭐ Tốt nhất</div>
+    </div>
+  </div>
+
+  <div class="section-block">
+    <div class="section-block-title">
+      <div class="dot" style="background:#1d4ed8;"></div>
+      Mô Tả Bài Toán
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Hành vi sử dụng thiết bị của trẻ em mang tính <strong>chu kỳ và có pattern rõ ràng</strong>
+      (ngày thường vs cuối tuần, giờ học vs giờ chơi, mùa thi vs nghỉ hè). Hệ thống hiện tại của KidFun V2
+      chỉ phản ứng <em>sau khi</em> trẻ vi phạm giới hạn. Bài toán nghiên cứu đặt ra là:
+      <strong>"Liệu có thể dự đoán trước khi nào trẻ có nguy cơ vi phạm giới hạn và đưa ra cảnh báo thông minh cho phụ huynh?"</strong>
+      Bên cạnh đó, việc phát hiện các hành vi bất thường (anomaly) trong lịch sử sử dụng
+      cũng mang giá trị bảo vệ trẻ em cao.
+    </p>
+  </div>
+
+  <div class="section-block" style="background:#eff6ff; border-color:#93c5fd;">
+    <div class="section-block-title" style="color:#1e40af;">
+      <div class="dot" style="background:#1d4ed8;"></div>
+      💡 Ý Tưởng / Giải Pháp Đề Xuất
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Giải pháp đề xuất là xây dựng một <strong>AI Microservice</strong> viết bằng Python (FastAPI) chạy song song với backend Node.js hiện có của KidFun V2.
+      Microservice này consume dữ liệu hành vi từ PostgreSQL (AppUsageLog, UsageSession, YouTubeLog...), tiền xử lý thành feature vectors,
+      rồi huấn luyện và phục vụ (serve) các model ML theo hai chế độ:
+    </p>
+    <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #bfdbfe;">
+        <div style="font-weight:700; color:#1e40af; font-size:10pt; margin-bottom:6px;">⏱️ Offline Batch (Mỗi đêm)</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Node-cron trigger lúc 00:00 → gọi FastAPI → model dự đoán nguy cơ ngày hôm sau → lưu kết quả vào DB → sáng sớm phụ huynh nhận FCM push notification với insight.
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #bfdbfe;">
+        <div style="font-weight:700; color:#1e40af; font-size:10pt; margin-bottom:6px;">⚡ Online Real-time (Trong phiên)</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Mỗi khi child heartbeat → backend kiểm tra anomaly score → nếu vượt ngưỡng → emit Socket.IO event → phụ huynh nhận cảnh báo ngay tức thì trong app.
+        </div>
+      </div>
+    </div>
+    <p style="font-size:10pt; color:#374151; margin-top:10px; line-height:1.7;">
+      Phụ huynh tương tác với kết quả AI thông qua tab <strong>"AI Insights"</strong> mới trong Parent Dashboard (React), hiển thị prediction chart, anomaly heatmap theo giờ/ngày, và danh sách gợi ý thông minh được cá nhân hóa theo từng profile trẻ.
+    </p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div class="section-block">
+      <div class="section-block-title">
+        <div class="dot" style="background:#1d4ed8;"></div> Dữ liệu đầu vào
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li><code>AppUsageLog</code> — thời gian dùng app theo ngày</li>
+        <li><code>UsageSession</code> — phiên sử dụng</li>
+        <li><code>TimeExtensionRequest</code> — lịch sử xin thêm giờ</li>
+        <li><code>Warning</code> — lịch sử cảnh báo đã gửi</li>
+        <li><code>GeofenceEvent</code> — vị trí trẻ theo thời gian</li>
+        <li>Ngày trong tuần, giờ trong ngày, loại app</li>
+      </ul>
+    </div>
+    <div class="section-block">
+      <div class="section-block-title">
+        <div class="dot" style="background:#059669;"></div> Đầu ra / Kết quả
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li>Dự đoán % khả năng vượt giới hạn ngày mai</li>
+        <li>Phát hiện hành vi bất thường (anomaly score)</li>
+        <li>Phân tích xu hướng tuần/tháng</li>
+        <li>Gợi ý điều chỉnh giới hạn thời gian</li>
+        <li>Dashboard AI insights cho phụ huynh</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 01/04</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 1 DETAIL ═══════════════════ -->
+<div class="page theme-blue">
+  <div class="section-header">
+    <div class="section-icon blue">🔬</div>
+    <div>
+      <div class="section-title" style="color:#1e3a8a;">Đề Tài 01 — Chi Tiết Kỹ Thuật</div>
+      <div class="section-sub">AI Behavior Analysis & Prediction</div>
+    </div>
+  </div>
+
+  <div class="section-block-title" style="font-size:12pt; margin-bottom:14px;">
+    <div class="dot" style="background:#1d4ed8; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px;"></div>
+    Các Module Nghiên Cứu Chính
+  </div>
+
+  <div class="module-item" style="border-color:#1d4ed8;">
+    <div class="module-title">Module 1 — Screen Time Prediction (Dự đoán thời gian sử dụng)</div>
+    <div class="module-desc">
+      Xây dựng mô hình dự đoán thời gian sử dụng thiết bị cho ngày hôm sau dựa trên lịch sử 30-90 ngày.
+      Áp dụng phương pháp time series forecasting. Phụ huynh nhận cảnh báo từ đêm hôm trước
+      nếu ngày mai có nguy cơ cao trẻ vượt giới hạn.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#dbeafe; color:#1e40af;">LSTM Neural Network</span>
+      <span class="tag-small" style="background:#dbeafe; color:#1e40af;">Prophet (Meta)</span>
+      <span class="tag-small" style="background:#dbeafe; color:#1e40af;">XGBoost</span>
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">Python + scikit-learn</span>
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">FastAPI microservice</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#7c3aed;">
+    <div class="module-title">Module 2 — Anomaly Detection (Phát hiện hành vi bất thường)</div>
+    <div class="module-desc">
+      Phát hiện các hành vi bất thường trong pattern sử dụng: mở app lạ lúc nửa đêm, thay đổi đột ngột
+      trong thói quen sử dụng, tăng đột biến thời gian xem nội dung nguy hiểm.
+      Kết hợp với AI content safety score từ YouTubeLog để tạo cảnh báo tổng hợp.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#faf5ff; color:#5b21b6;">Isolation Forest</span>
+      <span class="tag-small" style="background:#faf5ff; color:#5b21b6;">DBSCAN Clustering</span>
+      <span class="tag-small" style="background:#faf5ff; color:#5b21b6;">Autoencoder (PyTorch)</span>
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">Real-time alerting</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#059669;">
+    <div class="module-title">Module 3 — Behavior Pattern Mining (Khai thác mẫu hành vi)</div>
+    <div class="module-desc">
+      Phân tích và khai thác pattern hành vi theo nhiều chiều: thói quen theo ngày trong tuần,
+      app được dùng nhiều nhất theo khung giờ, tương quan giữa vị trí địa lý và thời gian sử dụng,
+      mối liên hệ giữa School Mode và thói quen sau giờ học.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">K-Means Clustering</span>
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">Association Rules (Apriori)</span>
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">Heatmap visualization</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#f59e0b;">
+    <div class="module-title">Module 4 — Smart Recommendation Engine (Gợi ý thông minh)</div>
+    <div class="module-desc">
+      Dựa trên lịch sử hành vi và kết quả phân tích, hệ thống đưa ra các gợi ý cụ thể cho phụ huynh:
+      điều chỉnh time limit theo từng ngày, danh sách website/app nên chặn thêm,
+      thời điểm tốt nhất để áp dụng School Mode, so sánh với khuyến nghị của WHO về screen time.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#fffbeb; color:#92400e;">Collaborative Filtering</span>
+      <span class="tag-small" style="background:#fffbeb; color:#92400e;">Rule-based Engine</span>
+      <span class="tag-small" style="background:#fffbeb; color:#92400e;">WHO guidelines integration</span>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top:16px;">
+    <div class="section-block">
+      <div class="section-block-title">
+        <div class="dot" style="background:#1d4ed8;"></div> Tính Novelty Học Thuật
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dbeafe; color:#1e40af;">N1</div>
+        <div class="novelty-text">Dataset thực từ hệ thống vận hành thật (không phải synthetic)</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dbeafe; color:#1e40af;">N2</div>
+        <div class="novelty-text">Kết hợp đa nguồn dữ liệu: screen time + GPS + content safety</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dbeafe; color:#1e40af;">N3</div>
+        <div class="novelty-text">Bài toán "child screen behavior prediction" — ít paper tại Việt Nam</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dbeafe; color:#1e40af;">N4</div>
+        <div class="novelty-text">Tích hợp anomaly detection vào hệ thống parental control real-time</div>
+      </div>
+    </div>
+    <div class="section-block">
+      <div class="section-block-title">
+        <div class="dot" style="background:#059669;"></div> Tech Stack Bổ Sung
+      </div>
+      <div style="font-size:10pt; color:#374151; line-height:1.9;">
+        <strong>AI/ML:</strong> Python, PyTorch / TensorFlow, scikit-learn, pandas, numpy<br/>
+        <strong>API:</strong> FastAPI (microservice AI) tích hợp với Node.js hiện có<br/>
+        <strong>Visualization:</strong> Recharts (có sẵn) + D3.js cho heatmap<br/>
+        <strong>Scheduler:</strong> Node-cron → gọi AI microservice mỗi đêm<br/>
+        <strong>Database:</strong> PostgreSQL (OLTP) + feature store cho ML
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 01/04 — Chi tiết kỹ thuật</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 2 COVER ═══════════════════ -->
+<div class="thesis-cover theme-amber" style="background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 40%, #fde68a 100%);">
+  <div class="thesis-number" style="color:#d97706;">02</div>
+
+  <div class="thesis-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">
+    <span>🏛️</span> Đề Tài 02 — Hướng Data Warehouse & Analytics
+  </div>
+
+  <div class="thesis-h1" style="color:#78350f;">
+    Thiết kế và Triển khai<br/>Data Warehouse cho Hệ thống<br/>Giám sát Thiết bị Trẻ em
+  </div>
+
+  <div class="thesis-tagline">
+    "Phân tích đa chiều hành vi sử dụng — từ OLTP sang OLAP để đưa ra insights chiến lược"
+  </div>
+
+  <div class="thesis-divider" style="background: linear-gradient(90deg, #d97706, #f59e0b);"></div>
+
+  <div class="kpi-row">
+    <div class="kpi-box" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
+      <div class="kpi-label">Học thuật</div>
+      <div class="kpi-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#f0fdf4; border-color:#a7f3d0; color:#065f46;">
+      <div class="kpi-label">Thực tiễn</div>
+      <div class="kpi-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#faf5ff; border-color:#ddd6fe; color:#5b21b6;">
+      <div class="kpi-label">Độ khó</div>
+      <div class="kpi-text">Trung bình</div>
+    </div>
+    <div class="kpi-box" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+      <div class="kpi-label">Phù hợp GV</div>
+      <div class="kpi-text">Data/DW/DB</div>
+    </div>
+  </div>
+
+  <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#fde68a;">
+    <div class="section-block-title" style="color:#92400e;">
+      <div class="dot" style="background:#d97706;"></div>
+      Mô Tả Bài Toán
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Hệ thống KidFun V2 hiện dùng cơ sở dữ liệu OLTP (PostgreSQL) được thiết kế cho giao dịch
+      real-time — <strong>không phù hợp cho phân tích xu hướng dài hạn</strong> trên nhiều user.
+      Khi hệ thống scale lên hàng nghìn gia đình, việc chạy báo cáo analytics trên OLTP sẽ
+      gây chậm hệ thống và thiếu linh hoạt. Bài toán đặt ra là:
+      <strong>"Thiết kế Data Warehouse riêng với Star Schema, xây dựng ETL pipeline tự động,
+      và phát triển dashboard phân tích đa chiều (OLAP) cho phụ huynh và nhà nghiên cứu."</strong>
+    </p>
+  </div>
+
+  <div class="section-block" style="background:rgba(255,243,199,0.8); border-color:#f59e0b;">
+    <div class="section-block-title" style="color:#92400e;">
+      <div class="dot" style="background:#d97706;"></div>
+      💡 Ý Tưởng / Giải Pháp Đề Xuất
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Giải pháp là thiết kế một <strong>PostgreSQL DW schema riêng biệt</strong> (schema <code>dw_*</code>) chạy song song với OLTP schema hiện tại,
+      không can thiệp vào dữ liệu giao dịch. Hệ thống hoạt động theo 3 tầng:
+    </p>
+    <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #fcd34d;">
+        <div style="font-weight:700; color:#92400e; font-size:10pt; margin-bottom:6px;">🔄 Tầng ETL</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Node.js cron job chạy lúc 01:00 mỗi đêm, đọc dữ liệu OLTP từ 24h qua, aggregate, làm sạch và enrich (thêm category, risk level), rồi upsert vào các Fact/Dim tables.
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #fcd34d;">
+        <div style="font-weight:700; color:#92400e; font-size:10pt; margin-bottom:6px;">🗄️ Tầng DW (Star Schema)</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          2 Fact tables (FactScreenUsage, FactYouTubeActivity) + 5 Dimension tables (DimDate, DimProfile, DimApp, DimContentRisk, DimLocation). Tối ưu cho OLAP queries với index chiến lược.
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #fcd34d;">
+        <div style="font-weight:700; color:#92400e; font-size:10pt; margin-bottom:6px;">📊 Tầng Analytics</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          REST API riêng (<code>/api/analytics/*</code>) phục vụ OLAP queries. Parent Dashboard bổ sung tab Analytics với drill-down charts, heatmap giờ sử dụng, và so sánh chuẩn WHO.
+        </div>
+      </div>
+    </div>
+    <p style="font-size:10pt; color:#374151; margin-top:10px; line-height:1.7;">
+      Điểm đặc biệt: DW tích hợp dimension <strong>DimContentRisk</strong> (AI-generated từ aiService.js) — cho phép phân tích tương quan giữa screen time, vị trí địa lý và mức độ rủi ro nội dung trong một OLAP query duy nhất.
+    </p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#fde68a;">
+      <div class="section-block-title" style="color:#92400e;">
+        <div class="dot" style="background:#d97706;"></div> Nguồn dữ liệu (OLTP)
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li><code>AppUsageLog</code> — screen time theo app</li>
+        <li><code>UsageSession</code> — phiên sử dụng</li>
+        <li><code>YouTubeLog + AIAlert</code> — nội dung & rủi ro</li>
+        <li><code>LocationLog + GeofenceEvent</code></li>
+        <li><code>TimeExtensionRequest</code></li>
+        <li><code>Profile + Device + User</code> (dimensions)</li>
+      </ul>
+    </div>
+    <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#fde68a;">
+      <div class="section-block-title" style="color:#065f46;">
+        <div class="dot" style="background:#059669;"></div> Đầu ra / Kết quả
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li>Data Warehouse với Star Schema hoàn chỉnh</li>
+        <li>ETL Pipeline tự động (hàng đêm)</li>
+        <li>OLAP Cube cho drill-down, slice, dice</li>
+        <li>Dashboard analytics nâng cao</li>
+        <li>Cross-family aggregate reports (ẩn danh)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 02/04</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 2 DETAIL ═══════════════════ -->
+<div class="page theme-amber">
+  <div class="section-header">
+    <div class="section-icon amber">📐</div>
+    <div>
+      <div class="section-title" style="color:#78350f;">Đề Tài 02 — Chi Tiết Kỹ Thuật</div>
+      <div class="section-sub">Data Warehouse Design & OLAP Analytics</div>
+    </div>
+  </div>
+
+  <div class="section-block" style="border-color:#fde68a;">
+    <div class="section-block-title" style="color:#92400e;">
+      <div class="dot" style="background:#d97706;"></div> Star Schema — Thiết kế Data Warehouse
+    </div>
+    <table class="data-model-table">
+      <tr>
+        <th style="width:30%;">Table</th>
+        <th style="width:20%;">Loại</th>
+        <th>Mô tả & Các trường chính</th>
+      </tr>
+      <tr>
+        <td><strong>FactScreenUsage</strong></td>
+        <td><span class="tag-small" style="background:#fee2e2; color:#991b1b;">FACT</span></td>
+        <td>profileId, deviceId, appId, dateId, locationId, durationSeconds, contentRiskScore, isViolation</td>
+      </tr>
+      <tr>
+        <td><strong>FactYouTubeActivity</strong></td>
+        <td><span class="tag-small" style="background:#fee2e2; color:#991b1b;">FACT</span></td>
+        <td>profileId, dateId, channelId, videoCount, totalDurationSecs, avgDangerLevel, blockedCount</td>
+      </tr>
+      <tr>
+        <td><strong>DimDate</strong></td>
+        <td><span class="tag-small" style="background:#dbeafe; color:#1e40af;">DIM</span></td>
+        <td>dateId, date, dayOfWeek, weekNumber, month, year, isWeekend, isHoliday, isSchoolDay</td>
+      </tr>
+      <tr>
+        <td><strong>DimProfile</strong></td>
+        <td><span class="tag-small" style="background:#dbeafe; color:#1e40af;">DIM</span></td>
+        <td>profileId, ageGroup (0-6, 7-12, 13-15), gender, hasSchoolMode</td>
+      </tr>
+      <tr>
+        <td><strong>DimApp</strong></td>
+        <td><span class="tag-small" style="background:#dbeafe; color:#1e40af;">DIM</span></td>
+        <td>appId, packageName, appName, category (Education/Game/Social/Video...), isBlocked</td>
+      </tr>
+      <tr>
+        <td><strong>DimContentRisk</strong></td>
+        <td><span class="tag-small" style="background:#dbeafe; color:#1e40af;">DIM</span></td>
+        <td>riskId, dangerLevel (1-5), category (SAFE/BULLY/SEXUAL...), aiProvider</td>
+      </tr>
+      <tr>
+        <td><strong>DimLocation</strong></td>
+        <td><span class="tag-small" style="background:#dbeafe; color:#1e40af;">DIM</span></td>
+        <td>locationId, geofenceName, locationType (Home/School/Other), isInGeofence</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section-block" style="border-color:#fde68a;">
+    <div class="section-block-title" style="color:#92400e;">
+      <div class="dot" style="background:#d97706;"></div> ETL Pipeline — Luồng xử lý dữ liệu
+    </div>
+    <div style="display:flex; gap:0; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+      <div style="background:#fef3c7; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px; font-size:10pt; font-weight:600; color:#92400e;">PostgreSQL OLTP<br/><span style="font-weight:400; font-size:9pt;">25+ models thực</span></div>
+      <div style="font-size:18pt; color:#d97706; padding:0 10px;">→</div>
+      <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:10px 14px; font-size:10pt; font-weight:600; color:#9a3412;">Extract<br/><span style="font-weight:400; font-size:9pt;">Node-cron (nightly)</span></div>
+      <div style="font-size:18pt; color:#d97706; padding:0 10px;">→</div>
+      <div style="background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; padding:10px 14px; font-size:10pt; font-weight:600; color:#065f46;">Transform<br/><span style="font-weight:400; font-size:9pt;">Aggregate, clean, enrich</span></div>
+      <div style="font-size:18pt; color:#d97706; padding:0 10px;">→</div>
+      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:10pt; font-weight:600; color:#1e40af;">Load<br/><span style="font-weight:400; font-size:9pt;">DW PostgreSQL schema</span></div>
+      <div style="font-size:18pt; color:#d97706; padding:0 10px;">→</div>
+      <div style="background:#faf5ff; border:1px solid #ddd6fe; border-radius:8px; padding:10px 14px; font-size:10pt; font-weight:600; color:#5b21b6;">OLAP Dashboard<br/><span style="font-weight:400; font-size:9pt;">React + Recharts</span></div>
+    </div>
+    <p style="font-size:10pt; color:#374151;">ETL chạy tự động mỗi nửa đêm, đảm bảo dữ liệu analytics luôn fresh cho báo cáo hàng ngày.</p>
+  </div>
+
+  <div class="two-col">
+    <div class="section-block" style="border-color:#fde68a;">
+      <div class="section-block-title" style="color:#92400e;">
+        <div class="dot" style="background:#d97706;"></div> OLAP Queries — Phân tích đa chiều
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li><strong>Drill-down:</strong> Tổng thời gian → Theo tuần → Theo ngày → Theo giờ</li>
+        <li><strong>Slice:</strong> Lọc theo nhóm tuổi trẻ / loại app / mức rủi ro nội dung</li>
+        <li><strong>Dice:</strong> Chéo giữa vị trí địa lý và thời gian sử dụng</li>
+        <li><strong>Roll-up:</strong> Báo cáo tổng hợp theo tháng/quý</li>
+        <li><strong>Pivot:</strong> So sánh ngày trong tuần với cuối tuần</li>
+      </ul>
+    </div>
+    <div class="section-block" style="border-color:#fde68a;">
+      <div class="section-block-title" style="color:#92400e;">
+        <div class="dot" style="background:#d97706;"></div> Tính Novelty Học Thuật
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#fef3c7; color:#92400e;">N1</div>
+        <div class="novelty-text">Tích hợp dimension "Content Risk" (AI-generated) vào DW truyền thống</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#fef3c7; color:#92400e;">N2</div>
+        <div class="novelty-text">Ứng dụng DW vào lĩnh vực Child Digital Wellbeing — rất ít nghiên cứu</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#fef3c7; color:#92400e;">N3</div>
+        <div class="novelty-text">Cross-family aggregate analytics (ẩn danh) — xu hướng toàn vùng</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#fef3c7; color:#92400e;">N4</div>
+        <div class="novelty-text">So sánh với chuẩn WHO screen time recommendation theo nhóm tuổi</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 02/04 — Chi tiết kỹ thuật</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 3 COVER ═══════════════════ -->
+<div class="thesis-cover theme-green" style="background: linear-gradient(160deg, #f0fdf4 0%, #dcfce7 40%, #a7f3d0 100%);">
+  <div class="thesis-number" style="color:#059669;">03</div>
+
+  <div class="thesis-badge" style="background:#dcfce7; color:#065f46; border:1px solid #6ee7b7;">
+    <span>🔒</span> Đề Tài 03 — Hướng Federated Learning & Privacy
+  </div>
+
+  <div class="thesis-h1" style="color:#064e3b;">
+    Ứng dụng Federated Learning<br/>trong Phân tích Hành vi Thiết bị<br/>đảm bảo Quyền Riêng tư Trẻ em
+  </div>
+
+  <div class="thesis-tagline">
+    "Train AI model trên dữ liệu nhạy cảm của trẻ em mà không cần upload dữ liệu lên server"
+  </div>
+
+  <div class="thesis-divider" style="background: linear-gradient(90deg, #059669, #34d399);"></div>
+
+  <div class="kpi-row">
+    <div class="kpi-box" style="background:#f0fdf4; border-color:#a7f3d0; color:#065f46;">
+      <div class="kpi-label">Học thuật</div>
+      <div class="kpi-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
+      <div class="kpi-label">Thực tiễn</div>
+      <div class="kpi-stars">⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#fee2e2; border-color:#fecaca; color:#991b1b;">
+      <div class="kpi-label">Độ khó</div>
+      <div class="kpi-text">Cao</div>
+    </div>
+    <div class="kpi-box" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+      <div class="kpi-label">Novelty</div>
+      <div class="kpi-text">Rất cao ⭐</div>
+    </div>
+  </div>
+
+  <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#a7f3d0;">
+    <div class="section-block-title" style="color:#065f46;">
+      <div class="dot" style="background:#059669;"></div>
+      Mô Tả Bài Toán
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Dữ liệu hành vi của trẻ em là <strong>cực kỳ nhạy cảm về quyền riêng tư</strong>.
+      Các quy định quốc tế như COPPA (Mỹ), GDPR-K (EU) đặt ra yêu cầu nghiêm ngặt về thu thập
+      và xử lý dữ liệu trẻ em. Nếu muốn train mô hình AI từ dữ liệu nhiều gia đình để có
+      accuracy cao hơn, cần giải quyết mâu thuẫn: <strong>"Làm sao cải thiện độ chính xác của AI
+      mà không vi phạm quyền riêng tư?"</strong> Federated Learning (FL) là câu trả lời —
+      mỗi thiết bị chỉ gửi <em>gradient updates</em> lên server, dữ liệu thô không bao giờ rời khỏi máy.
+    </p>
+  </div>
+
+  <div class="section-block" style="background:rgba(220,252,231,0.8); border-color:#34d399;">
+    <div class="section-block-title" style="color:#065f46;">
+      <div class="dot" style="background:#059669;"></div>
+      💡 Ý Tưởng / Giải Pháp Đề Xuất
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Giải pháp là triển khai <strong>Federated Learning theo kiến trúc client-server</strong>, trong đó Flutter mobile app đóng vai trò FL Client và một FL Aggregation Server mới (Python + Flower framework) được thêm vào hệ thống.
+      Toàn bộ luồng hoạt động như sau:
+    </p>
+    <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #6ee7b7;">
+        <div style="font-weight:700; color:#065f46; font-size:10pt; margin-bottom:6px;">📱 Phía Client (Flutter App)</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Tích hợp TensorFlow Lite. Mỗi tuần, app lấy global model về, train trên AppUsageLog cục bộ (on-device), áp dụng Differential Privacy (Gaussian noise) vào gradient, rồi upload gradient (không phải raw data) lên FL Server qua gRPC.
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #6ee7b7;">
+        <div style="font-weight:700; color:#065f46; font-size:10pt; margin-bottom:6px;">🖥️ Phía Server (FL Aggregator)</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Python + Flower framework nhận gradient từ N thiết bị (tối thiểu 3), chạy thuật toán FedAvg, tạo global model mới. Sau mỗi round, đánh giá accuracy và privacy budget (ε, δ). Broadcast global model về tất cả clients.
+        </div>
+      </div>
+    </div>
+    <p style="font-size:10pt; color:#374151; margin-top:10px; line-height:1.7;">
+      Nghiên cứu tập trung vào <strong>đánh giá trade-off</strong> giữa accuracy của FL model vs centralized model,
+      và chi phí privacy (privacy budget ε) — đây là đóng góp học thuật chính của đề tài.
+      Có thể simulate multi-client bằng cách phân vùng (partition) dataset thực từ PostgreSQL thành nhiều client giả lập nếu chưa đủ user thật.
+    </p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#a7f3d0;">
+      <div class="section-block-title" style="color:#065f46;">
+        <div class="dot" style="background:#059669;"></div> Kiến trúc FL
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li>Mỗi thiết bị: train local model</li>
+        <li>Server: nhận gradient, aggregate (FedAvg)</li>
+        <li>Global model cải thiện qua mỗi round</li>
+        <li>Dữ liệu thô không bao giờ upload</li>
+        <li>Áp dụng Differential Privacy (noise injection)</li>
+      </ul>
+    </div>
+    <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#a7f3d0;">
+      <div class="section-block-title" style="color:#065f46;">
+        <div class="dot" style="background:#059669;"></div> Usecase trong KidFun
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li>Phát hiện hành vi bất thường (on-device)</li>
+        <li>Cải thiện AI content risk model</li>
+        <li>Dự đoán thời gian sử dụng cá nhân hóa</li>
+        <li>So sánh behavioral pattern ẩn danh</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 03/04</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 3 DETAIL ═══════════════════ -->
+<div class="page theme-green">
+  <div class="section-header">
+    <div class="section-icon green">🔬</div>
+    <div>
+      <div class="section-title" style="color:#064e3b;">Đề Tài 03 — Chi Tiết Kỹ Thuật</div>
+      <div class="section-sub">Federated Learning & Privacy-Preserving Analytics</div>
+    </div>
+  </div>
+
+  <div class="section-block" style="border-color:#a7f3d0;">
+    <div class="section-block-title" style="color:#065f46;">
+      <div class="dot" style="background:#059669;"></div> Kiến trúc Hệ thống Federated Learning
+    </div>
+    <div style="background:#f9fafb; border-radius:10px; padding:16px; font-size:10pt; font-family:monospace; color:#374151; line-height:2; border:1px solid #e5e7eb;">
+      <strong>[Thiết bị A]</strong> → Local train (AppUsageLog riêng) → gradient_A<br/>
+      <strong>[Thiết bị B]</strong> → Local train (AppUsageLog riêng) → gradient_B<br/>
+      <strong>[Thiết bị C]</strong> → Local train (AppUsageLog riêng) → gradient_C<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓ &nbsp;↓ &nbsp;↓ (gửi gradient, KHÔNG gửi data thô)<br/>
+      <strong>[FL Server]</strong> → FedAvg(gradient_A, B, C) → global_model_v2<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓ (broadcast global model về các thiết bị)<br/>
+      <strong>[Thiết bị A/B/C]</strong> → Update local model → round tiếp theo
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#059669;">
+    <div class="module-title">Module 1 — On-Device Local Training</div>
+    <div class="module-desc">
+      Triển khai lightweight ML model chạy trên Flutter mobile app (TensorFlow Lite / ONNX).
+      Model train trên AppUsageLog, UsageSession của chính thiết bị đó để học behavior pattern cá nhân.
+      Áp dụng kỹ thuật model compression để model chạy được trên mobile.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">TensorFlow Lite</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">ONNX Runtime</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Flutter + Dart</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Model Quantization</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#059669;">
+    <div class="module-title">Module 2 — Federated Aggregation Server</div>
+    <div class="module-desc">
+      Server nhận gradient updates từ các thiết bị, áp dụng thuật toán FedAvg (Federated Averaging)
+      để tổng hợp thành global model mới. Thêm Differential Privacy (Gaussian noise) vào gradient
+      trước khi gửi để bảo vệ quyền riêng tư thêm một lớp nữa.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">FedAvg Algorithm</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Differential Privacy</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Python + PySyft / Flower</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">gRPC communication</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#059669;">
+    <div class="module-title">Module 3 — Privacy Evaluation & Metrics</div>
+    <div class="module-desc">
+      Đánh giá mức độ bảo vệ quyền riêng tư qua các metric: Privacy Loss Budget (ε, δ),
+      so sánh accuracy của FL model vs centralized model, đo lường communication cost,
+      và thực hiện membership inference attack để kiểm chứng độ bảo mật.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Privacy Budget (ε, δ)</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Membership Inference Test</span>
+      <span class="tag-small" style="background:#dcfce7; color:#065f46;">Accuracy vs Privacy Trade-off</span>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="section-block" style="border-color:#a7f3d0;">
+      <div class="section-block-title" style="color:#065f46;">
+        <div class="dot" style="background:#059669;"></div> Tính Novelty Học Thuật
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dcfce7; color:#065f46;">N1</div>
+        <div class="novelty-text">FL cho bài toán Child Safety — chưa có nghiên cứu Việt Nam</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dcfce7; color:#065f46;">N2</div>
+        <div class="novelty-text">Kết hợp Differential Privacy + FL cho dữ liệu trẻ em (COPPA compliance)</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dcfce7; color:#065f46;">N3</div>
+        <div class="novelty-text">Cross-device FL trên kiến trúc heterogeneous (Android + iOS + Desktop)</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#dcfce7; color:#065f46;">N4</div>
+        <div class="novelty-text">Phù hợp submit hội nghị IEEE/ACM về Privacy & Security</div>
+      </div>
+    </div>
+    <div class="section-block" style="border-color:#a7f3d0;">
+      <div class="section-block-title" style="color:#065f46;">
+        <div class="dot" style="background:#f59e0b;"></div> Lưu ý & Thách thức
+      </div>
+      <div style="font-size:10pt; color:#374151; line-height:1.8;">
+        ⚠️ <strong>Cần nhiều "devices" để FL có nghĩa</strong> — cần simulate nhiều thiết bị hoặc có user thật<br/><br/>
+        ⚠️ <strong>Độ phức tạp kỹ thuật cao</strong> — phù hợp nếu có GV hướng dẫn về ML/Security<br/><br/>
+        ⚠️ <strong>Communication overhead</strong> — cần thiết kế careful để mobile không tốn pin<br/><br/>
+        ✅ <strong>Có thể simulate</strong> bằng cách chia dataset thành nhiều partition giả lập multi-client
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 03/04 — Chi tiết kỹ thuật</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 4 COVER ═══════════════════ -->
+<div class="thesis-cover theme-purple" style="background: linear-gradient(160deg, #faf5ff 0%, #ede9fe 40%, #ddd6fe 100%);">
+  <div class="thesis-number" style="color:#7c3aed;">04</div>
+
+  <div class="thesis-badge" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd;">
+    <span>🤖</span> Đề Tài 04 — Hướng Multimodal AI & Computer Vision
+  </div>
+
+  <div class="thesis-h1" style="color:#3b0764;">
+    Hệ thống Kiểm duyệt Nội dung<br/>Đa phương thức cho Trẻ em<br/>sử dụng LLM & Computer Vision
+  </div>
+
+  <div class="thesis-tagline">
+    "Phân tích đồng thời hình ảnh thumbnail, tiêu đề, kênh và transcript để đánh giá nội dung chính xác hơn"
+  </div>
+
+  <div class="thesis-divider" style="background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
+
+  <div class="kpi-row">
+    <div class="kpi-box" style="background:#faf5ff; border-color:#ddd6fe; color:#5b21b6;">
+      <div class="kpi-label">Học thuật</div>
+      <div class="kpi-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#f0fdf4; border-color:#a7f3d0; color:#065f46;">
+      <div class="kpi-label">Thực tiễn</div>
+      <div class="kpi-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="kpi-box" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
+      <div class="kpi-label">Độ khó</div>
+      <div class="kpi-text">Trung bình-Cao</div>
+    </div>
+    <div class="kpi-box" style="background:#fee2e2; border-color:#fecaca; color:#991b1b;">
+      <div class="kpi-label">Demo</div>
+      <div class="kpi-text">Ấn tượng nhất</div>
+    </div>
+  </div>
+
+  <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#ddd6fe;">
+    <div class="section-block-title" style="color:#5b21b6;">
+      <div class="dot" style="background:#7c3aed;"></div>
+      Mô Tả Bài Toán
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      AI phân tích nội dung YouTube hiện tại trong KidFun V2 (Sprint 9) chỉ dựa trên
+      <strong>title và channel name</strong> — đây là thông tin rất hạn chế và dễ bị mislead
+      (nhiều video nguy hiểm có title vô hại). Bài toán đặt ra:
+      <strong>"Xây dựng hệ thống phân tích nội dung đa phương thức (multimodal) kết hợp
+      phân tích hình ảnh thumbnail (Computer Vision), nội dung tiêu đề/mô tả (NLP),
+      và transcript audio để đánh giá độ an toàn chính xác và giải thích được."</strong>
+      Thêm vào đó, bổ sung tính năng Explainable AI để phụ huynh hiểu <em>tại sao</em>
+      video bị đánh giá nguy hiểm.
+    </p>
+  </div>
+
+  <div class="section-block" style="background:rgba(237,233,254,0.8); border-color:#a78bfa;">
+    <div class="section-block-title" style="color:#5b21b6;">
+      <div class="dot" style="background:#7c3aed;"></div>
+      💡 Ý Tưởng / Giải Pháp Đề Xuất
+    </div>
+    <p style="font-size:10.5pt; line-height:1.8; color:#374151;">
+      Giải pháp là thay thế <code>aiService.js</code> hiện tại (single-modal: chỉ text) bằng một <strong>Multimodal AI Pipeline</strong> gồm 4 giai đoạn xử lý song song, sau đó fusion lại bằng ensemble model:
+    </p>
+    <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #c4b5fd;">
+        <div style="font-weight:700; color:#5b21b6; font-size:10pt; margin-bottom:6px;">🖼️ Giai đoạn 1 — Vision</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Download thumbnail → CLIP model encode thành embedding → so sánh với danger template library → Vision Risk Score (0-1).
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #c4b5fd;">
+        <div style="font-weight:700; color:#5b21b6; font-size:10pt; margin-bottom:6px;">📝 Giai đoạn 2 — NLP</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Phân tích title + description + tags bằng PhoBERT fine-tuned cho child safety → Text Risk Score. Phát hiện toxic language theo ngữ cảnh, không chỉ keyword matching.
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #c4b5fd;">
+        <div style="font-weight:700; color:#5b21b6; font-size:10pt; margin-bottom:6px;">🎙️ Giai đoạn 3 — Transcript</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Fetch YouTube Captions (CC) hoặc dùng Whisper ASR → tóm tắt bằng LLM → phân tích nội dung âm thanh → Audio Content Score.
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; border:1px solid #c4b5fd;">
+        <div style="font-weight:700; color:#5b21b6; font-size:10pt; margin-bottom:6px;">🔀 Giai đoạn 4 — Fusion + XAI</div>
+        <div style="font-size:9.5pt; color:#374151; line-height:1.7;">
+          Weighted ensemble 3 scores → Final Risk Score (0-100). LIME/SHAP tạo explanation JSON. Grad-CAM highlight vùng nguy hiểm trên thumbnail → hiển thị cho phụ huynh.
+        </div>
+      </div>
+    </div>
+    <p style="font-size:10pt; color:#374151; margin-top:10px; line-height:1.7;">
+      Toàn bộ pipeline chạy async sau khi YouTubeLog được tạo, kết quả lưu vào <code>YouTubeLog.aiSummary</code> và <code>AIAlert</code> với explanation field mới.
+      Parent Dashboard hiển thị panel XAI: thumbnail với heatmap overlay, contribution bar chart theo từng signal, và lý do bằng tiếng Việt dễ hiểu cho phụ huynh không chuyên kỹ thuật.
+    </p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#ddd6fe;">
+      <div class="section-block-title" style="color:#5b21b6;">
+        <div class="dot" style="background:#7c3aed;"></div> Vấn đề với AI hiện tại
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li>Chỉ phân tích title + channel → accuracy thấp</li>
+        <li>Thumbnail chứa nhiều clue quan trọng bị bỏ qua</li>
+        <li>Không có transcript analysis</li>
+        <li>Không giải thích được lý do (black-box)</li>
+        <li>Không học từ feedback của phụ huynh</li>
+      </ul>
+    </div>
+    <div class="section-block" style="background:rgba(255,255,255,0.6); border-color:#ddd6fe;">
+      <div class="section-block-title" style="color:#065f46;">
+        <div class="dot" style="background:#059669;"></div> Cải tiến đề xuất
+      </div>
+      <ul style="font-size:10pt; color:#374151; line-height:1.9; padding-left:16px;">
+        <li>Vision-Language Model: phân tích thumbnail</li>
+        <li>NLP pipeline: title + description + tags</li>
+        <li>Transcript: YouTube CC/ASR analysis</li>
+        <li>Multi-signal fusion: kết hợp tất cả signals</li>
+        <li>XAI: giải thích từng yếu tố tác động</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 04/04</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ THESIS 4 DETAIL ═══════════════════ -->
+<div class="page theme-purple">
+  <div class="section-header">
+    <div class="section-icon purple">🔬</div>
+    <div>
+      <div class="section-title" style="color:#3b0764;">Đề Tài 04 — Chi Tiết Kỹ Thuật</div>
+      <div class="section-sub">Multimodal AI Content Moderation System</div>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#7c3aed;">
+    <div class="module-title">Module 1 — Vision Analysis (Phân tích hình ảnh thumbnail)</div>
+    <div class="module-desc">
+      Sử dụng Vision-Language Model để phân tích thumbnail YouTube. Model sẽ nhận diện:
+      biểu cảm khuôn mặt bất thường, màu sắc clickbait, hình ảnh bạo lực/gợi cảm, symbol nguy hiểm.
+      Kết hợp CLIP (OpenAI) để so sánh similarity giữa thumbnail và các template nguy hiểm đã biết.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">CLIP (OpenAI)</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">LLaVA (Vision-Language)</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Gemini Vision API</span>
+      <span class="tag-small" style="background:#f0fdf4; color:#065f46;">Python + FastAPI</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#7c3aed;">
+    <div class="module-title">Module 2 — NLP Pipeline (Phân tích văn bản đa nguồn)</div>
+    <div class="module-desc">
+      Pipeline xử lý ngôn ngữ tự nhiên trên nhiều nguồn văn bản: video title, description, tags,
+      comment top 10. Sử dụng fine-tuned BERT/PhoBERT cho tiếng Việt để phân loại nội dung.
+      Phát hiện từ ngữ độc hại, ngôn từ không phù hợp với trẻ em theo ngữ cảnh (không chỉ keyword matching).
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">PhoBERT (Tiếng Việt)</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">mBERT Multilingual</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">HuggingFace Transformers</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Toxic Comment Classification</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#7c3aed;">
+    <div class="module-title">Module 3 — Multi-signal Fusion & Scoring</div>
+    <div class="module-desc">
+      Kết hợp kết quả từ Vision Analysis + NLP Pipeline + metadata (viewCount, likeRatio, channelAge)
+      thành một risk score tổng hợp bằng weighted ensemble model. Mỗi signal được gán trọng số
+      dựa trên validation accuracy trên test set. Kết quả là Risk Score từ 0-100 thay vì chỉ level 1-5.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Weighted Ensemble</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Late Fusion Architecture</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Calibrated Probability</span>
+    </div>
+  </div>
+
+  <div class="module-item" style="border-color:#7c3aed;">
+    <div class="module-title">Module 4 — Explainable AI (XAI) cho Phụ huynh</div>
+    <div class="module-desc">
+      Thay vì chỉ nói "Video này nguy hiểm mức 4/5", hệ thống giải thích chi tiết:
+      "Thumbnail chứa hình ảnh bạo lực (60% contribution), tiêu đề sử dụng từ ngữ không phù hợp (30%),
+      kênh có lịch sử vi phạm (10%)". Dùng LIME/SHAP để generate explanation cho từng prediction.
+      Highlight region nguy hiểm trên thumbnail bằng Grad-CAM heatmap.
+    </div>
+    <div class="module-tech">
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">LIME / SHAP</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Grad-CAM Visualization</span>
+      <span class="tag-small" style="background:#ede9fe; color:#5b21b6;">Contribution Attribution</span>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top:16px;">
+    <div class="section-block" style="border-color:#ddd6fe;">
+      <div class="section-block-title" style="color:#5b21b6;">
+        <div class="dot" style="background:#7c3aed;"></div> Tính Novelty Học Thuật
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#ede9fe; color:#5b21b6;">N1</div>
+        <div class="novelty-text">Multimodal content safety cho YouTube tiếng Việt — dataset thiếu</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#ede9fe; color:#5b21b6;">N2</div>
+        <div class="novelty-text">XAI cho parental control — giải thích AI quyết định cho non-expert</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#ede9fe; color:#5b21b6;">N3</div>
+        <div class="novelty-text">Fine-tune PhoBERT cho child safety classification (tiếng Việt)</div>
+      </div>
+      <div class="novelty-item">
+        <div class="novelty-dot" style="background:#ede9fe; color:#5b21b6;">N4</div>
+        <div class="novelty-text">Tích hợp thực tế: model chạy trực tiếp trong hệ thống thật</div>
+      </div>
+    </div>
+    <div class="section-block" style="border-color:#ddd6fe;">
+      <div class="section-block-title" style="color:#5b21b6;">
+        <div class="dot" style="background:#7c3aed;"></div> Kế thừa từ KidFun V2
+      </div>
+      <div style="font-size:10pt; color:#374151; line-height:1.9;">
+        ✅ <strong>aiService.js</strong> → Nâng cấp từ single-modal lên multimodal<br/>
+        ✅ <strong>YouTubeLog model</strong> → Thêm field thumbnailAnalysis, transcript<br/>
+        ✅ <strong>AIAlert model</strong> → Thêm explanation JSON field<br/>
+        ✅ <strong>Parent Dashboard</strong> → Thêm XAI panel hiển thị<br/>
+        ✅ <strong>youtubeController.js</strong> → Gọi multimodal AI pipeline
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH</span>
+    <span>Đề Tài 04/04 — Chi tiết kỹ thuật</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════ COMPARISON & CONCLUSION ═══════════ -->
+<div class="page page-last">
+  <div class="section-header">
+    <div class="section-icon blue">📊</div>
+    <div>
+      <div class="section-title">So Sánh Tổng Quan & Kết Luận</div>
+      <div class="section-sub">Đánh giá 4 hướng đề tài để lựa chọn phù hợp nhất</div>
+    </div>
+  </div>
+
+  <table class="compare-table" style="margin-bottom:28px; border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+    <tr>
+      <th style="background:#1e3a8a; color:white; text-align:left; padding:14px 16px;">Tiêu chí đánh giá</th>
+      <th style="background:#eff6ff; color:#1e3a8a;">Đề tài 01<br/>AI Behavior</th>
+      <th style="background:#fffbeb; color:#92400e;">Đề tài 02<br/>Data Warehouse</th>
+      <th style="background:#f0fdf4; color:#065f46;">Đề tài 03<br/>Federated</th>
+      <th style="background:#faf5ff; color:#5b21b6;">Đề tài 04<br/>Multimodal AI</th>
+    </tr>
+    <tr>
+      <td>🎓 Tính học thuật</td>
+      <td><span class="star-cell">★★★★</span></td>
+      <td><span class="star-cell">★★★★</span></td>
+      <td><span class="star-cell">★★★★★</span></td>
+      <td><span class="star-cell">★★★★</span></td>
+    </tr>
+    <tr>
+      <td>🏭 Tính ứng dụng thực tiễn</td>
+      <td><span class="star-cell">★★★★★</span></td>
+      <td><span class="star-cell">★★★★</span></td>
+      <td><span class="star-cell">★★★</span></td>
+      <td><span class="star-cell">★★★★★</span></td>
+    </tr>
+    <tr>
+      <td>💪 Độ khó triển khai</td>
+      <td>Trung bình</td>
+      <td>Trung bình</td>
+      <td>Cao</td>
+      <td>Trung bình-Cao</td>
+    </tr>
+    <tr>
+      <td>🔗 Kế thừa từ KidFun V2</td>
+      <td>Rất tốt ✅</td>
+      <td>Tốt ✅</td>
+      <td>Tốt ✅</td>
+      <td>Rất tốt ✅</td>
+    </tr>
+    <tr>
+      <td>📦 Dữ liệu có sẵn</td>
+      <td>✅ Ngay lập tức</td>
+      <td>✅ Ngay lập tức</td>
+      <td>⚠️ Cần nhiều user</td>
+      <td>✅ Ngay lập tức</td>
+    </tr>
+    <tr>
+      <td>🎤 Demo ấn tượng</td>
+      <td><span class="star-cell">★★★★</span></td>
+      <td><span class="star-cell">★★★</span></td>
+      <td><span class="star-cell">★★★</span></td>
+      <td><span class="star-cell">★★★★★</span></td>
+    </tr>
+    <tr>
+      <td>📄 Viết báo cáo học thuật</td>
+      <td><span class="star-cell">★★★★</span></td>
+      <td><span class="star-cell">★★★★</span></td>
+      <td><span class="star-cell">★★★★★</span></td>
+      <td><span class="star-cell">★★★★</span></td>
+    </tr>
+    <tr>
+      <td>👨‍🏫 GV phù hợp</td>
+      <td>AI/ML/Data Mining</td>
+      <td>DW/DB/Big Data</td>
+      <td>AI/Security/Privacy</td>
+      <td>AI/CV/NLP</td>
+    </tr>
+  </table>
+
+  <div class="recommend-card" style="margin-bottom:20px;">
+    <h3>⭐ Khuyến nghị từ phân tích</h3>
+    <p>
+      <strong>Đề tài 01 (AI Behavior Analysis)</strong> được đánh giá là <strong>cân bằng nhất</strong>
+      giữa học thuật và thực tiễn. Dữ liệu AppUsageLog, UsageSession đã có sẵn và phong phú,
+      bài toán có giá trị xã hội rõ ràng, kết quả có thể demo trực quan và thuyết phục GV.
+      Python ML + FastAPI microservice dễ tích hợp vào backend Node.js hiện có mà không phá vỡ kiến trúc.<br/><br/>
+      <strong>Đề tài 04 (Multimodal AI)</strong> nếu muốn demo ấn tượng nhất và đã có kinh nghiệm về CV/NLP.
+      Kế thừa trực tiếp aiService.js của Sprint 9 và nâng cấp lên đáng kể.
+    </p>
+  </div>
+
+  <div class="section-block-title" style="font-size:12pt; margin-bottom:16px;">
+    <div class="dot" style="background:#1d4ed8; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px;"></div>
+    Gợi Ý Câu Hỏi Khi Gặp Giảng Viên
+  </div>
+
+  <div class="two-col">
+    <div class="section-block">
+      <div style="font-size:10.5pt; line-height:1.9; color:#374151;">
+        <strong>1.</strong> Thầy/Cô có hướng nghiên cứu nào ưu tiên (AI, DW, Security, CV/NLP) không để em có thể align topic cho phù hợp?<br/>
+        <strong>2.</strong> Đồ án chuyên ngành có yêu cầu viết báo cáo theo dạng research paper không?<br/>
+        <strong>3.</strong> Có cần dataset thực hay có thể dùng data sinh bởi hệ thống tự vận hành?<br/>
+        <strong>4.</strong> Thầy/Cô có lab hoặc nhóm nghiên cứu liên quan đến chủ đề này không?
+      </div>
+    </div>
+    <div class="section-block">
+      <div style="font-size:10.5pt; line-height:1.9; color:#374151;">
+        <strong>Pitch gợi ý cho GV:</strong><br/>
+        <em>"Em có project KidFun V2 — hệ thống parental control với dữ liệu hành vi trẻ em đa chiều (screen time, GPS, YouTube, AI content analysis). Em muốn nâng cấp lên đồ án chuyên ngành bằng cách bổ sung [Hướng X] để giải quyết bài toán [Y]. Dataset thực đã có sẵn từ hệ thống, giúp em tập trung vào nghiên cứu chuyên sâu thay vì xây dựng lại từ đầu."</em>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,#f8fafc,#e2e8f0); border-radius:12px; padding:20px; border:1px solid #cbd5e1; margin-top:8px;">
+    <div style="font-weight:700; color:#1e3a8a; margin-bottom:8px; font-size:11pt;">📌 Dữ liệu hiện có — Lợi thế cạnh tranh của KidFun V2</div>
+    <div style="font-size:10pt; color:#374151; line-height:1.8;">
+      KidFun V2 đã có <strong>25+ database models</strong>, <strong>AI service tích hợp Groq + OpenRouter</strong>,
+      <strong>Firebase/FCM push notifications</strong>, <strong>GPS Geofencing</strong>, <strong>YouTube monitoring</strong>
+      và <strong>ReportSnapshot pipeline</strong>. Đây là lợi thế rất lớn so với các nhóm bắt đầu từ đầu —
+      bạn có thể dành toàn bộ thời gian đồ án chuyên ngành cho phần <em>nghiên cứu</em> thay vì phần <em>xây dựng hạ tầng</em>.
+    </div>
+  </div>
+
+  <div class="footer" style="margin-top:30px;">
+    <span>KidFun V2 — Đề Xuất Đồ Án Chuyên Ngành | HUTECH | Nhóm 60</span>
+    <span>Tổng kết & So sánh</span>
+  </div>
+</div>
+
+</body>
+</html>

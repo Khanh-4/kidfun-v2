@@ -1,0 +1,123 @@
+@startuml
+' Hình 3.2.1.1 - Sơ đồ Use Case tổng quan hệ thống KidFun
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+
+actor "Phụ huynh" as PH
+actor "Trẻ em" as TE
+actor "Hệ thống\n(KidFunService /\nAI Worker / Geofence)" as HT
+
+rectangle "HỆ THỐNG KIDFUN" {
+  package "Tài khoản & Thiết lập chung" as P1 {
+    usecase "UC-01 Đăng ký tài khoản" as UC01
+    usecase "UC-02 Đăng nhập hệ thống" as UC02
+    usecase "UC-03 Khôi phục mật khẩu" as UC03
+    usecase "UC-04 Chọn chế độ\nParent/Child" as UC04
+    usecase "UC-05 Quản lý hồ sơ con" as UC05
+    usecase "UC-06 Tạo mã QR liên kết" as UC06
+    usecase "UC-07 Quét QR\nliên kết thiết bị" as UC07
+    UC01 -[hidden]down- UC02
+    UC02 -[hidden]down- UC03
+    UC03 -[hidden]down- UC04
+    UC04 -[hidden]down- UC05
+    UC05 -[hidden]down- UC06
+    UC06 -[hidden]down- UC07
+  }
+  package "Kiểm soát & Giám sát (Phụ huynh)" as P2 {
+    usecase "UC-08 Cài đặt giới hạn\nthời gian" as UC08
+    usecase "UC-09 Chặn ứng dụng" as UC09
+    usecase "UC-10 Chặn website" as UC10
+    usecase "UC-11 Cấu hình chế độ học" as UC11
+    usecase "UC-12 Xử lý yêu cầu\nthêm giờ" as UC12
+    usecase "UC-13 Xem lịch sử\n+ báo cáo" as UC13
+    usecase "UC-14 Theo dõi vị trí" as UC14
+    usecase "UC-15 Quản lý geofence" as UC15
+    usecase "UC-16 Nhận cảnh báo SOS" as UC16
+    usecase "UC-17 Giám sát YouTube" as UC17
+    usecase "UC-18 Xem cảnh báo AI" as UC18
+    UC08 -[hidden]down- UC09
+    UC09 -[hidden]down- UC10
+    UC10 -[hidden]down- UC11
+    UC11 -[hidden]down- UC12
+    UC12 -[hidden]down- UC13
+    UC13 -[hidden]down- UC14
+    UC14 -[hidden]down- UC15
+    UC15 -[hidden]down- UC16
+    UC16 -[hidden]down- UC17
+    UC17 -[hidden]down- UC18
+  }
+  package "Trải nghiệm Trẻ em" as P3 {
+    usecase "UC-19 Xem thời gian\ncòn lại" as UC19
+    usecase "UC-20 Nhận cảnh báo mềm" as UC20
+    usecase "UC-21 Gửi yêu cầu\nthêm giờ" as UC21
+    usecase "UC-22 Kích hoạt SOS" as UC22
+    UC19 -[hidden]down- UC20
+    UC20 -[hidden]down- UC21
+    UC21 -[hidden]down- UC22
+  }
+  package "Tác vụ tự động (Hệ thống)" as P4 {
+    usecase "UC-23 Gửi cảnh báo mềm" as UC23
+    usecase "UC-24 Khóa thiết bị" as UC24
+    usecase "UC-25 Phân tích AI YouTube" as UC25
+    usecase "UC-26 Kiểm tra geofence" as UC26
+    usecase "UC-27 Gửi push notification" as UC27
+    UC23 -[hidden]down- UC24
+    UC24 -[hidden]down- UC25
+    UC25 -[hidden]down- UC26
+    UC26 -[hidden]down- UC27
+  }
+  UC01 -[hidden]right- UC08
+  UC07 -[hidden]right- UC18
+  UC07 -[hidden]down- UC19
+  UC19 -[hidden]right- UC23
+  UC22 -[hidden]right- UC27
+}
+
+PH --> UC01
+PH --> UC02
+PH --> UC03
+PH --> UC04
+PH --> UC05
+PH --> UC06
+PH --> UC08
+PH --> UC09
+PH --> UC10
+PH --> UC11
+PH --> UC12
+PH --> UC13
+PH --> UC14
+PH --> UC15
+PH --> UC16
+PH --> UC17
+PH --> UC18
+
+TE --> UC02
+TE --> UC04
+TE --> UC07
+TE --> UC19
+TE --> UC20
+TE --> UC21
+TE --> UC22
+
+HT --> UC23
+HT --> UC24
+HT --> UC25
+HT --> UC26
+HT --> UC27
+@enduml

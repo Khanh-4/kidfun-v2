@@ -1,0 +1,348 @@
+@startuml
+' Hình 3.8.1 - ERD đầy đủ: Sơ đồ quan hệ thực thể 32 bảng
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam DefaultFontName "DejaVu Sans"
+skinparam DefaultFontSize 12
+skinparam packageStyle rectangle
+skinparam entity {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  AttributeFontSize 11
+}
+skinparam ArrowColor #5b5fc7
+skinparam packageBackgroundColor #FBFBFE
+skinparam packageBorderColor #c7c9e8
+hide circle
+hide empty methods
+
+package "Nhóm 1 — Tài khoản & Định danh" #F4F5FF {
+  entity "users" as users {
+    * id : Int <<PK>>
+    --
+    * email : String <<U>>
+    * fullName : String
+    passwordHash : String
+    googleId : String <<U>>
+  }
+  entity "profiles" as profiles {
+    * id : Int <<PK>>
+    --
+    * userId : Int <<FK>>
+    * profileName : String
+    dateOfBirth : DateTime
+    isActive : Boolean
+  }
+  entity "devices" as devices {
+    * id : Int <<PK>>
+    --
+    * userId : Int <<FK>>
+    profileId : Int <<FK>>
+    * deviceCode : String <<U>>
+    pairingCode : String <<U>>
+    isOnline : Boolean
+  }
+  entity "fcm_tokens" as fcm_tokens {
+    * id : Int <<PK>>
+    --
+    * userId : Int <<FK>>
+    deviceId : Int <<FK>>
+    * token : String <<U>>
+    platform : String
+  }
+  entity "notifications" as notifications {
+    * id : Int <<PK>>
+    --
+    * userId : Int <<FK>>
+    type : String
+    isRead : Boolean
+  }
+}
+
+package "Nhóm 2 — Kiểm soát thời gian" #F4F5FF {
+  entity "time_limits" as time_limits {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * dayOfWeek : Int (0–6)
+    dailyLimitMinutes : Int
+    isActive : Boolean
+    <<U>> (profileId, dayOfWeek)
+  }
+  entity "usage_sessions" as usage_sessions {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * deviceId : Int <<FK>>
+    startTime / endTime : DateTime
+  }
+  entity "time_extension_requests" as ext_req {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * deviceId : Int <<FK>>
+    requestMinutes : Int
+    status : String
+    responseMinutes : Int
+  }
+  entity "sessions" as sessions {
+    * id : Int <<PK>>
+    --
+    profileId : Int
+    * deviceId : Int <<FK>>
+    bonusMinutes : Int
+    status : String
+  }
+}
+
+package "Nhóm 3 — Chặn ứng dụng & website" #F4F5FF {
+  entity "blocked_apps" as blocked_apps {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * packageName : String
+    isBlocked : Boolean
+    <<U>> (profileId, packageName)
+  }
+  entity "app_time_limits" as app_time_limits {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * packageName : String
+    dailyLimitMinutes : Int
+    <<U>> (profileId, packageName)
+  }
+  entity "applications" as applications {
+    * id : Int <<PK>>
+    --
+    * deviceId : Int <<FK>>
+    appName : String
+    category : String
+    isBlocked : Boolean
+  }
+  entity "blocked_websites" as blocked_websites {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    blockType : String
+    blockValue : String
+  }
+  entity "web_categories" as web_categories {
+    * id : Int <<PK>>
+    --
+    * name : String <<U>>
+    displayName : String
+  }
+  entity "web_category_domains" as web_cat_domains {
+    * id : Int <<PK>>
+    --
+    * categoryId : Int <<FK>>
+    * domain : String
+    <<U>> (categoryId, domain)
+  }
+  entity "blocked_categories" as blocked_categories {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * categoryId : Int <<FK>>
+    isBlocked : Boolean
+    <<U>> (profileId, categoryId)
+  }
+  entity "category_overrides" as cat_overrides {
+    * id : Int <<PK>>
+    --
+    * blockedCategoryId : Int <<FK>>
+    * domain : String
+    <<U>> (blockedCategoryId, domain)
+  }
+  entity "custom_blocked_domains" as custom_domains {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * domain : String
+    reason : String
+    <<U>> (profileId, domain)
+  }
+}
+
+package "Nhóm 4 — Theo dõi hoạt động" #F4F5FF {
+  entity "usage_logs" as usage_logs {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    deviceId : Int
+    appName : String
+    durationSeconds : Int
+    activityType : String
+  }
+  entity "app_usage_logs" as app_usage_logs {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * deviceId : Int <<FK>>
+    packageName : String
+    usageSeconds : Int
+    date : DateTime
+  }
+  entity "warnings" as warnings {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    deviceId : Int
+    warningType : String
+    warnedAt : DateTime
+  }
+  entity "report_snapshots" as report_snapshots {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    type : String
+    periodStart : DateTime
+    data : Json
+  }
+}
+
+package "Nhóm 5 — Vị trí & Khẩn cấp" #F4F5FF {
+  entity "location_logs" as location_logs {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * deviceId : Int <<FK>>
+    latitude / longitude : Float
+    source : String
+  }
+  entity "geofences" as geofences {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    name : String
+    latitude / longitude : Float
+    radius : Int
+  }
+  entity "geofence_events" as geofence_events {
+    * id : Int <<PK>>
+    --
+    * geofenceId : Int <<FK>>
+    * profileId : Int <<FK>>
+    type : String (ENTER|EXIT)
+  }
+  entity "sos_alerts" as sos_alerts {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * deviceId : Int <<FK>>
+    latitude / longitude : Float
+    audioUrl : String
+    status : String
+  }
+}
+
+package "Nhóm 6 — Chế độ học" #F4F5FF {
+  entity "school_schedules" as school_schedules {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK, U>>
+    isEnabled : Boolean
+    manualOverride : String
+  }
+  entity "school_day_schedules" as school_days {
+    * id : Int <<PK>>
+    --
+    * scheduleId : Int <<FK>>
+    * dayOfWeek : Int (0–6)
+    startTime / endTime : String
+    <<U>> (scheduleId, dayOfWeek)
+  }
+  entity "allowed_school_apps" as allowed_apps {
+    * id : Int <<PK>>
+    --
+    * scheduleId : Int <<FK>>
+    * packageName : String
+    <<U>> (scheduleId, packageName)
+  }
+}
+
+package "Nhóm 7 — YouTube & AI" #F4F5FF {
+  entity "youtube_logs" as youtube_logs {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * deviceId : Int <<FK>>
+    videoTitle : String
+    dangerLevel : Int (1–5)
+    isAnalyzed : Boolean
+  }
+  entity "ai_alerts" as ai_alerts {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    * youtubeLogId : Int <<FK>>
+    dangerLevel : Int
+    isRead : Boolean
+  }
+  entity "blocked_videos" as blocked_videos {
+    * id : Int <<PK>>
+    --
+    * profileId : Int <<FK>>
+    videoTitle : String
+    videoId : String
+    reason : String
+  }
+}
+
+users ||--o{ profiles
+users ||--o{ devices
+users ||--o{ notifications
+users ||--o{ fcm_tokens
+
+profiles ||--o{ devices
+profiles ||--o{ time_limits
+profiles ||--o{ usage_sessions
+profiles ||--o{ ext_req
+profiles ||--o{ sessions
+profiles ||--o{ blocked_apps
+profiles ||--o{ app_time_limits
+profiles ||--o{ blocked_websites
+profiles ||--o{ blocked_categories
+profiles ||--o{ custom_domains
+profiles ||--o{ usage_logs
+profiles ||--o{ app_usage_logs
+profiles ||--o{ warnings
+profiles ||--o{ report_snapshots
+profiles ||--o{ location_logs
+profiles ||--o{ geofences
+profiles ||--o{ geofence_events
+profiles ||--o{ sos_alerts
+profiles ||--o{ youtube_logs
+profiles ||--o{ ai_alerts
+profiles ||--o{ blocked_videos
+profiles ||--|| school_schedules
+
+devices ||--o{ applications
+devices ||--o{ usage_sessions
+devices ||--o{ app_usage_logs
+devices ||--o{ location_logs
+devices ||--o{ sos_alerts
+devices ||--o{ youtube_logs
+devices ||--o{ fcm_tokens
+devices ||--o{ ext_req
+devices ||--o{ sessions
+
+web_categories ||--o{ web_cat_domains
+web_categories ||--o{ blocked_categories
+blocked_categories ||--o{ cat_overrides
+school_schedules ||--o{ school_days
+school_schedules ||--o{ allowed_apps
+geofences ||--o{ geofence_events
+youtube_logs ||--o{ ai_alerts
+
+' --- Ép bố cục lưới cho vừa khung hình ---
+notifications -[hidden]down- usage_logs
+sessions -[hidden]down- location_logs
+custom_domains -[hidden]down- school_schedules
+usage_logs -[hidden]right- location_logs
+location_logs -[hidden]right- school_schedules
+school_schedules -[hidden]right- youtube_logs
+@enduml

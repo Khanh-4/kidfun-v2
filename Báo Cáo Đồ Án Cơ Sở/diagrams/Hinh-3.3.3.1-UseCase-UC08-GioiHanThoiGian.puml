@@ -1,0 +1,53 @@
+@startuml
+' Hình 3.3.3.1 - Use Case chi tiết UC-08: Cài đặt giới hạn thời gian
+!pragma layout smetana
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam ArrowColor #5b5fc7
+skinparam DefaultFontName "DejaVu Sans"
+skinparam usecase {
+  BackgroundColor #EEF0FF
+  BorderColor #6366f1
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FDE7F1
+  BorderColor #f472b6
+}
+skinparam packageBackgroundColor #FAFAFE
+skinparam packageBorderColor #c7c9e8
+left to right direction
+
+actor "Phụ huynh" as PH
+actor "Backend API" as BE
+actor "Hệ thống\n(KidFunService)" as HT
+
+rectangle "UC-08 — Cài đặt giới hạn thời gian" {
+  usecase "Cài đặt giới hạn\nthời gian theo ngày" as UC
+  usecase "Tải TimeLimit hiện tại\n(7 ngày trong tuần)" as I1
+  usecase "Chỉnh số phút / ngày\n(Switch + Slider 0–1440)" as I2
+  usecase "Lưu 7 bản ghi TimeLimit\n(upsert)" as I3
+  usecase "Phát policyUpdate\n(Socket.IO)" as I4
+  usecase "Áp dụng cấu hình mới\ncho vòng đếm giờ" as I5
+  usecase "Cấu hình giảm dần\n(gradual reduction)" as E1
+}
+
+PH --> UC
+UC ..> I1 : <<include>>
+UC ..> I2 : <<include>>
+UC ..> I3 : <<include>>
+UC ..> I4 : <<include>>
+E1 ..> UC : <<extend>>
+I3 --> BE
+I4 --> BE
+I4 ..> I5 : <<include>>
+HT --> I5
+
+note bottom of UC
+**Tiền điều kiện:** Phụ huynh đã đăng nhập; có hồ sơ con đã liên kết thiết bị.
+**Ngoại lệ:** Mất mạng → không lưu, báo lỗi;
+thiết bị Child offline → fetch lại policy qua GET /api/child/policy khi reconnect.
+end note
+@enduml
