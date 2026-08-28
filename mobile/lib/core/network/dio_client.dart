@@ -48,9 +48,17 @@ class DioClient {
           return handler.next(error);
         }
 
-        // Không refresh cho chính request refresh-token (tránh đệ quy)
+        // Không refresh cho chính request refresh-token (tránh đệ quy).
+        // Cũng bỏ qua các request dọn dẹp lúc logout (fcmUnregister, logout)
+        // — nếu token đã hỏng thì các request này 401 là chuyện bình thường
+        // (AuthRepository.logout() đã tự try/catch, không quan tâm kết quả).
+        // Không loại trừ sẽ tạo vòng lặp vô hạn: logout() gọi 2 request này
+        // → 401 → forceLogout() → AuthNotifier.logout() gọi lại → lặp lại mỗi
+        // ~0.3-0.4s (khớp log thực tế "Force logout triggered" lặp 230 lần).
         final requestUrl = error.requestOptions.path;
-        if (requestUrl.contains(ApiConstants.refreshToken)) {
+        if (requestUrl.contains(ApiConstants.refreshToken) ||
+            requestUrl.contains(ApiConstants.logout) ||
+            requestUrl.contains(ApiConstants.fcmUnregister)) {
           return handler.next(error);
         }
 
