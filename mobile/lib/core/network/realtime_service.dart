@@ -35,6 +35,7 @@ class RealtimeService {
       'sb_publishable_KU8MyUUYPlCW3D-sk4TtCw_tvlZAAjB';
 
   bool _initialized = false;
+  bool _isSubscribed = false;
   String? _currentRole; // 'parent' | 'child'
   int? _lastUserId;
   String? _lastDeviceCode;
@@ -156,7 +157,13 @@ class RealtimeService {
 
   /// 'parent' | 'child' | null
   String? get currentRole => _currentRole;
-  bool get isConnected => _channels.isNotEmpty;
+
+  /// Trạng thái subscribe THẬT do Supabase báo về qua callback của
+  /// channel.subscribe(), không phải "đã gọi subscribe" (_channels.isNotEmpty
+  /// như trước) — kênh vẫn nằm trong _channels kể cả khi đã rớt/timeout, nên
+  /// cách cũ luôn báo "đang kết nối" dù thực tế mất kết nối. Badge giám sát ở
+  /// child dashboard dựa vào đây nên cần phản ánh đúng sự thật.
+  bool get isConnected => _isSubscribed;
 
   // ── Token minting (đổi JWT app-riêng lấy JWT Supabase-Realtime-riêng) ───
 
@@ -397,7 +404,19 @@ class RealtimeService {
           _notify(_locationUpdatedListeners, 'LocationLog', payload.eventType.name),
     );
 
-    channel.subscribe();
+    // Theo dõi trạng thái subscribe thật để isConnected không nói dối.
+    // KHÔNG chuyển việc bắn _connectionRestoredListeners vào đây — nó đang
+    // được bắn sớm trong _connect() và luồng đó đã chạy đúng (bù event bỏ lỡ
+    // khi app chạy ngầm); đổi thời điểm bắn sẽ gây rủi ro không cần thiết cho
+    // một fix đã được kiểm chứng trên thiết bị.
+    channel.subscribe((status, error) {
+      final subscribed = status == sb.RealtimeSubscribeStatus.subscribed;
+      if (_isSubscribed != subscribed) {
+        print('📶 [Realtime] Subscription status: ${status.name}'
+            '${error != null ? ' — $error' : ''}');
+      }
+      _isSubscribed = subscribed;
+    });
     _channels.add(channel);
   }
 
@@ -406,6 +425,7 @@ class RealtimeService {
       await sb.Supabase.instance.client.removeChannel(ch);
     }
     _channels.clear();
+    _isSubscribed = false;
   }
 
   // ── Lifecycle (khớp SocketService) ───────────────────────────────────────
