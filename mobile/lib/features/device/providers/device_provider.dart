@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/device_repository.dart';
 import '../../../shared/models/device_model.dart';
 import '../../../core/network/realtime_service.dart';
@@ -45,6 +46,15 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   }
 
   Future<void> fetchDevices() async {
+    // GET /api/devices là endpoint của parent (router.use(authenticate) —
+    // cần JWT phụ huynh). Ở vai trò child app chỉ có device_token nên request
+    // này LUÔN trả 401. Đây là nguồn 401 lặp chính: _onDeviceChangedRealtime
+    // bên dưới bắn mỗi khi bảng Device đổi (heartbeat online/offline liên
+    // tục), cộng với lời gọi trong constructor và trong linkDevice(). Child
+    // không dùng danh sách thiết bị của phụ huynh → no-op.
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString('user_role') == 'child') return;
+
     // Silent loading if we already have data
     final bool isSilent = state is DeviceLoaded;
     if (!isSilent) state = DeviceLoading();
