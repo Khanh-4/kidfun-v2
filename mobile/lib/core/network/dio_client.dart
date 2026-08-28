@@ -48,6 +48,18 @@ class DioClient {
           return handler.next(error);
         }
 
+        // Vai trò child KHÔNG có phiên đăng nhập kiểu parent: nó xác thực
+        // bằng device_token / X-Device-Code và không bao giờ có refresh
+        // token. 401 ở đây chỉ nghĩa là "endpoint này của parent, child
+        // không có quyền" — KHÔNG phải phiên hết hạn. Chạy tiếp luồng
+        // refresh bên dưới sẽ luôn ném no_refresh_token → clearAll() +
+        // forceLogout(), lặp lại mỗi lần có request 401 (log thực tế:
+        // 230 lần liên tiếp ở vai trò child trước khi liên kết thiết bị).
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getString('user_role') == 'child') {
+          return handler.next(error);
+        }
+
         // Không refresh cho chính request refresh-token (tránh đệ quy).
         // Cũng bỏ qua các request dọn dẹp lúc logout (fcmUnregister, logout)
         // — nếu token đã hỏng thì các request này 401 là chuyện bình thường
@@ -71,6 +83,20 @@ class DioClient {
           } catch (_) {
             return handler.next(error);
           }
+        }
+
+        // Chưa từng đăng nhập (không có cả access token lẫn refresh token):
+        // 401 là chuyện đương nhiên, không phải phiên hết hạn. Không được
+        // clearAll() + forceLogout() ở đây — làm vậy vừa vô nghĩa, vừa có
+        // nguy cơ xoá mất token vừa lưu nếu một request 401 cũ về muộn
+        // ngay sau khi đăng nhập xong (khớp lỗi "văng ra ngoài" khi đổi
+        // vai trò rồi đăng nhập lại bằng Google).
+        final existingToken = await SecureStorage.getToken();
+        final existingRefreshToken = await SecureStorage.getRefreshToken();
+        final hasSession = (existingToken != null && existingToken.isNotEmpty) ||
+            (existingRefreshToken != null && existingRefreshToken.isNotEmpty);
+        if (!hasSession) {
+          return handler.next(error);
         }
 
         // Bắt đầu refresh
