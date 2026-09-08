@@ -119,9 +119,16 @@ const deleteDevice = async (req, res) => {
       return sendError(res, 'Device not found', 404, 'NOT_FOUND');
     }
 
+    // Session không khai onDelete: Cascade trong schema (khác các bảng con còn
+    // lại) nên phải xoá tay trước, nếu không prisma.device.delete ném FK error.
     await prisma.session.deleteMany({ where: { deviceId: id } });
     await prisma.fCMToken.deleteMany({ where: { deviceId: id } });
     await prisma.device.delete({ where: { id } });
+
+    // Log để đối chiếu với phía app trẻ: sau lệnh này mọi API child dùng
+    // deviceCode đó sẽ trả 404 INVALID_DEVICE_CODE — chính là tín hiệu app trẻ
+    // dựa vào để tự gỡ liên kết (xem mobile/lib/core/services/child_link_service.dart).
+    console.log(`🗑️ [DEVICE] Deleted device #${id} (code=${device.deviceCode}) of userId ${req.user.userId}`);
 
     sendSuccess(res, { message: 'Device deleted successfully' });
   } catch (error) {

@@ -23,11 +23,22 @@ class TimeExtensionListener extends ConsumerStatefulWidget {
 }
 
 class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
-  final Set<int> _activeRequestIds = {};
-  // Dedup cho geofence/AI alert: khác _activeRequestIds (dialog time-extension
-  // được phép hiện lại tới khi Parent phản hồi), 2 loại này chỉ hiện 1 lần mỗi
-  // phiên app — refetch-on-signal (notify-then-refetch) có thể gọi lại nhiều
-  // lần (initState, mỗi signal, mỗi reconnect) nên cần chặn hiện trùng dialog.
+  // Mỗi requestId chỉ được hiện dialog ĐÚNG MỘT LẦN trong phiên app, kể cả sau
+  // khi Parent đã bấm Duyệt/Từ chối. Trước đây _respondExtension() xoá id khỏi
+  // set ngay lúc Parent bấm — tức TRƯỚC khi server xác nhận — nên một lần
+  // GET /pending khác đang bay (Vercel ~3s/request) quay về vẫn thấy status
+  // PENDING và hiện lại dialog y hệt. Log production 16:48 ngày 2026-09-08 bắt
+  // đúng chuỗi này: /pending(2.9s) → /pending(3.1s) → 186/approve → 186/reject,
+  // tức Parent thao tác trên 2 dialog chồng nhau và lần sau ghi đè lần trước.
+  // Chỉ xoá id khi request THẤT BẠI, để Parent còn cơ hội thử lại.
+  final Set<int> _handledRequestIds = {};
+  // Chặn 2 lần _checkPendingRequests() chạy chồng nhau: nhiều nguồn cùng gọi
+  // (initState, mỗi signal Realtime, mỗi lần connectionRestored, mỗi lần app
+  // resume, mỗi FCM push) nên lần về muộn có thể mang dữ liệu đã cũ.
+  bool _isCheckingPendingRequests = false;
+  // Dedup cho geofence/AI alert: refetch-on-signal (notify-then-refetch) có thể
+  // gọi lại nhiều lần (initState, mỗi signal, mỗi reconnect) nên cần chặn hiện
+  // trùng dialog.
   final Set<int> _seenGeofenceEventIds = {};
   final Set<int> _seenAiAlertIds = {};
 
@@ -73,10 +84,12 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   Future<void> _checkPendingRequests() async {
     // Only parents check pending extension requests
     if (RealtimeService.instance.currentRole != 'parent') return;
+    if (_isCheckingPendingRequests) return;
+    _isCheckingPendingRequests = true;
     try {
       final response = await DioClient.instance.get('/api/extension-requests/pending');
       final requests = response.data['data']['requests'] as List?;
-      
+
       if (requests != null && requests.isNotEmpty) {
         print('⏳ [REST] Found ${requests.length} pending extension requests');
         for (var request in requests) {
@@ -92,6 +105,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
       }
     } catch (e) {
       print('❌ [REST] Error checking pending requests: $e');
+    } finally {
+      _isCheckingPendingRequests = false;
     }
   }
 
@@ -303,9 +318,9 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
     if (RealtimeService.instance.currentRole != 'parent') return;
 
     final requestId = data['requestId'] as int?;
-    if (requestId == null || _activeRequestIds.contains(requestId)) return;
+    if (requestId == null || _handledRequestIds.contains(requestId)) return;
 
-    _activeRequestIds.add(requestId);
+    _handledRequestIds.add(requestId);
 
     final profileName = data['profileName'] ?? 'Bé';
     final deviceName = data['deviceName'] ?? 'Thiết bị';
@@ -367,12 +382,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
           ),
         ],
       ),
-    ).then((_) {
-      // Bug C fix: do NOT remove from _activeRequestIds here (on dismiss).
-      // The ID is only cleared after the Parent explicitly responds (approve/reject).
-      // This prevents duplicate dialogs from socket + REST + reconnect paths.
-      // _activeRequestIds.remove(requestId);  ← intentionally omitted
-    });
+    );
   }
 
   // Sprint 9: AI Alert handler — shows dialog when AI detects dangerous YouTube content.
@@ -412,9 +422,10 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   // xuống thiết bị con y hệt trước (child_dashboard_screen.dart chưa cutover,
   // vẫn cần nghe qua Socket.IO).
   Future<void> _respondExtension(int requestId, bool approved, int minutes) async {
-    // Remove from Set now that Parent has responded — future polls won't re-show this dialog
-    _activeRequestIds.remove(requestId);
-
+    // KHÔNG xoá requestId khỏi _handledRequestIds ở đây: id phải nằm lại trong
+    // set để mọi lần GET /pending đang bay (còn thấy status PENDING vì server
+    // chưa ghi xong) không hiện lại dialog. Chỉ xoá khi request thất bại, ở
+    // catch bên dưới, để Parent có thể thao tác lại.
     final dialogContext = widget.navigatorKey?.currentContext ?? context;
 
     try {
@@ -435,6 +446,10 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
         ),
       );
     } catch (e) {
+      // Phản hồi không tới được server → trả id lại để lần check kế tiếp hiện
+      // lại dialog, nếu không Parent sẽ không còn cách nào duyệt yêu cầu này
+      // trong phiên app hiện tại.
+      _handledRequestIds.remove(requestId);
       if (!mounted) return;
       ScaffoldMessenger.of(dialogContext).showSnackBar(
         SnackBar(

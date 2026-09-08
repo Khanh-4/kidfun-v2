@@ -30,6 +30,26 @@ language sql stable as $$
   select nullif(current_setting('request.jwt.claims', true)::json ->> 'app_profile_id', '')::int
 $$;
 
+-- ── Profile: BẮT BUỘC phải có policy, không được chỉ enable RLS ────────────
+-- Bảng Profile đang bật RLS. Nếu KHÔNG có policy nào thì với role
+-- `authenticated`, mọi câu lệnh đọc Profile đều trả về 0 dòng — kể cả khi
+-- Profile chỉ nằm trong subquery của policy bảng khác. Điều đó làm vế parent
+-- của TẤT CẢ 11 policy bên dưới:
+--     "profileId" in (select id from "Profile" where "userId" = app_current_user_id())
+-- luôn sai, nên Supabase Realtime không bao giờ đẩy event xuống app phụ huynh
+-- (đúng triệu chứng: trẻ xin thêm giờ, phụ huynh chỉ nhận push notification mà
+-- không có pop-up trong app; SOS/geofence/AI alert phía parent cũng vậy).
+-- Vế child (`= app_current_profile_id()`) không bị ảnh hưởng vì không đụng
+-- Profile — nên phía trẻ vẫn nhận event bình thường, khớp với quan sát thực tế.
+--
+-- Policy này chỉ cho đọc ĐÚNG profile của chính mình: parent đọc profile thuộc
+-- tài khoản mình, child đọc đúng profile gắn với thiết bị mình.
+alter table "Profile" enable row level security;
+drop policy if exists "family can read own Profile" on "Profile";
+create policy "family can read own Profile" on "Profile"
+  for select to authenticated
+  using ("userId" = app_current_user_id() or id = app_current_profile_id());
+
 -- ── Device: cột userId trực tiếp ────────────────────────────────────────────
 alter table "Device" enable row level security;
 create policy "family can read own devices" on "Device"

@@ -12,6 +12,7 @@ import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/services/child_link_service.dart';
 import '../../../core/services/native_service.dart';
 import '../../../core/services/policy_service.dart';
 import '../../../core/services/location_service.dart';
@@ -110,6 +111,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
     } else if (state == AppLifecycleState.resumed) {
       print('📦 App resumed: recalculating drift natively');
+      // Bắt trường hợp phụ huynh xoá thiết bị lúc app trẻ đang chạy nền (không
+      // nhận được signal Realtime nào) — kiểm tra lại ngay khi quay lại.
+      _verifyLinkStillValid();
       // Huỷ lịch khoá native — Flutter timer tiếp quản
       NativeService.cancelScheduledLock().catchError(
         (e) => print('❌ [LOCK] cancelScheduledLock error: $e'),
@@ -249,8 +253,12 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         todayLimit = await _childRepo.getTodayLimit(_deviceCode!);
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
-          // Device chưa được link → dừng mọi polling, hiện hướng dẫn
-          _handleDeviceNotLinked();
+          // 404 ở đây chỉ có một nghĩa: deviceCode không còn trong DB
+          // (DEVICE_NOT_ASSIGNED là 400). Xác minh lại rồi gỡ liên kết hẳn —
+          // trước đây chỉ dừng polling và hiện hướng dẫn, còn device_code /
+          // device_token chết vẫn nằm lại dưới máy.
+          await _verifyLinkStillValid();
+          if (_isDeviceLinked) _handleDeviceNotLinked();
           return;
         }
         rethrow;
@@ -358,6 +366,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
             }
           } catch (e) {
             print('❌ Heartbeat error: $e');
+            // Đường bắt cuối cùng (chậm nhất, ≤60s): heartbeat 404 nghĩa là
+            // deviceCode không còn trong DB — xác minh lại rồi tự gỡ liên kết.
+            if (e is DioException && e.response?.statusCode == 404) {
+              await _verifyLinkStillValid();
+            }
           }
         }
       });
@@ -927,6 +940,78 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     _checkExtensionResponse();
   }
 
+  /// Phụ huynh vừa xoá MỘT thiết bị nào đó. Payload DELETE của Postgres Changes
+  /// chỉ có primary key nên không thể biết ngay đó có phải thiết bị này không —
+  /// phải hỏi lại server bằng deviceCode của mình.
+  void _onRealtimeDeviceRemoved(Map<String, dynamic> data) {
+    print('🔔 [Realtime] Device bị xoá — kiểm tra xem có phải thiết bị này không');
+    _verifyLinkStillValid();
+  }
+
+  /// Xác minh liên kết còn hiệu lực; nếu server khẳng định thiết bị đã bị xoá
+  /// thì tự gỡ liên kết. An toàn khi gọi lại nhiều lần: [_isDeviceLinked] chặn
+  /// xử lý trùng, và lỗi mạng không bao giờ dẫn tới việc xoá dữ liệu.
+  Future<void> _verifyLinkStillValid() async {
+    final deviceCode = _deviceCode;
+    if (deviceCode == null || deviceCode.isEmpty) return;
+    if (!_isDeviceLinked) return; // đã xử lý rồi
+
+    final stillLinked = await ChildLinkService.isDeviceStillLinked(deviceCode);
+    if (!stillLinked) await _handleUnlinkedByParent();
+  }
+
+  /// Thiết bị đã bị phụ huynh xoá: dừng mọi thứ, xoá dữ liệu liên kết dưới máy
+  /// và đưa app về trạng thái chưa liên kết (router tự chuyển sang màn quét mã
+  /// khi `is_linked` = false).
+  Future<void> _handleUnlinkedByParent() async {
+    if (!_isDeviceLinked) return;
+    print('⚠️ [DEVICE] Thiết bị đã bị phụ huynh xoá — tự gỡ liên kết');
+    if (mounted) setState(() => _isDeviceLinked = false);
+
+    // Dừng timer trước khi xoá credentials, tránh các lần tick còn lại bắn
+    // request bằng deviceCode đã chết.
+    _countdownTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    _usageSyncTimer?.cancel();
+    _screenPollTimer?.cancel();
+    _connectionCheckTimer?.cancel();
+    _sosTimer?.cancel();
+
+    await ChildLinkService.clearLocalLink();
+    if (mounted) setState(() => _deviceCode = null);
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.link_off, color: Color(0xFF6366f1)),
+            SizedBox(width: 8),
+            Expanded(child: Text('Đã gỡ liên kết')),
+          ],
+        ),
+        content: const Text(
+          'Bố mẹ đã gỡ thiết bị này khỏi tài khoản. Dữ liệu liên kết trên máy đã '
+          'được xoá và việc giám sát đã dừng. Muốn dùng lại, hãy quét mã QR mới '
+          'từ ứng dụng của bố mẹ.',
+        ),
+        actions: [
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx),
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Đã hiểu'),
+          ),
+        ],
+      ),
+    );
+
+    // Đổi state Riverpod SAU dialog: router redirect ngay khi is_linked=false,
+    // nếu gọi trước thì màn hình bị thay và dialog không kịp hiện.
+    if (mounted) await ref.read(roleProvider.notifier).setLinked(false);
+  }
+
   /// Refetch kết quả duyệt/từ chối gần nhất của CHÍNH thiết bị này. Áp dụng
   /// extension qua _fetchAndApplyNewLimit() (refetch REST, không đọc field
   /// responseMinutes để tính tay — tránh lệch nếu Parent duyệt 2 lần liên tiếp).
@@ -984,6 +1069,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     RealtimeService.instance.removeTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
     RealtimeService.instance.addTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
+
+    // Parent bấm "Xoá thiết bị" → DELETE trên bảng Device.
+    RealtimeService.instance.removeDeviceRemovedListener(_onRealtimeDeviceRemoved);
+    RealtimeService.instance.addDeviceRemovedListener(_onRealtimeDeviceRemoved);
 
     // locationRequested: lệnh tức thời, không gắn DB row — CHƯA cutover, vẫn
     // qua Socket.IO (cần Realtime Broadcast channel riêng, xem RealtimeService).
@@ -1076,6 +1165,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
     RealtimeService.instance.removeAppTimeLimitUpdatedListener(_onRealtimeAppTimeLimitUpdated);
     RealtimeService.instance.removeSchoolScheduleUpdatedListener(_onRealtimeSchoolScheduleUpdated);
     RealtimeService.instance.removeTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
+    RealtimeService.instance.removeDeviceRemovedListener(_onRealtimeDeviceRemoved);
 
     LocationService.instance.stop();
     YouTubeService.instance.stop();

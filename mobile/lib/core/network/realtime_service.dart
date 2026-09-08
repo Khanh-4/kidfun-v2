@@ -43,6 +43,7 @@ class RealtimeService {
   final List<sb.RealtimeChannel> _channels = [];
 
   final List<RealtimeCallback> _deviceLinkedListeners = [];
+  final List<RealtimeCallback> _deviceRemovedListeners = [];
   final List<RealtimeCallback> _deviceOnlineListeners = [];
   final List<RealtimeCallback> _deviceOfflineListeners = [];
   final List<RealtimeCallback> _timeExtensionRequestListeners = [];
@@ -66,6 +67,15 @@ class RealtimeService {
       _deviceLinkedListeners.add(callback);
   void removeDeviceLinkedListener(RealtimeCallback callback) =>
       _deviceLinkedListeners.remove(callback);
+
+  /// DELETE trên Device — Parent vừa "Xoá thiết bị". Payload DELETE của
+  /// Postgres Changes chỉ mang primary key (REPLICA IDENTITY mặc định) nên
+  /// consumer BẮT BUỘC phải tự xác minh lại qua REST xem deviceCode của mình
+  /// còn tồn tại không, đúng tinh thần notify-then-refetch của file này.
+  void addDeviceRemovedListener(RealtimeCallback callback) =>
+      _deviceRemovedListeners.add(callback);
+  void removeDeviceRemovedListener(RealtimeCallback callback) =>
+      _deviceRemovedListeners.remove(callback);
 
   void addDeviceOnlineListener(RealtimeCallback callback) =>
       _deviceOnlineListeners.add(callback);
@@ -270,6 +280,14 @@ class RealtimeService {
 
   // ── Subscriptions (notify-then-refetch, không đọc field từ payload) ─────
 
+  /// Cho phép nguồn NGOÀI Supabase (cụ thể: FCM push khi trẻ xin thêm giờ)
+  /// bơm signal vào đúng đường ống notify-then-refetch mà TimeExtensionListener
+  /// đang nghe. Nhờ vậy pop-up phía Parent không còn phụ thuộc 100% vào kênh
+  /// Realtime: backend đã gửi FCM ở mọi trường hợp, nên chỉ cần FCM tới là
+  /// dialog hiện được, kể cả khi kênh Realtime rớt hoặc RLS chặn.
+  void emitTimeExtensionRequestSignal() =>
+      _notify(_timeExtensionRequestListeners, 'TimeExtensionRequest', 'fcm');
+
   void _notify(List<RealtimeCallback> listeners, String table, String eventType) {
     final signal = <String, dynamic>{
       'table': table,
@@ -301,6 +319,9 @@ class RealtimeService {
         if (payload.eventType == sb.PostgresChangeEvent.insert ||
             payload.eventType == sb.PostgresChangeEvent.update) {
           _notify(_deviceLinkedListeners, 'Device', type);
+        }
+        if (payload.eventType == sb.PostgresChangeEvent.delete) {
+          _notify(_deviceRemovedListeners, 'Device', type);
         }
         // UPDATE có thể là online hoặc offline — không đọc field isOnline ở
         // đây (notify-then-refetch), báo cả 2 phía, consumer tự refetch để
