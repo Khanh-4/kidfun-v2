@@ -54,6 +54,28 @@ class DeviceRepository {
     }
   }
 
+  // Huỷ mã liên kết đang chờ + xoá device nháp mà generate-pairing-code đã
+  // INSERT sẵn. Server tự bỏ qua nếu thiết bị đã liên kết thật (race: trẻ xác
+  // nhận mã đúng lúc phụ huynh thoát màn hình).
+  Future<bool> cancelPairing(int deviceId) async {
+    try {
+      print('📡 [DeviceRepo] Cancelling pairing for device: $deviceId');
+      final response = await _dio.post(
+        ApiConstants.devicesCancelPairing,
+        data: {'deviceId': deviceId},
+      );
+      final cancelled = response.data['data']?['cancelled'] == true;
+      print('📡 [DeviceRepo] Cancel pairing result: cancelled=$cancelled');
+      return cancelled;
+    } on DioException catch (e) {
+      print('❌ [DeviceRepo] cancelPairing DioError: ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('❌ [DeviceRepo] cancelPairing error: $e');
+      rethrow;
+    }
+  }
+
   Future<void> linkDevice(String pairingCode) async {
     try {
       print('📡 [DeviceRepo] Linking device with pairing code: $pairingCode');

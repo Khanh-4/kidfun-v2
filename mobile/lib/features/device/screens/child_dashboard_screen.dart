@@ -998,10 +998,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
           'từ ứng dụng của bố mẹ.',
         ),
         actions: [
-          ElevatedButton.icon(
+          ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Đã hiểu'),
+            child: const Text('Đã hiểu'),
           ),
         ],
       ),

@@ -438,6 +438,12 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
         await DioClient.instance.put('/api/extension-requests/$requestId/reject');
       }
 
+      // Yêu cầu đã xử lý xong → thông báo đẩy còn nằm trong khay chỉ gây hiểu
+      // nhầm là còn việc chưa làm, và bấm vào nó sẽ refetch /pending không ra
+      // gì. Gỡ sau khi server xác nhận, không gỡ sớm ở lúc bấm nút: nếu request
+      // hỏng thì thông báo phải còn để phụ huynh quay lại xử lý.
+      await NotificationService.instance.cancelTimeExtensionNotification();
+
       if (!mounted) return;
       ScaffoldMessenger.of(dialogContext).showSnackBar(
         SnackBar(

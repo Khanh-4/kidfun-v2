@@ -163,6 +163,22 @@ const generatePairingCode = async (req, res) => {
     // (mở app, đăng nhập/đăng ký, vào màn nhập mã) trước khi mã hết hạn
     const pairingCodeExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
+    // Dọn các bản nháp CHƯA liên kết đã hết hạn của chính user này. Bình thường
+    // app parent tự gọi cancel-pairing khi rời màn hình liên kết, nhưng đường đó
+    // không chạy được nếu app bị kill hoặc mất mạng đúng lúc thoát — nếu không
+    // dọn ở đây thì bản nháp "Pending Device" nằm lại vĩnh viễn trong danh sách.
+    const staleDrafts = await prisma.device.deleteMany({
+      where: {
+        userId: req.user.userId,
+        isOnline: false,
+        pairingCode: { not: null },
+        pairingCodeExpiry: { lt: new Date() }
+      }
+    });
+    if (staleDrafts.count > 0) {
+      console.log(`🧹 [DEVICE] Cleaned ${staleDrafts.count} bản nháp hết hạn của userId ${req.user.userId}`);
+    }
+
     // Tạo device nháp
     const device = await prisma.device.create({
       data: {
@@ -179,6 +195,45 @@ const generatePairingCode = async (req, res) => {
   } catch (error) {
     console.error('Generate pairing code error:', error);
     sendError(res, 'Failed to generate pairing code', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// POST /api/devices/cancel-pairing
+// Phụ huynh rời màn hình liên kết sau khi đã tạo mã: xoá luôn bản nháp để mã
+// chết ngay và thiết bị không bị ghi nhận vào danh sách dưới tên "Pending
+// Device" (generate-pairing-code INSERT bản nháp NGAY lúc tạo mã, nên nó đã
+// hiện trong GET /api/devices trước cả khi có thiết bị con nào dùng mã).
+const cancelPairing = async (req, res) => {
+  try {
+    const deviceId = parseInt(req.body.deviceId);
+    if (!deviceId) {
+      return sendError(res, 'deviceId is required', 400, 'MISSING_FIELDS');
+    }
+
+    const device = await prisma.device.findFirst({
+      where: { id: deviceId, userId: req.user.userId }
+    });
+
+    if (!device) {
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
+    }
+
+    // Race thật: trẻ có thể xác nhận mã đúng lúc phụ huynh thoát màn hình.
+    // linkDevice() xoá pairingCode và set isOnline=true, nên hai điều kiện này
+    // phân biệt được "bản nháp chưa ai dùng" với "thiết bị vừa liên kết thật".
+    // Không có guard này thì thao tác thoát màn hình sẽ xoá mất thiết bị thật.
+    if (device.pairingCode === null || device.isOnline) {
+      console.log(`↩️ [DEVICE] Bỏ qua cancel-pairing #${deviceId}: thiết bị đã liên kết`);
+      return sendSuccess(res, { cancelled: false, reason: 'ALREADY_LINKED' });
+    }
+
+    await prisma.device.delete({ where: { id: deviceId } });
+    console.log(`🧹 [DEVICE] Huỷ mã liên kết, xoá bản nháp #${deviceId} của userId ${req.user.userId}`);
+
+    sendSuccess(res, { cancelled: true });
+  } catch (error) {
+    console.error('Cancel pairing error:', error);
+    sendError(res, 'Failed to cancel pairing', 500, 'INTERNAL_ERROR');
   }
 };
 
@@ -324,5 +379,6 @@ module.exports = {
   deleteDevice,
   linkDevice,
   generatePairingCode,
+  cancelPairing,
   getDeviceStatus
 };

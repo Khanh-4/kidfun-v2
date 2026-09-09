@@ -31,12 +31,16 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   bool _isSocketConnected = false;
   bool _isLinked = false;
   bool _isCheckingLink = false;
+  // Đọc trong dispose() nên phải giữ sẵn từ initState: sau khi widget bị huỷ
+  // thì `ref` không dùng được nữa.
+  late final DeviceNotifier _deviceNotifier;
 
   bool get _isCodeExpired => _expiresAt != null && _remaining <= Duration.zero;
 
   @override
   void initState() {
     super.initState();
+    _deviceNotifier = ref.read(deviceProvider.notifier);
     _setupSocketListeners();
   }
 
@@ -89,8 +93,22 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
     });
   }
 
+  // Bản ghi device nháp được INSERT ngay lúc generate-pairing-code, nên nó đã
+  // nằm trong GET /api/devices dưới tên "Pending Device" trước khi có thiết bị
+  // con nào dùng mã. Phụ huynh chỉ xem mã rồi thoát ra là danh sách thiết bị
+  // bẩn thêm một dòng và mã vẫn sống 15 phút — phải tự huỷ khi rời màn hình.
+  // Fire-and-forget: dispose() không await được, và repository dùng DioClient
+  // singleton nên request vẫn chạy tiếp sau khi widget đã bị huỷ.
+  void _cancelPendingPairing() {
+    final deviceId = _pendingDeviceId;
+    if (deviceId == null || _isLinked) return;
+    _pendingDeviceId = null;
+    unawaited(_deviceNotifier.cancelPairing(deviceId));
+  }
+
   @override
   void dispose() {
+    _cancelPendingPairing();
     RealtimeService.instance.removeDeviceLinkedListener(_handleSuccessfulLink);
     RealtimeService.instance.removeConnectionRestoredListener(_onRealtimeReconnected);
     _countdownTimer?.cancel();
@@ -99,6 +117,9 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
 
   Future<void> _generateCode() async {
     if (_selectedProfile == null) return;
+    // Tạo mã lần 2 trở đi: huỷ bản nháp của mã trước, nếu không mỗi lần bấm
+    // lại để thêm một dòng "Pending Device" nữa vào danh sách.
+    _cancelPendingPairing();
     _countdownTimer?.cancel();
     setState(() {
       _isLoading = true;
@@ -327,11 +348,16 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
                                     color: AppColors.slate800)),
                           ))
                       .toList(),
-                  onChanged: (val) => setState(() {
-                    _selectedProfile = val;
-                    _pairingCode = null;
-                    _errorMessage = null;
-                  }),
+                  onChanged: (val) {
+                    // Đổi hồ sơ khi đang hiện mã: mã cũ thuộc hồ sơ trước, bỏ
+                    // đi cùng bản nháp của nó thay vì để lại rác.
+                    _cancelPendingPairing();
+                    setState(() {
+                      _selectedProfile = val;
+                      _pairingCode = null;
+                      _errorMessage = null;
+                    });
+                  },
                 )
               else
                 Container(
@@ -529,11 +555,13 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
           ),
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: () => setState(() {
-              _pairingCode = null;
-              _pendingDeviceId = null;
-              _errorMessage = null;
-            }),
+            onPressed: () {
+              _cancelPendingPairing();
+              setState(() {
+                _pairingCode = null;
+                _errorMessage = null;
+              });
+            },
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.slate500,
               side: const BorderSide(color: AppColors.slate200),
