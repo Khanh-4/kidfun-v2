@@ -19,7 +19,24 @@ const generateDeviceCode = () => {
 const getAllDevices = async (req, res) => {
   try {
     const devices = await prisma.device.findMany({
-      where: { userId: req.user.userId },
+      where: {
+        userId: req.user.userId,
+        // Ẩn bản nháp của mã liên kết chưa ai dùng. generate-pairing-code
+        // INSERT dòng này ngay lúc tạo mã (deviceName = 'Pending Device'), nên
+        // nếu không lọc thì nó hiện trong danh sách thiết bị của phụ huynh
+        // suốt từ lúc tạo mã tới lúc mã được dùng hoặc bị huỷ — đúng thứ phụ
+        // huynh báo là "app tự ghi nhận thiết bị". cancel-pairing chỉ thu hẹp
+        // cửa sổ đó chứ không đóng được về 0: mỗi request mất 1-4s nên vẫn kịp
+        // có một lần GET /api/devices nhìn thấy bản nháp.
+        //
+        // linkDevice xoá pairingCode và set isOnline = true khi liên kết thật,
+        // nên "còn pairingCode và chưa từng online" nhận diện đúng bản nháp mà
+        // không giấu nhầm thiết bị thật đang offline.
+        OR: [
+          { pairingCode: null },
+          { isOnline: true }
+        ]
+      },
       include: {
         profile: true,
         applications: true,
