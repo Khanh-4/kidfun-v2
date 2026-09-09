@@ -39,17 +39,27 @@ class DeviceRepository {
     }
   }
 
-  // Xác thực deviceId cụ thể (được tạo lúc generate-pairing-code) đã thật sự
-  // link chưa — dùng để lọc bỏ false-positive từ tín hiệu realtime "device
-  // changed" chung chung (vốn cũng bắn lúc INSERT device nháp, trước khi
-  // child xác nhận). isOnline chỉ được set true đúng lúc link thật xảy ra.
-  Future<bool> isDeviceLinked(int deviceId) async {
+  // Xác thực mã vừa tạo đã có thiết bị nào dùng chưa — dùng để lọc bỏ
+  // false-positive từ tín hiệu realtime "device changed" chung chung (vốn cũng
+  // bắn lúc INSERT device nháp, trước khi child xác nhận).
+  //
+  // Dùng /pairing-status chứ không phải /status: khi máy trẻ đã từng liên kết,
+  // linkDevice ghi đè lên dòng Device cũ (giữ lịch sử sử dụng) rồi XOÁ dòng
+  // nháp, nên /status của deviceId nháp trả 404 và màn hình treo mãi ở "Đang
+  // chờ kết nối" dù liên kết đã thành công. /pairing-status tự truy ra thiết bị
+  // thật trong trường hợp đó.
+  Future<bool> isPairingLinked(int deviceId, int profileId) async {
     try {
-      final response = await _dio.get('/api/devices/$deviceId/status');
+      final response = await _dio.get(
+        '/api/devices/$deviceId/pairing-status',
+        queryParameters: {'profileId': profileId},
+      );
       if (response.data['success'] == false) return false;
-      return response.data['data']['isOnline'] == true;
+      final status = response.data['data']['status'];
+      print('📡 [DeviceRepo] Pairing status của device $deviceId: $status');
+      return status == 'LINKED';
     } catch (e) {
-      print('❌ [DeviceRepo] isDeviceLinked error: $e');
+      print('❌ [DeviceRepo] isPairingLinked error: $e');
       return false;
     }
   }

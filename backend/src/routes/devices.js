@@ -30,6 +30,9 @@ router.put('/:id', deviceController.updateDevice);
 // GET /api/devices/:id/status - Lấy trạng thái thiết bị
 router.get('/:id/status', deviceController.getDeviceStatus);
 
+// GET /api/devices/:id/pairing-status - Mã liên kết đã có thiết bị nào dùng chưa
+router.get('/:id/pairing-status', deviceController.getPairingStatus);
+
 // DELETE /api/devices/:id - Xóa thiết bị
 router.delete('/:id', deviceController.deleteDevice);
 

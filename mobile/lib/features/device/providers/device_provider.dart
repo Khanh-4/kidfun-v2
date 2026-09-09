@@ -118,8 +118,8 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     }
   }
 
-  Future<bool> checkDeviceLinked(int deviceId) {
-    return _repo.isDeviceLinked(deviceId);
+  Future<bool> checkDeviceLinked(int deviceId, int profileId) {
+    return _repo.isPairingLinked(deviceId, profileId);
   }
 
   @override

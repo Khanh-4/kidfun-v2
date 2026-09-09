@@ -4,6 +4,12 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 
+// Cửa sổ coi là "vừa liên kết xong" khi phải suy ra thiết bị thật từ hồ sơ
+// (xem getPairingStatus). Rộng hơn thời gian một lần liên kết thật (child gọi
+// /link rồi parent poll lại trong vài giây) nhưng vẫn đủ hẹp để không nhận nhầm
+// một thiết bị đã online từ trước.
+const RECENT_LINK_WINDOW_MS = 2 * 60 * 1000;
+
 // Tạo mã device ngẫu nhiên
 const generateDeviceCode = () => {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -198,6 +204,61 @@ const generatePairingCode = async (req, res) => {
   }
 };
 
+// GET /api/devices/:id/pairing-status?profileId=N
+// Màn hình liên kết của app parent hỏi: "mã tôi vừa tạo đã có thiết bị nào dùng
+// chưa?". Không dùng GET /:id/status được, vì có một nhánh của linkDevice XOÁ
+// mất dòng nháp mang id đó: khi máy trẻ đã từng liên kết (còn dòng Device cũ
+// theo deviceCode phần cứng), server ghi đè lên dòng cũ để giữ lịch sử sử dụng
+// rồi xoá dòng nháp. Lúc đó GET /:id/status trả 404 và app parent treo mãi ở
+// "Đang chờ kết nối" dù liên kết ĐÃ thành công.
+const getPairingStatus = async (req, res) => {
+  try {
+    const deviceId = parseInt(req.params.id);
+    const draft = await prisma.device.findFirst({
+      where: { id: deviceId, userId: req.user.userId }
+    });
+
+    // Nhánh thường: dòng nháp còn nguyên, linkDevice cập nhật đè lên chính nó.
+    if (draft) {
+      if (draft.isOnline && draft.pairingCode === null) {
+        return sendSuccess(res, { status: 'LINKED', deviceId: draft.id });
+      }
+      const expired = draft.pairingCodeExpiry && draft.pairingCodeExpiry <= new Date();
+      return sendSuccess(res, { status: expired ? 'EXPIRED' : 'PENDING', deviceId: draft.id });
+    }
+
+    // Dòng nháp biến mất. Xác nhận bằng thiết bị thật thay vì mặc định coi là
+    // thành công: liên kết thật luôn set isOnline = true và lastSeen = now()
+    // trên hồ sơ này, nên chỉ nhận khi có thiết bị vừa online trong ít phút gần
+    // đây. Không có mốc thời gian thì một thiết bị cũ đang online của cùng hồ sơ
+    // sẽ bị nhận nhầm là "vừa liên kết xong".
+    const profileId = parseInt(req.query.profileId);
+    if (!profileId) {
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
+    }
+
+    const linked = await prisma.device.findFirst({
+      where: {
+        userId: req.user.userId,
+        profileId,
+        isOnline: true,
+        lastSeen: { gte: new Date(Date.now() - RECENT_LINK_WINDOW_MS) }
+      },
+      orderBy: { lastSeen: 'desc' }
+    });
+
+    if (!linked) {
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
+    }
+
+    console.log(`🔗 [DEVICE] Bản nháp #${deviceId} đã bị thay bằng thiết bị #${linked.id} (trùng deviceCode phần cứng)`);
+    return sendSuccess(res, { status: 'LINKED', deviceId: linked.id });
+  } catch (error) {
+    console.error('Get pairing status error:', error);
+    sendError(res, 'Failed to get pairing status', 500, 'INTERNAL_ERROR');
+  }
+};
+
 // POST /api/devices/cancel-pairing
 // Phụ huynh rời màn hình liên kết sau khi đã tạo mã: xoá luôn bản nháp để mã
 // chết ngay và thiết bị không bị ghi nhận vào danh sách dưới tên "Pending
@@ -380,5 +441,6 @@ module.exports = {
   linkDevice,
   generatePairingCode,
   cancelPairing,
+  getPairingStatus,
   getDeviceStatus
 };

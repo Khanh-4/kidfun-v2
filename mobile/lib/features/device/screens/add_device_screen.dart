@@ -64,14 +64,15 @@ class _AddDeviceScreenState extends ConsumerState<AddDeviceScreen> {
   void _handleSuccessfulLink(Map<String, dynamic> data) {
     if (!mounted || _isLinked || _isCheckingLink) return;
     final deviceId = _pendingDeviceId;
-    if (_pairingCode == null || deviceId == null) return;
+    final profileId = _selectedProfile?.id;
+    if (_pairingCode == null || deviceId == null || profileId == null) return;
 
     // Tín hiệu realtime "Device changed" cũng bắn lúc generate-pairing-code
     // tự INSERT device nháp (trước khi child xác nhận) — không thể tin mù.
-    // Verify lại qua REST đúng deviceId này: chỉ coi là liên kết thật khi
-    // isOnline == true, giá trị chỉ được set lúc link thật xảy ra.
+    // Verify lại qua REST /pairing-status cho đúng mã này: chỉ coi là liên kết
+    // thật khi server trả LINKED.
     _isCheckingLink = true;
-    ref.read(deviceProvider.notifier).checkDeviceLinked(deviceId).then((linked) {
+    ref.read(deviceProvider.notifier).checkDeviceLinked(deviceId, profileId).then((linked) {
       _isCheckingLink = false;
       if (!mounted || !linked || _isLinked) return;
 
