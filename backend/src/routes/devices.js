@@ -15,6 +15,9 @@ router.get('/', deviceController.getAllDevices);
 // POST /api/devices/generate-pairing-code - Tạo mã QR pairing code
 router.post('/generate-pairing-code', deviceController.generatePairingCode);
 
+// POST /api/devices/cancel-pairing - Huỷ mã liên kết + xoá device nháp
+router.post('/cancel-pairing', deviceController.cancelPairing);
+
 // POST /api/devices - Đăng ký thiết bị mới
 router.post('/', deviceController.registerDevice);
 
@@ -26,6 +29,9 @@ router.put('/:id', deviceController.updateDevice);
 
 // GET /api/devices/:id/status - Lấy trạng thái thiết bị
 router.get('/:id/status', deviceController.getDeviceStatus);
+
+// GET /api/devices/:id/pairing-status - Mã liên kết đã có thiết bị nào dùng chưa
+router.get('/:id/pairing-status', deviceController.getPairingStatus);
 
 // DELETE /api/devices/:id - Xóa thiết bị
 router.delete('/:id', deviceController.deleteDevice);

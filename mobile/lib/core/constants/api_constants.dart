@@ -29,6 +29,7 @@ class ApiConstants {
   static const String devices = '/api/devices';
   static const String devicesGeneratePairingCode = '/api/devices/generate-pairing-code';
   static const String devicesLink = '/api/devices/link';
+  static const String devicesCancelPairing = '/api/devices/cancel-pairing';
   
   // Device status endpoint (Sprint 3)
   static String deviceStatus(int deviceId) => '/api/devices/$deviceId/status';

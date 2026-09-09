@@ -56,7 +56,7 @@ function initFirebase() {
  * @param {string} body - Nội dung
  * @param {object} data - Data payload (key-value strings)
  */
-async function sendPushNotification(token, title, body, data = {}) {
+async function sendPushNotification(token, title, body, data = {}, options = {}) {
   if (!firebaseInitialized) {
     console.warn('Firebase not initialized, skipping push notification');
     return null;
@@ -76,6 +76,11 @@ async function sendPushNotification(token, title, body, data = {}) {
       notification: {
         channelId: 'default',
         sound: 'default',
+        // tag: Android hiển thị notification qua notify(tag, 0, ...) khi có tag,
+        // nên app biết trước cặp (id=0, tag) để tự gỡ thông báo khỏi khay sau
+        // khi phụ huynh đã xử lý trong app. Không có tag thì FCM tự sinh tag
+        // theo uptimeMillis — app không thể xác định để cancel.
+        ...(options.androidTag ? { tag: options.androidTag } : {}),
       },
     },
     apns: {
@@ -107,7 +112,7 @@ async function sendPushNotification(token, title, body, data = {}) {
  * @param {string} body - Nội dung
  * @param {object} data - Data payload (key-value strings)
  */
-async function sendToMultipleTokens(tokens, title, body, data = {}) {
+async function sendToMultipleTokens(tokens, title, body, data = {}, options = {}) {
   if (!firebaseInitialized) {
     console.warn('Firebase not initialized, skipping push notification');
     return null;
@@ -128,6 +133,11 @@ async function sendToMultipleTokens(tokens, title, body, data = {}) {
       notification: {
         channelId: 'default',
         sound: 'default',
+        // tag: Android hiển thị notification qua notify(tag, 0, ...) khi có tag,
+        // nên app biết trước cặp (id=0, tag) để tự gỡ thông báo khỏi khay sau
+        // khi phụ huynh đã xử lý trong app. Không có tag thì FCM tự sinh tag
+        // theo uptimeMillis — app không thể xác định để cancel.
+        ...(options.androidTag ? { tag: options.androidTag } : {}),
       },
     },
     apns: {
@@ -169,7 +179,7 @@ async function sendToMultipleTokens(tokens, title, body, data = {}) {
 /**
  * Gửi push notification cho tất cả devices của 1 user
  */
-async function sendPushToUser(userId, { title, body, data = {} }) {
+async function sendPushToUser(userId, { title, body, data = {}, androidTag }) {
   // BUG 3 FIX: auto-initialize Firebase defensively so FCM works even if startup call fails
   try { initFirebase(); } catch (_) {}
   try {
@@ -180,7 +190,7 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
     if (tokens.length === 0) return;
 
     const tokenStrings = tokens.map(t => t.token);
-    const result = await sendToMultipleTokens(tokenStrings, title, body, data);
+    const result = await sendToMultipleTokens(tokenStrings, title, body, data, { androidTag });
 
     // Cleanup stale tokens reported by FCM as invalid
     if (result?.invalidTokens?.length > 0) {

@@ -29,6 +29,13 @@ class NotificationService {
   static const int sosNotificationId = 1000;
   static const int geofenceNotificationId = 1001;
   static const int extensionNotificationId = 1002;
+  // Android hiển thị thông báo FCM bằng notify(tag, 0, ...) — id luôn là 0 khi
+  // message có tag, nên chỉ cần biết tag là gỡ được.
+  static const int _fcmTaggedNotificationId = 0;
+  static const String _extensionFcmTag = 'time_extension';
+  // Bắt cả thông báo cũ đẩy từ trước khi backend gắn tag: tiêu đề server dựng
+  // theo mẫu "⏳ <tên bé> xin thêm giờ" (extensionController.js).
+  static const String _extensionTitleMarker = 'xin thêm giờ';
 
   // ── Init ───────────────────────────────────────────────────────────────────
 
@@ -241,5 +248,40 @@ class NotificationService {
     );
 
     print('⏳ [NOTIFICATION] Time extension notification shown: $title');
+  }
+
+  /// Gỡ thông báo "xin thêm giờ" khỏi khay sau khi phụ huynh đã duyệt/từ chối
+  /// ngay trong app. Phải quét 3 nguồn vì thông báo có thể do bên nào cũng được
+  /// đẩy ra, mỗi bên đánh id khác nhau:
+  ///   1. App tự hiện lúc đang mở  → plugin, id [extensionNotificationId].
+  ///   2. FCM SDK hiện lúc app chạy nền → notify(tag, 0, ...) với tag server gửi
+  ///      kèm (androidTag: 'time_extension' trong extensionController.js).
+  ///   3. Thông báo đẩy từ bản build/backend cũ chưa có tag → không đoán được
+  ///      id, phải rà danh sách thông báo đang hiện và đối chiếu tiêu đề.
+  Future<void> cancelTimeExtensionNotification() async {
+    try {
+      await _plugin.cancel(extensionNotificationId);
+      await _plugin.cancel(_fcmTaggedNotificationId, tag: _extensionFcmTag);
+
+      if (!Platform.isAndroid) return;
+
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final active = await android?.getActiveNotifications() ?? [];
+      for (final n in active) {
+        final id = n.id;
+        if (id == null) continue;
+        final isExtension = n.channelId == _extensionChannelId ||
+            n.tag == _extensionFcmTag ||
+            (n.title?.contains(_extensionTitleMarker) ?? false);
+        if (!isExtension) continue;
+        await _plugin.cancel(id, tag: n.tag);
+        print('🧹 [NOTIFICATION] Đã gỡ thông báo xin thêm giờ (id=$id, tag=${n.tag})');
+      }
+    } catch (e) {
+      // Không chặn luồng duyệt/từ chối chỉ vì không gỡ được thông báo —
+      // getActiveNotifications cần API 23+ và có thể ném trên máy cũ.
+      print('❌ [NOTIFICATION] Không gỡ được thông báo xin thêm giờ: $e');
+    }
   }
 }

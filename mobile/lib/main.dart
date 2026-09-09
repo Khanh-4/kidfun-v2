@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/network/realtime_service.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'core/services/native_service.dart';
@@ -92,6 +93,15 @@ void navigateToSOSFromFCM(RemoteMessage message) {
   });
 }
 
+/// Parent mở app từ thông báo "xin thêm giờ" (app đang chạy nền hoặc đã bị
+/// kill). Khác SOS, luồng này không cần điều hướng: chỉ cần báo cho
+/// TimeExtensionListener refetch để pop-up duyệt/từ chối hiện lên.
+void signalTimeExtensionFromFCM(RemoteMessage message) {
+  if (message.data['type'] != 'time_extension') return;
+  print('[FCM] ⏳ Time extension notification opened — refetching pending requests');
+  RealtimeService.instance.emitTimeExtensionRequestSignal();
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -147,6 +157,9 @@ void main() async {
 
        if (payload == 'TIME_EXTENSION') {
           safelyNavigate('/home', null);
+          // Bấm vào thông báo → refetch ngay để pop-up hiện lên sau khi về
+          // /home, không phải chờ kênh Realtime hay lần resume kế tiếp.
+          RealtimeService.instance.emitTimeExtensionRequestSignal();
        }
      }
    );
@@ -205,6 +218,12 @@ void main() async {
           body: body,
           payload: 'TIME_EXTENSION',
         );
+        // Ngoài notification, bắn signal để TimeExtensionListener refetch
+        // /api/extension-requests/pending và hiện pop-up NGAY khi Parent đang
+        // mở app. Trước đây chỉ kênh Supabase Realtime làm việc này, nên khi
+        // kênh đó không đẩy được event (RLS chặn / mất kết nối) Parent chỉ thấy
+        // thông báo đẩy mà không bao giờ thấy pop-up.
+        RealtimeService.instance.emitTimeExtensionRequestSignal();
       }
    });
 
@@ -212,6 +231,7 @@ void main() async {
    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
      print('[FCM] 🔔 Opened from background notification: ${message.data}');
      navigateToSOSFromFCM(message);
+     signalTimeExtensionFromFCM(message);
    });
 
    // === Handle notification tap when app was killed (cold start) ===
@@ -219,6 +239,10 @@ void main() async {
    if (initialMessage != null) {
      print('[FCM] 🔔 Cold start via notification: ${initialMessage.data}');
      navigateToSOSFromFCM(initialMessage);
+     // Cố ý KHÔNG gọi signalTimeExtensionFromFCM ở đây: đoạn này chạy TRƯỚC
+     // runApp() nên chưa có listener nào đăng ký, signal sẽ rơi vào hư không.
+     // Trường hợp cold-start đã được TimeExtensionListener.initState() lo bằng
+     // lời gọi _checkPendingRequests() ngay khi widget được dựng.
    }
 
   runApp(

@@ -102,6 +102,10 @@ exports.createExtensionRequest = async (req, res) => {
           requestId: String(request.id),
           profileId: String(device.profile.id),
         },
+        // Cùng tag → thông báo xin thêm giờ mới ghi đè cái cũ thay vì chồng
+        // đống, và app parent gỡ được nó khỏi khay sau khi duyệt/từ chối
+        // (xem NotificationService.cancelTimeExtensionNotification).
+        androidTag: 'time_extension',
       });
       console.log(`🔔 FCM push sent to userId ${device.userId} for extension request ${request.id}`);
     } catch (fcmErr) {

@@ -106,8 +106,20 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     return _repo.generatePairingCode(profileId);
   }
 
-  Future<bool> checkDeviceLinked(int deviceId) {
-    return _repo.isDeviceLinked(deviceId);
+  // Gọi khi phụ huynh rời màn hình liên kết mà chưa có thiết bị nào dùng mã.
+  // Lỗi ở đây chỉ log: nơi gọi là dispose() của màn hình, không còn UI để báo,
+  // và server vẫn dọn được bản nháp hết hạn ở lần tạo mã kế tiếp.
+  Future<void> cancelPairing(int deviceId) async {
+    try {
+      final cancelled = await _repo.cancelPairing(deviceId);
+      if (cancelled) await fetchDevices();
+    } catch (e) {
+      print('❌ [DeviceProvider] cancelPairing thất bại (device $deviceId): $e');
+    }
+  }
+
+  Future<bool> checkDeviceLinked(int deviceId, int profileId) {
+    return _repo.isPairingLinked(deviceId, profileId);
   }
 
   @override
