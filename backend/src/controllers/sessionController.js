@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { vnDayRange } = require('../utils/vnTime');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 exports.startSession = async (req, res) => {
@@ -56,17 +57,19 @@ exports.heartbeat = async (req, res) => {
     });
 
     // Tính remaining time
-    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const today = vnNow.getDay();
+    const { startOfDay, endOfDay, dayOfWeek: today } = vnDayRange();
     const todayLimit = session.profile.timeLimits.find(tl => tl.dayOfWeek === today);
-    const startOfDay = new Date(vnNow);
-    startOfDay.setHours(0, 0, 0, 0);
 
+    // Cùng bộ lọc với calcRemaining() — xem chú thích ở đó: lọc theo lúc DUYỆT,
+    // và mốc ngày phải là mốc UTC thật của ngày VN.
     const extensions = await prisma.timeExtensionRequest.findMany({
       where: {
         profileId: session.profileId,
         status: 'APPROVED',
-        createdAt: { gte: startOfDay },
+        OR: [
+          { respondedAt: { gte: startOfDay, lte: endOfDay } },
+          { AND: [{ respondedAt: null }, { createdAt: { gte: startOfDay, lte: endOfDay } }] }
+        ]
       }
     });
     const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);

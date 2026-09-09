@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 const { sendPushToUser } = require('../services/firebaseService');
+const { clearCache } = require('../services/cacheService');
 
 // GET /api/profiles/:id/extension-requests
 exports.getExtensionRequests = async (req, res) => {
@@ -141,18 +142,24 @@ exports.approveExtension = async (req, res) => {
 
     const existing = await prisma.timeExtensionRequest.findUnique({
       where: { id: requestId },
-      select: { profileId: true },
+      select: { profileId: true, requestMinutes: true },
     });
     if (!existing || !profileIds.includes(existing.profileId)) {
       return sendError(res, 'Forbidden', 403);
     }
+
+    // Duyệt mà không nói rõ số phút = duyệt đúng số phút trẻ xin. Trước đây chỗ
+    // này ghi null xuống DB rồi mới lấy requestMinutes để trả về, nên phụ huynh
+    // thấy "đã duyệt +15 phút" nhưng calcRemaining cộng `responseMinutes || 0`
+    // = 0 phút. Chốt số phút TRƯỚC khi ghi để DB và phản hồi khớp nhau.
+    const actualMinutes = responseMinutes || existing.requestMinutes;
 
     // ── Step 2: Update DB record so heartbeat sees the bonus immediately ────
     const request = await prisma.timeExtensionRequest.update({
       where: { id: requestId },
       data: {
         status: 'APPROVED',
-        responseMinutes: responseMinutes || null,
+        responseMinutes: actualMinutes,
         respondedAt: new Date(),
       },
       include: {
@@ -161,7 +168,10 @@ exports.approveExtension = async (req, res) => {
       },
     });
 
-    const actualMinutes = responseMinutes || request.requestMinutes;
+    // calcRemaining() cache kết quả 30s. Không xoá thì app trẻ vừa gọi
+    // today-limit trước lúc duyệt sẽ đọc lại đúng bản cũ (bonus = 0) tới tận
+    // 30s sau — đúng triệu chứng "duyệt xong vẫn về giới hạn ngày".
+    clearCache(`remaining_${request.profileId}_`);
 
     // ── Step 3: Notify child device via Socket.IO AFTER DB write ────────────
     if (socketService.io) {

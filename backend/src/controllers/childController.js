@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { getCached, setCache, clearCache } = require('../services/cacheService');
+const { vnDayRange } = require('../utils/vnTime');
 
 // Helper: calculate remaining minutes for a profile today, including bonus
 // Results are cached for 30s to reduce DB load from frequent heartbeat calls
@@ -8,8 +9,7 @@ const calcRemaining = async (profileId, deviceId) => {
   const cacheKey = `remaining_${profileId}_${deviceId}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
-  const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  const dayOfWeek = vnNow.getDay();
+  const { startOfDay, endOfDay, dayOfWeek } = vnDayRange();
 
   const timeLimit = await prisma.timeLimit.findUnique({
     where: {
@@ -18,11 +18,6 @@ const calcRemaining = async (profileId, deviceId) => {
   });
 
   const dailyLimitMinutes = timeLimit?.dailyLimitMinutes || 120;
-
-  const startOfDay = new Date(vnNow);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(vnNow);
-  endOfDay.setHours(23, 59, 59, 999);
 
   // Auto-close stale ACTIVE sessions from previous days
   const staleSessions = await prisma.session.findMany({
@@ -77,11 +72,18 @@ const calcRemaining = async (profileId, deviceId) => {
   });
   const sessionBonus = activeSession?.bonusMinutes || 0;
 
+  // Lọc theo lúc DUYỆT, không phải lúc tạo: trẻ xin lúc 23:55 mà phụ huynh duyệt
+  // lúc 00:05 hôm sau thì giờ được cộng phải tính cho ngày mới — ngày cũ đã hết,
+  // usage cũng đã reset, tính cho ngày cũ là mất trắng. Bản ghi cũ có thể chưa
+  // có respondedAt nên vẫn fallback về createdAt.
   const extensions = await prisma.timeExtensionRequest.findMany({
     where: {
       profileId,
       status: 'APPROVED',
-      createdAt: { gte: startOfDay, lte: endOfDay }
+      OR: [
+        { respondedAt: { gte: startOfDay, lte: endOfDay } },
+        { AND: [{ respondedAt: null }, { createdAt: { gte: startOfDay, lte: endOfDay } }] }
+      ]
     }
   });
   const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
@@ -122,8 +124,7 @@ const getStatus = async (req, res) => {
     const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
 
-    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const dayOfWeek = vnNow.getDay();
+    const { dayOfWeek } = vnDayRange();
 
     sendSuccess(res, {
       device: {
@@ -695,8 +696,7 @@ const getTodayLimit = async (req, res) => {
       return sendError(res, 'Device not found or not linked to profile', 404);
     }
 
-    const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const today = vnNow.getDay(); // 0 = Sunday
+    const { dayOfWeek: today } = vnDayRange(); // 0 = Sunday, theo giờ VN
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
     // fallback to limitMinutes if dailyLimitMinutes is null
@@ -710,7 +710,9 @@ const getTodayLimit = async (req, res) => {
       todayLimit.gradualStartDate
     ) {
       const startDate = new Date(todayLimit.gradualStartDate);
-      const weeksElapsed = Math.floor((vnNow - startDate) / (7 * 24 * 60 * 60 * 1000));
+      // Đo khoảng cách giữa hai mốc thật nên dùng now() thẳng: chênh lệch hai
+      // thời điểm không phụ thuộc timezone, cộng thêm +7h vào một vế chỉ gây lệch.
+      const weeksElapsed = Math.floor((Date.now() - startDate) / (7 * 24 * 60 * 60 * 1000));
       if (weeksElapsed < todayLimit.gradualWeeks) {
         const reduction =
           (baseLimit - todayLimit.gradualTarget) * (weeksElapsed / todayLimit.gradualWeeks);
