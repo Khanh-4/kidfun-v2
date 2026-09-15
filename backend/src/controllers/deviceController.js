@@ -4,7 +4,6 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 const {
-  isDeviceFresh,
   hasRespondedToPing,
   minutesSinceLastSeen
 } = require('../utils/deviceStatus');
@@ -199,11 +198,23 @@ const deleteDevice = async (req, res) => {
     // (bản nháp mã liên kết, hoặc device đăng ký thủ công) — không có ai để
     // cảnh báo, cứ xoá.
     const force = req.query.force === 'true';
-    if (!force && device.lastSeen && !isDeviceFresh(device.lastSeen)) {
-      // Không đủ bằng chứng máy trẻ đang online. KHÔNG tự dò ở đây: việc chờ
-      // thuộc về client (xem startLivenessProbe). App phụ huynh nhận 409 này,
-      // chạy vòng dò có spinner, rồi hoặc gọi lại với ?force=true (máy trẻ trả
-      // lời) hoặc hiện dialog cảnh báo (máy trẻ im lặng).
+    if (!force && device.lastSeen) {
+      // LUÔN dò, không có đường tắt "vừa thấy gần đây nên chắc còn sống".
+      //
+      // Đã sai ba lần vì đường tắt đó: ngưỡng 3 phút (PR #294), rồi 75 giây
+      // (PR #295) — log production 19:43:45 cho thấy DELETE trả thẳng 200 không
+      // qua bước dò nào, vì máy trẻ vừa heartbeat xong mới bật máy bay nên
+      // lastSeen còn mới tinh. Mọi cửa sổ kiểu này đều sai về bản chất: máy trẻ
+      // có thể mất mạng ngay giây sau lần liên lạc cuối, và `lastSeen` chỉ được
+      // cập nhật mỗi 60 giây nên không bao giờ biết được điều đó.
+      //
+      // Dò không đắt khi máy trẻ đang online: nó trả lời trong 1-2 giây rồi
+      // vòng poll kết thúc ngay. Chỉ tốn trọn thời gian chờ khi máy trẻ thật sự
+      // im lặng — đúng lúc đáng phải chờ.
+      //
+      // Việc CHỜ thuộc về client, không phải server: app phụ huynh nhận 409
+      // này, chạy vòng dò có spinner huỷ được, rồi hoặc gọi lại với ?force=true
+      // (máy trẻ trả lời) hoặc hiện dialog cảnh báo (máy trẻ im lặng).
       // Đánh thức máy trẻ ngay trong chính response này: ghi pingRequestedAt
       // tạo một UPDATE trên bảng Device → Supabase Realtime đẩy xuống app trẻ
       // (policy "family can read own devices" có vế `id = app_current_device_id()`)

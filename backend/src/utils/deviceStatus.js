@@ -12,38 +12,18 @@
  * "máy trẻ CÓ đang online" nhưng không trả lời được "máy trẻ KHÔNG đang
  * online": vừa bật máy bay 10 giây thì lastSeen vẫn còn mới tinh.
  *
- * Vì vậy quy trình xoá thiết bị chia hai nhánh:
- *   - `isDeviceFresh()` → đủ bằng chứng khẳng định đang online, xoá ngay.
- *   - ngược lại → phải DÒ CHỦ ĐỘNG (ghi `pingRequestedAt`, app trẻ nhận qua
- *     Realtime rồi gọi lại server) và dùng `hasRespondedToPing()` để chấm.
+ * Vì vậy trước khi xoá thiết bị, LUÔN phải DÒ CHỦ ĐỘNG (ghi `pingRequestedAt`,
+ * app trẻ nhận qua Realtime rồi gọi lại server) và dùng `hasRespondedToPing()`
+ * để chấm. KHÔNG có đường tắt kiểu "lastSeen còn mới nên chắc đang online":
+ * cách đó đã sai hai lần (ngưỡng 3 phút ở PR #294, 75 giây ở PR #295) vì máy
+ * trẻ có thể mất mạng ngay giây sau lần liên lạc cuối.
  *
  * Việc CHỜ trong lúc dò thuộc về app phụ huynh, không phải server: giữ một
  * request serverless mở để poll DB vừa đốt compute vừa làm màn hình đứng im.
  * Xem deviceController.startLivenessProbe / getLiveness.
  */
 
-// Heartbeat chạy mỗi 60s; cộng lề cho một request Vercel chậm (1-4s) để không
-// bắt máy trẻ đang chạy bình thường phải qua bước dò một cách vô ích.
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
-const DEVICE_FRESH_MS = 75 * 1000;
-
-/**
- * Có bằng chứng chắc chắn thiết bị đang online ngay lúc này không?
- *
- * @param {Date|string|null} lastSeen
- * @param {Date} [now]
- * @returns {boolean}
- */
-function isDeviceFresh(lastSeen, now = new Date()) {
-  if (!lastSeen) return false;
-
-  const elapsedMs = now.getTime() - new Date(lastSeen).getTime();
-  // Đồng hồ máy trẻ chạy nhanh hơn server vài giây là chuyện thường — vẫn tính
-  // là tươi, không phải "ở tương lai nên đáng ngờ".
-  if (elapsedMs < 0) return true;
-
-  return elapsedMs <= DEVICE_FRESH_MS;
-}
 
 /**
  * Máy trẻ đã trả lời ping chưa?
@@ -84,9 +64,7 @@ function minutesSinceLastSeen(lastSeen, now = new Date()) {
 }
 
 module.exports = {
-  isDeviceFresh,
   hasRespondedToPing,
   minutesSinceLastSeen,
-  DEVICE_FRESH_MS,
   HEARTBEAT_INTERVAL_MS,
 };
