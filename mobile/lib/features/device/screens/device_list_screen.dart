@@ -87,6 +87,65 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
     return cancelled ? null : alive;
   }
 
+  /// Hai nút hành động của dialog, CÙNG kích thước.
+  ///
+  /// Mặc định `actions:` của AlertDialog xếp ngang rồi tự xuống dòng khi không
+  /// đủ chỗ — với nội dung dài như dialog xoá thiết bị thì nút "Huỷ" bị đẩy
+  /// thành một dòng chữ nhỏ nằm lệch phía trên nút đỏ to, trông như hai thành
+  /// phần khác loại. Dùng Row + Expanded để hai nút luôn bằng nhau.
+  Widget _dialogActions({
+    required String cancelLabel,
+    required String confirmLabel,
+    required VoidCallback onCancel,
+    required VoidCallback onConfirm,
+  }) {
+    const shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+    );
+    const padding = EdgeInsets.symmetric(vertical: 14);
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: padding,
+              shape: shape,
+              foregroundColor: AppColors.slate600,
+              side: const BorderSide(color: AppColors.slate300),
+            ),
+            onPressed: onCancel,
+            child: Text(
+              cancelLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              padding: padding,
+              shape: shape,
+              elevation: 0,
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: onConfirm,
+            child: Text(
+              confirmLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Xác nhận lần đầu, trước khi biết máy trẻ online hay không. Dialog cảnh
   /// báo mất kết nối (nếu có) sẽ hiện SAU dialog này.
   Future<bool?> _confirmDelete(DeviceModel device) {
@@ -113,18 +172,11 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
           style: GoogleFonts.nunito(),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Huỷ', style: GoogleFonts.nunito()),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Xoá thiết bị',
-                style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          _dialogActions(
+            cancelLabel: 'Huỷ',
+            confirmLabel: 'Xoá thiết bị',
+            onCancel: () => Navigator.pop(ctx, false),
+            onConfirm: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -222,18 +274,11 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
           style: GoogleFonts.nunito(),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Huỷ', style: GoogleFonts.nunito()),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Vẫn gỡ',
-                style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          _dialogActions(
+            cancelLabel: 'Huỷ',
+            confirmLabel: 'Vẫn gỡ',
+            onCancel: () => Navigator.pop(ctx, false),
+            onConfirm: () => Navigator.pop(ctx, true),
           ),
         ],
       ),

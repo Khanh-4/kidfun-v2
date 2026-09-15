@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const socketService = require('../services/socketService');
 const {
   isDeviceFresh,
   hasRespondedToPing,
