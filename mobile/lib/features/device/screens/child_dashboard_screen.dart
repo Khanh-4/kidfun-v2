@@ -168,10 +168,23 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Poll socket connection status every 3 seconds
     _connectionCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) {
-        setState(() {
-          _isRealtimeConnected = RealtimeService.instance.isConnected;
-        });
+      if (!mounted) return;
+      final connected = RealtimeService.instance.isConnected;
+      final justReconnected = connected && !_isRealtimeConnected;
+      setState(() => _isRealtimeConnected = connected);
+
+      // Máy trẻ vừa có mạng trở lại. Postgres Changes KHÔNG phát lại event đã
+      // bỏ lỡ lúc mất kết nối, nên nếu phụ huynh bấm "Xoá thiết bị" đúng lúc
+      // máy trẻ offline thì signal DELETE đó mất hẳn — phải tự hỏi server
+      // ngay, thay vì chờ tới nhịp heartbeat kế tiếp (tới 60s).
+      //
+      // Bám vào isConnected chứ không phải addConnectionRestoredListener:
+      // listener đó chỉ bắn từ RealtimeService._connect(), mà phía trẻ _connect()
+      // chỉ chạy lúc khởi tạo dashboard — SDK Supabase nối lại ngầm thì không
+      // ai gọi lại _connect() nên listener sẽ không bao giờ chạy.
+      if (justReconnected) {
+        print('📶 [Realtime] Kết nối vừa khôi phục — kiểm tra lại liên kết');
+        _verifyLinkStillValid();
       }
     });
 
@@ -334,46 +347,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       }
 
       // 4. Heartbeat every 60s
-      _heartbeatTimer?.cancel();
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
-        if (_sessionId != null) {
-          try {
-            final result = await _childRepo.heartbeat(
-              sessionId: _sessionId!,
-              deviceCode: _deviceCode!,
-            );
-            if (mounted) {
-              print('💓 [HEARTBEAT] ping successful. server=${result.remainingSeconds}s');
-
-              // Sync countdown nếu lệch > 10s so với server (tránh drift dài hạn)
-              if (_isLimitEnabled && _endTime != null) {
-                final localRemaining = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
-                final diff = (result.remainingSeconds - localRemaining).abs();
-                if (diff > 10) {
-                  print('⚠️ [HEARTBEAT] Drift ${diff}s detected, syncing from server');
-                  setState(() {
-                    _remainingSeconds = result.remainingSeconds;
-                    _endTime = DateTime.now().add(Duration(seconds: result.remainingSeconds));
-                  });
-                  _saveEndTime();
-                }
-              }
-
-              // If server says blocked, trigger time up
-              if (result.isBlocked && !_isTimeUpDialogShowing) {
-                _onTimeUp();
-              }
-            }
-          } catch (e) {
-            print('❌ Heartbeat error: $e');
-            // Đường bắt cuối cùng (chậm nhất, ≤60s): heartbeat 404 nghĩa là
-            // deviceCode không còn trong DB — xác minh lại rồi tự gỡ liên kết.
-            if (e is DioException && e.response?.statusCode == 404) {
-              await _verifyLinkStillValid();
-            }
-          }
-        }
-      });
+_startHeartbeat();
 
       // Sprint 6: Start screen state polling AFTER session is established
       // This prevents resume/pause API calls from 404-ing due to no active session
@@ -624,35 +598,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         if (_remainingSeconds > 0) {
           _startCountdown();
           // Restart heartbeat
-          _heartbeatTimer?.cancel();
-          _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
-            if (_sessionId != null) {
-              try {
-                final result = await _childRepo.heartbeat(
-                  sessionId: _sessionId!,
-                  deviceCode: _deviceCode!,
-                );
-                if (mounted) {
-                  if (_isLimitEnabled && _endTime != null) {
-                    final localRemaining = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
-                    final diff = (result.remainingSeconds - localRemaining).abs();
-                    if (diff > 10) {
-                      setState(() {
-                        _remainingSeconds = result.remainingSeconds;
-                        _endTime = DateTime.now().add(Duration(seconds: result.remainingSeconds));
-                      });
-                      _saveEndTime();
-                    }
-                  }
-                  if (result.isBlocked && !_isTimeUpDialogShowing) {
-                    _onTimeUp();
-                  }
-                }
-              } catch (e) {
-                print('❌ Heartbeat error: $e');
-              }
-            }
-          });
+_startHeartbeat();
         } else if (!_isTimeUpDialogShowing) {
           _onTimeUp();
         }
@@ -946,6 +892,62 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   void _onRealtimeDeviceRemoved(Map<String, dynamic> data) {
     print('🔔 [Realtime] Device bị xoá — kiểm tra xem có phải thiết bị này không');
     _verifyLinkStillValid();
+  }
+
+  /// Heartbeat 60s: báo server biết máy trẻ còn sống, đồng bộ lại đồng hồ đếm
+  /// ngược, và là đường CUỐI CÙNG phát hiện phụ huynh đã gỡ liên kết.
+  ///
+  /// Trước đây mỗi nhánh (khởi tạo phiên / resume sau khi bật lại màn hình) tự
+  /// dựng một timer riêng, và bản ở nhánh resume thiếu hẳn phần bắt 404 — máy
+  /// trẻ có thể chạy mãi với deviceCode đã chết. Gộp về một chỗ để hai đường
+  /// không bao giờ lệch nhau nữa.
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+      // Không có phiên đang chạy thì không có gì để heartbeat, nhưng VẪN phải
+      // kiểm tra liên kết: trước đây nhánh này thoát ra ngay, nên phụ huynh xoá
+      // thiết bị lúc trẻ chưa bắt đầu phiên thì app trẻ không bao giờ phát hiện.
+      if (_sessionId == null) {
+        await _verifyLinkStillValid();
+        return;
+      }
+
+      try {
+        final result = await _childRepo.heartbeat(
+          sessionId: _sessionId!,
+          deviceCode: _deviceCode!,
+        );
+        if (!mounted) return;
+        print('💓 [HEARTBEAT] ping successful. server=${result.remainingSeconds}s');
+
+        // Sync countdown nếu lệch > 10s so với server (tránh drift dài hạn)
+        if (_isLimitEnabled && _endTime != null) {
+          final localRemaining =
+              (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
+          final diff = (result.remainingSeconds - localRemaining).abs();
+          if (diff > 10) {
+            print('⚠️ [HEARTBEAT] Drift ${diff}s detected, syncing from server');
+            setState(() {
+              _remainingSeconds = result.remainingSeconds;
+              _endTime = DateTime.now().add(Duration(seconds: result.remainingSeconds));
+            });
+            _saveEndTime();
+          }
+        }
+
+        // If server says blocked, trigger time up
+        if (result.isBlocked && !_isTimeUpDialogShowing) {
+          _onTimeUp();
+        }
+      } catch (e) {
+        print('❌ Heartbeat error: $e');
+        // heartbeat 404 nghĩa là deviceCode không còn trong DB — xác minh lại
+        // rồi tự gỡ liên kết.
+        if (e is DioException && e.response?.statusCode == 404) {
+          await _verifyLinkStillValid();
+        }
+      }
+    });
   }
 
   /// Xác minh liên kết còn hiệu lực; nếu server khẳng định thiết bị đã bị xoá

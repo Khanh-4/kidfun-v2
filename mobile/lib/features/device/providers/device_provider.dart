@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/device_repository.dart';
+import '../data/device_exceptions.dart';
 import '../../../shared/models/device_model.dart';
 import '../../../core/network/realtime_service.dart';
 
@@ -87,10 +88,14 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     }
   }
 
-  Future<void> deleteDevice(int id) async {
+  Future<void> deleteDevice(int id, {bool force = false}) async {
     try {
-      await _repo.deleteDevice(id);
+      await _repo.deleteDevice(id, force: force);
       await fetchDevices();
+    } on DeviceOfflineException {
+      // Giữ nguyên kiểu để UI phân biệt được "máy trẻ offline" với lỗi thường
+      // và hiện dialog xác nhận thay vì snackbar báo lỗi đỏ.
+      rethrow;
     } catch (e) {
       throw Exception(e.toString());
     }
