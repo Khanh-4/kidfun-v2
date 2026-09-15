@@ -221,11 +221,21 @@ const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Reset all devices to offline when server starts.
-// Only meaningful on a real "boot" (Railway/local) — on Vercel, module code
-// re-runs on every cold start of every function instance, so doing this
-// there would incorrectly flip actually-online devices back to offline.
+//
+// Chỉ có nghĩa khi một server chạy-dài thật sự khởi động lại (Railway). Hai
+// trường hợp PHẢI loại trừ:
+//   - Vercel: module code chạy lại ở mọi cold start của mọi function instance,
+//     làm này sẽ lật nhầm thiết bị đang online thành offline.
+//   - Chạy local / chạy test: `.env` trỏ thẳng vào Supabase production, nên
+//     mỗi lần `npm run dev` hoặc `npm test` là một lần ghi đè dữ liệu thật.
+//     Đã xảy ra thật ngày 2026-09-15 — cả 6 thiết bị production bị set offline
+//     chỉ vì khởi động backend local để thử một endpoint.
+//
+// Nhắc lại: `isOnline` vốn không đáng tin trên hạ tầng hiện tại (không còn chỗ
+// nào set nó về false trong vòng đời bình thường) — nguồn sự thật là `lastSeen`,
+// xem src/utils/deviceStatus.js.
 const prisma = require('./utils/prisma');
-if (!process.env.VERCEL) {
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   prisma.device.updateMany({
     data: { isOnline: false }
   }).then(() => {
