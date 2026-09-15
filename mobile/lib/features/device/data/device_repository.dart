@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../shared/models/device_model.dart';
+import 'device_exceptions.dart';
 
 class DeviceRepository {
   final _dio = DioClient.instance;
@@ -220,13 +221,31 @@ class DeviceRepository {
     }
   }
 
-  Future<void> deleteDevice(int id) async {
+  /// Xoá thiết bị khỏi tài khoản phụ huynh.
+  ///
+  /// Server trả 409 `DEVICE_OFFLINE` nếu máy trẻ đã quá 3 phút không gửi
+  /// heartbeat — khi đó nó chưa thể biết mình bị gỡ. Đặt [force] = true để xoá
+  /// bất chấp (phụ huynh đã bấm "Vẫn gỡ" trên dialog cảnh báo).
+  Future<void> deleteDevice(int id, {bool force = false}) async {
     try {
-      final response = await _dio.delete('/api/devices/$id');
+      final response = await _dio.delete(
+        '/api/devices/$id',
+        queryParameters: force ? {'force': 'true'} : null,
+      );
       if (response.data['success'] == false) {
         throw Exception(response.data['message']);
       }
     } on DioException catch (e) {
+      final data = e.response?.data;
+      if (e.response?.statusCode == 409 &&
+          data is Map &&
+          data['code'] == 'DEVICE_OFFLINE') {
+        final payload = data['data'];
+        throw DeviceOfflineException(
+          minutesSinceLastSeen:
+              payload is Map ? payload['minutesSinceLastSeen'] as int? : null,
+        );
+      }
       if (e.response != null && e.response?.data['message'] != null) {
         throw Exception(e.response?.data['message']);
       }

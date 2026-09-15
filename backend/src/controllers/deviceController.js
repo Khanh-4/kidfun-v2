@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { isDeviceOffline, minutesSinceLastSeen } = require('../utils/deviceStatus');
 const socketService = require('../services/socketService');
 
 // Cửa sổ coi là "vừa liên kết xong" khi phải suy ra thiết bị thật từ hồ sơ
@@ -140,6 +141,29 @@ const deleteDevice = async (req, res) => {
 
     if (!device) {
       return sendError(res, 'Device not found', 404, 'NOT_FOUND');
+    }
+
+    // App trẻ chỉ biết mình bị gỡ khi gọi được API (Realtime DELETE, heartbeat
+    // 404, hoặc lúc mở lại app) — xoá trong lúc nó mất mạng nghĩa là nó còn
+    // khoá máy/giám sát tiếp cho tới khi có mạng trở lại. Cảnh báo cho phụ
+    // huynh biết điều đó; `?force=true` là lựa chọn "Vẫn gỡ" trên dialog, dành
+    // cho trường hợp máy trẻ mất/hỏng và sẽ không bao giờ online lại nữa.
+    //
+    // lastSeen = null nghĩa là chưa từng có app trẻ nào chạy trên thiết bị này
+    // (bản nháp mã liên kết, hoặc device đăng ký thủ công) — không có ai để
+    // cảnh báo, cứ xoá.
+    const force = req.query.force === 'true';
+    if (!force && device.lastSeen && isDeviceOffline(device.lastSeen)) {
+      return sendError(
+        res,
+        'Thiết bị của trẻ đang mất kết nối',
+        409,
+        'DEVICE_OFFLINE',
+        {
+          lastSeen: device.lastSeen,
+          minutesSinceLastSeen: minutesSinceLastSeen(device.lastSeen)
+        }
+      );
     }
 
     // Session không khai onDelete: Cascade trong schema (khác các bảng con còn

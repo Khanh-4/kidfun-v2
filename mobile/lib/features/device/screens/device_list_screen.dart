@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/device_provider.dart';
+import '../data/device_exceptions.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../../../shared/models/device_model.dart';
 import '../../../shared/models/profile_model.dart';
@@ -30,6 +31,99 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
     if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
     if (diff.inHours < 24) return '${diff.inHours} giờ trước';
     return '${diff.inDays} ngày trước';
+  }
+
+  /// Diễn giải số phút server trả về thành câu chữ. Số phút do server tính chứ
+  /// không trừ ở client, vì đồng hồ máy phụ huynh có thể lệch.
+  String _formatMinutesAgo(int? minutes) {
+    if (minutes == null) return 'chưa từng kết nối lần nào';
+    if (minutes < 60) return 'online lần cuối $minutes phút trước';
+    if (minutes < 60 * 24) return 'online lần cuối ${minutes ~/ 60} giờ trước';
+    return 'online lần cuối ${minutes ~/ (60 * 24)} ngày trước';
+  }
+
+  /// Xoá thiết bị khỏi tài khoản.
+  ///
+  /// Server chặn bằng 409 DEVICE_OFFLINE khi máy trẻ đã quá 3 phút không gửi
+  /// heartbeat — lúc đó nó chưa thể biết mình bị gỡ, nên hỏi lại phụ huynh
+  /// trước khi xoá cưỡng bức.
+  Future<void> _deleteDevice(DeviceModel device, {bool force = false}) async {
+    try {
+      await ref
+          .read(deviceProvider.notifier)
+          .deleteDevice(device.id, force: force);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:
+            Text('Đã xoá thiết bị thành công', style: GoogleFonts.nunito()),
+        backgroundColor: AppColors.success,
+      ));
+    } on DeviceOfflineException catch (e) {
+      if (!mounted) return;
+      final confirmed =
+          await _confirmDeleteOfflineDevice(device, e.minutesSinceLastSeen);
+      // Lần gọi lại mang force = true nên server không trả 409 nữa — chỉ lồng
+      // đúng một tầng, không có nguy cơ đệ quy.
+      if (confirmed == true) await _deleteDevice(device, force: true);
+    } catch (e) {
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('404') || errStr.contains('not found')) {
+        ref.read(deviceProvider.notifier).fetchDevices();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Thiết bị đã bị xoá, đã làm mới.',
+              style: GoogleFonts.nunito()),
+        ));
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Lỗi: $e', style: GoogleFonts.nunito()),
+          backgroundColor: AppColors.danger,
+        ));
+      }
+    }
+  }
+
+  Future<bool?> _confirmDeleteOfflineDevice(
+      DeviceModel device, int? minutesAgo) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.wifi_off, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Máy trẻ đang mất kết nối',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Thiết bị "${device.deviceName}" ${_formatMinutesAgo(minutesAgo)}.\n\n'
+          'Nếu gỡ bây giờ, máy trẻ vẫn tiếp tục giám sát và khoá máy cho tới khi '
+          'có mạng trở lại rồi mới tự gỡ liên kết.',
+          style: GoogleFonts.nunito(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Huỷ', style: GoogleFonts.nunito()),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Vẫn gỡ',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDeviceOptions(
@@ -77,37 +171,7 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
             : null,
         onDelete: () async {
           Navigator.pop(ctx);
-          try {
-            await ref
-                .read(deviceProvider.notifier)
-                .deleteDevice(device.id);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('Đã xoá thiết bị thành công',
-                    style: GoogleFonts.nunito()),
-                backgroundColor: AppColors.success,
-              ));
-            }
-          } catch (e) {
-            final errStr = e.toString().toLowerCase();
-            if (errStr.contains('404') || errStr.contains('not found')) {
-              ref.read(deviceProvider.notifier).fetchDevices();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Thiết bị đã bị xoá, đã làm mới.',
-                      style: GoogleFonts.nunito()),
-                ));
-              }
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content:
-                      Text('Lỗi: $e', style: GoogleFonts.nunito()),
-                  backgroundColor: AppColors.danger,
-                ));
-              }
-            }
-          }
+          await _deleteDevice(device);
         },
       ),
     );
