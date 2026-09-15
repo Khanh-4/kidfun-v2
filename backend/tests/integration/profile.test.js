@@ -1,6 +1,6 @@
 const request = require('supertest');
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+// Env do tests/setup-env.js nạp (.env.test, có chặn nếu trỏ vào production)
 
 const app = require('../../src/server');
 
@@ -190,7 +190,13 @@ describe('Profile API on PostgreSQL', () => {
       await prisma.user.deleteMany({
         where: { email: { in: [TEST_EMAIL, TEST_EMAIL_2] } }
       });
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      // Trước đây nuốt im lỗi ở đây: cleanup fail thì user test nằm lại trong
+      // DB mãi mà không ai biết (đã có 2 tài khoản @kidfun.test mồ côi tích
+      // trong DB production vì lý do này). Vẫn không ném lỗi để không làm đỏ
+      // một suite đã pass, nhưng phải in ra.
+      console.warn(`⚠️  Dọn dữ liệu test thất bại: ${e.message}`);
+    }
     await prisma.$disconnect();
   });
 });

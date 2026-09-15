@@ -1,8 +1,7 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
-// Setup: load env before importing app
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+// Env do tests/setup-env.js nạp (.env.test, có chặn nếu trỏ vào production)
 
 const app = require('../../src/server');
 
@@ -107,8 +106,16 @@ describe('Auth API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.token).toBeDefined();
       expect(res.body.data.refreshToken).toBeDefined();
-      // New tokens should be different
-      expect(res.body.data.token).not.toBe(accessToken);
+
+      // KHÔNG so sánh "token mới phải khác token cũ": payload JWT chỉ có
+      // userId/email/iat/exp và `iat` tính theo GIÂY, nên hai token phát cho
+      // cùng một user trong cùng một giây là giống hệt nhau — đúng bản chất
+      // JWT, không phải lỗi. Assert cũ chỉ tình cờ xanh vì mỗi request đi
+      // Supabase mất hơn 1 giây; chạy với DB cục bộ là fail ngay.
+      // Kiểm tra thứ thật sự quan trọng: token mới hợp lệ, đúng user, còn hạn.
+      const decoded = jwt.verify(res.body.data.token, process.env.JWT_SECRET);
+      expect(decoded.email).toBe(TEST_EMAIL);
+      expect(decoded.exp * 1000).toBeGreaterThan(Date.now());
     });
 
     it('should fail without refresh token', async () => {

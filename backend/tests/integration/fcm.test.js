@@ -1,12 +1,13 @@
 const request = require('supertest');
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+// Env do tests/setup-env.js nạp (.env.test, có chặn nếu trỏ vào production)
 
 const app = require('../../src/server');
 
 const TEST_EMAIL = `fcm_test_${Date.now()}@kidfun.test`;
 const TEST_PASSWORD = 'TestPass123!';
 const FAKE_FCM_TOKEN = 'fake-fcm-token-' + Date.now();
+const UNKNOWN_PLATFORM_TOKEN = 'unknown-platform-token-' + Date.now();
 
 let accessToken;
 
@@ -74,24 +75,39 @@ describe('FCM Token API', () => {
       expect(res.body.code).toBe('INVALID_INPUT');
     });
 
-    it('should fail with invalid platform', async () => {
+    // fcmController CỐ Ý không từ chối platform lạ mà fallback về ANDROID
+    // ("Gracefully resolve platform and safe fallback"): mất token FCM đồng
+    // nghĩa với mất toàn bộ push notification của thiết bị đó, tệ hơn nhiều so
+    // với việc lưu sai nhãn platform. Test cũ kỳ vọng 400 là viết theo thiết kế
+    // trước đó, không phải hành vi hiện tại.
+    it('should fall back to ANDROID for an unknown platform', async () => {
       const res = await request(app)
         .post('/api/fcm-tokens/register')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
-          token: 'another-token',
+          token: UNKNOWN_PLATFORM_TOKEN,
           platform: 'WINDOWS'
         });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('should fail when token is missing', async () => {
+      const res = await request(app)
+        .post('/api/fcm-tokens/register')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ platform: 'ANDROID' });
 
       expect(res.status).toBe(400);
       expect(res.body.code).toBe('INVALID_INPUT');
     });
   });
 
-  describe('DELETE /api/fcm-tokens/unregister', () => {
+  describe('POST /api/fcm-tokens/unregister', () => {
     it('should unregister FCM token successfully', async () => {
       const res = await request(app)
-        .delete('/api/fcm-tokens/unregister')
+        .post('/api/fcm-tokens/unregister')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ token: FAKE_FCM_TOKEN });
 
@@ -102,7 +118,7 @@ describe('FCM Token API', () => {
 
     it('should fail when token not found', async () => {
       const res = await request(app)
-        .delete('/api/fcm-tokens/unregister')
+        .post('/api/fcm-tokens/unregister')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ token: 'nonexistent-token' });
 
@@ -112,7 +128,7 @@ describe('FCM Token API', () => {
 
     it('should fail without auth', async () => {
       const res = await request(app)
-        .delete('/api/fcm-tokens/unregister')
+        .post('/api/fcm-tokens/unregister')
         .send({ token: 'some-token' });
 
       expect(res.status).toBe(401);
@@ -124,7 +140,9 @@ describe('FCM Token API', () => {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
     try {
-      await prisma.fCMToken.deleteMany({ where: { token: FAKE_FCM_TOKEN } });
+      await prisma.fCMToken.deleteMany({
+      where: { token: { in: [FAKE_FCM_TOKEN, UNKNOWN_PLATFORM_TOKEN] } }
+    });
       await prisma.user.deleteMany({ where: { email: TEST_EMAIL } });
     } catch (e) {
       // ignore
