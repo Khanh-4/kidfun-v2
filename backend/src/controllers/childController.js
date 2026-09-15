@@ -100,6 +100,46 @@ const calcRemaining = async (profileId, deviceId) => {
 };
 
 // GET /api/child/status
+/**
+ * POST /api/child/ping — "tôi còn sống".
+ *
+ * Câu trả lời của app trẻ khi server dò `pingRequestedAt` trước lúc xoá thiết
+ * bị (xem deviceController.probeDeviceAlive). CỐ TÌNH tối giản: đúng một UPDATE
+ * theo primary key, không đụng calcRemaining hay bất cứ thứ gì khác.
+ *
+ * Lý do phải tách riêng thay vì tái dùng /api/child/status: endpoint đó kéo
+ * theo cả calcRemaining và mất 13-14 giây khi đo thật, tức câu trả lời về tới
+ * nơi thì cửa sổ dò đã đóng từ lâu và máy trẻ đang online bị báo mất kết nối.
+ */
+const ping = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+
+    if (!deviceCode) {
+      return sendError(res, 'Device code required in X-Device-Code header', 400, 'MISSING_DEVICE_CODE');
+    }
+
+    // updateMany thay vì findUnique + update: đúng MỘT vòng tới DB. Mỗi vòng
+    // tốn ~0.3-1.5s tuỳ độ trễ tới Supabase, mà server chỉ chờ 5 giây — cắt
+    // được một vòng là cắt được một phần đáng kể của ngân sách đó.
+    const updated = await prisma.device.updateMany({
+      where: { deviceCode },
+      data: { lastSeen: new Date(), isOnline: true }
+    });
+
+    // Không có dòng nào khớp = thiết bị đã bị phụ huynh xoá. Tín hiệu hữu ích
+    // cho app trẻ: tự gỡ liên kết luôn thay vì chờ heartbeat kế tiếp.
+    if (updated.count === 0) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    sendSuccess(res, { alive: true });
+  } catch (error) {
+    console.error('Child ping error:', error);
+    sendError(res, 'Failed to ping', 500, 'INTERNAL_ERROR');
+  }
+};
+
 const getStatus = async (req, res) => {
   try {
     const deviceCode = req.headers['x-device-code'];
@@ -120,6 +160,15 @@ const getStatus = async (req, res) => {
     if (!device.profileId) {
       return sendError(res, 'Thiết bị chưa được gán cho hồ sơ nào. Vui lòng yêu cầu bố mẹ gán trong Parent Dashboard.', 400, 'DEVICE_NOT_ASSIGNED');
     }
+
+    // Gọi được tới đây nghĩa là máy trẻ đang có mạng — ghi nhận ngay. Đây là
+    // cách app trẻ "điểm danh" khi server dò `pingRequestedAt` trước lúc xoá
+    // thiết bị (xem deviceController.deleteDevice), và cũng giúp lastSeen bớt
+    // thô so với việc chỉ trông vào heartbeat 60s.
+    await prisma.device.update({
+      where: { id: device.id },
+      data: { lastSeen: new Date(), isOnline: true }
+    });
 
     const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
@@ -777,6 +826,7 @@ const getRealtimeToken = async (req, res) => {
 };
 
 module.exports = {
+  ping,
   getStatus,
   startSession,
   heartbeat,

@@ -52,6 +52,7 @@ class RealtimeService {
   final List<RealtimeCallback> _sosAlertListeners = [];
   final List<RealtimeCallback> _aiAlertListeners = [];
   final List<RealtimeCallback> _deviceErrorListeners = [];
+  final List<RealtimeCallback> _devicePingListeners = [];
   final List<RealtimeCallback> _connectionRestoredListeners = [];
   final List<RealtimeCallback> _timeLimitUpdatedListeners = [];
   final List<RealtimeCallback> _blockedAppsUpdatedListeners = [];
@@ -76,6 +77,16 @@ class RealtimeService {
       _deviceRemovedListeners.add(callback);
   void removeDeviceRemovedListener(RealtimeCallback callback) =>
       _deviceRemovedListeners.remove(callback);
+
+  /// Server vừa ghi `pingRequestedAt` lên dòng Device — nó đang hỏi "máy trẻ
+  /// còn đó không?" trước khi phụ huynh xoá thiết bị. Khác mọi listener khác ở
+  /// chỗ signal MANG THEO dữ liệu (`deviceCode`, `pingRequestedAt`) chứ không
+  /// thuần notify-then-refetch: consumer cần `pingRequestedAt` để lọc trùng,
+  /// nếu trả lời mọi UPDATE thì chính heartbeat 60s sẽ kích một vòng lặp vô tận.
+  void addDevicePingListener(RealtimeCallback callback) =>
+      _devicePingListeners.add(callback);
+  void removeDevicePingListener(RealtimeCallback callback) =>
+      _devicePingListeners.remove(callback);
 
   void addDeviceOnlineListener(RealtimeCallback callback) =>
       _deviceOnlineListeners.add(callback);
@@ -322,6 +333,21 @@ class RealtimeService {
         }
         if (payload.eventType == sb.PostgresChangeEvent.delete) {
           _notify(_deviceRemovedListeners, 'Device', type);
+        }
+        // Ping từ server: chỉ bắn khi dòng thật sự có pingRequestedAt, kèm dữ
+        // liệu để consumer lọc trùng (xem addDevicePingListener).
+        if (payload.eventType == sb.PostgresChangeEvent.update) {
+          final record = payload.newRecord;
+          final pingAt = record['pingRequestedAt'];
+          if (pingAt != null) {
+            for (final cb in List<RealtimeCallback>.from(_devicePingListeners)) {
+              cb({
+                'source': 'realtime',
+                'deviceCode': record['deviceCode'],
+                'pingRequestedAt': pingAt.toString(),
+              });
+            }
+          }
         }
         // UPDATE có thể là online hoặc offline — không đọc field isOnline ở
         // đây (notify-then-refetch), báo cả 2 phía, consumer tự refetch để

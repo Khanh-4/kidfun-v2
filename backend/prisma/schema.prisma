@@ -73,6 +73,13 @@ model Device {
   lastSeen   DateTime?
   pairingCode       String?   @unique
   pairingCodeExpiry DateTime?
+  // Server ghi mốc này khi cần biết máy trẻ CÓ ĐANG online ngay lúc đó không
+  // (hiện chỉ dùng trước khi xoá thiết bị). Việc ghi tạo ra một UPDATE trên
+  // bảng Device → Supabase Realtime đẩy xuống app trẻ → app trẻ gọi lại server
+  // → lastSeen mới hơn mốc này nghĩa là máy trẻ còn sống. Cần một cột RIÊNG vì
+  // heartbeat cũng ghi vào Device: nếu app trẻ trả lời mọi UPDATE thì heartbeat
+  // sẽ tự kích một vòng lặp vô tận.
+  pingRequestedAt   DateTime?
   createdAt  DateTime  @default(now())
 
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)

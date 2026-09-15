@@ -9,6 +9,9 @@ const appUsageController = require('../controllers/appUsageController');
 // Dùng deviceCode từ X-Device-Code header để identify
 
 // GET /api/child/status - Lấy thông tin thời gian, profile, session
+// Điểm danh khi server dò — tối giản, xem childController.ping
+router.post('/ping', childController.ping);
+
 router.get('/status', childController.getStatus);
 
 // POST /api/child/realtime-token - Mint JWT riêng cho Supabase Realtime

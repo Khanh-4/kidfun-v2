@@ -10,7 +10,15 @@ class DeviceOfflineException implements Exception {
   /// có thể lệch). `null` khi thiết bị chưa từng kết nối lần nào.
   final int? minutesSinceLastSeen;
 
-  const DeviceOfflineException({this.minutesSinceLastSeen});
+  /// Mốc để chấm câu trả lời của máy trẻ. Server đã đánh thức máy trẻ ngay
+  /// trong response 409 này, nên client chỉ việc poll `GET /:id/liveness` với
+  /// mốc này — không cần gọi thêm endpoint probe nào.
+  final DateTime? baselineLastSeen;
+
+  const DeviceOfflineException({
+    this.minutesSinceLastSeen,
+    this.baselineLastSeen,
+  });
 
   @override
   String toString() =>
