@@ -54,6 +54,38 @@ class ChildLinkService {
     }
   }
 
+  /// Trả lời ping của server: "tôi còn sống".
+  ///
+  /// Gọi `POST /api/child/ping` — endpoint tối giản chỉ ghi `lastSeen`. KHÔNG
+  /// dùng `/api/child/status` cho việc này: endpoint đó kéo theo calcRemaining
+  /// và đo thật mất 13-14 giây, tức câu trả lời về tới nơi thì server đã hết
+  /// thời gian chờ và báo máy trẻ mất kết nối.
+  ///
+  /// Trả `false` khi server khẳng định thiết bị không còn (404) — app trẻ dùng
+  /// đó để tự gỡ liên kết ngay, khỏi chờ heartbeat.
+  static Future<bool> respondToPing(String deviceCode) async {
+    try {
+      await DioClient.instance.post(
+        '/api/child/ping',
+        options: Options(headers: {'X-Device-Code': deviceCode}),
+      );
+      print('📡 [PING] Đã điểm danh với server');
+      return true;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final code = data is Map ? data['code'] : null;
+      if (e.response?.statusCode == 404 && code == 'INVALID_DEVICE_CODE') {
+        print('📡 [PING] Server báo thiết bị không còn — đã bị phụ huynh xoá');
+        return false;
+      }
+      print('📡 [PING] Điểm danh thất bại (${e.response?.statusCode ?? e.type})');
+      return true; // mất mạng không phải bằng chứng bị gỡ
+    } catch (e) {
+      print('📡 [PING] Lỗi không rõ khi điểm danh: $e');
+      return true;
+    }
+  }
+
   /// Đưa thiết bị trẻ về đúng trạng thái "chưa liên kết": dừng mọi thứ đang
   /// chạy nền và xoá sạch dấu vết liên kết dưới máy.
   ///

@@ -46,6 +46,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   bool _isDeviceLinked = true; // false khi server trả về deviceError
   String? _deviceCode;
   Timer? _connectionCheckTimer;
+  /// `pingRequestedAt` của lần ping gần nhất đã trả lời. Bắt buộc phải lọc
+  /// trùng: mỗi lần trả lời là một UPDATE mới trên bảng Device, nếu không lọc
+  /// thì chính câu trả lời sẽ kích lần ping kế tiếp, lặp vô tận.
+  String? _lastHandledPingAt;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   String? _error;
@@ -894,6 +898,27 @@ _startHeartbeat();
     _verifyLinkStillValid();
   }
 
+  /// Server hỏi "máy trẻ còn đó không?" trước khi phụ huynh xoá thiết bị.
+  ///
+  /// Trả lời bằng cách gọi `/api/child/status` — endpoint đó ghi `lastSeen`
+  /// mới, và server đang poll đúng cột này để chấm. Gọi được nghĩa là máy trẻ
+  /// có mạng; không gọi được thì im lặng là câu trả lời đúng.
+  void _onRealtimeDevicePing(Map<String, dynamic> data) {
+    if (data['deviceCode'] != _deviceCode) return;
+
+    final pingAt = data['pingRequestedAt'] as String?;
+    if (pingAt == null || pingAt == _lastHandledPingAt) return;
+    _lastHandledPingAt = pingAt;
+
+    print('📡 [PING] Server hỏi thăm — điểm danh ngay');
+    // Phải là endpoint TỐI GIẢN: server chỉ chờ vài giây, dùng /api/child/status
+    // (kéo theo calcRemaining, đo thật 13-14 giây) là chắc chắn trễ nhịp.
+    // Tiện thể 404 nghĩa là phụ huynh đã bấm "Vẫn gỡ" → tự gỡ liên kết luôn.
+    ChildLinkService.respondToPing(_deviceCode!).then((stillLinked) {
+      if (!stillLinked) _handleUnlinkedByParent();
+    });
+  }
+
   /// Heartbeat 60s: báo server biết máy trẻ còn sống, đồng bộ lại đồng hồ đếm
   /// ngược, và là đường CUỐI CÙNG phát hiện phụ huynh đã gỡ liên kết.
   ///
@@ -1075,6 +1100,10 @@ _startHeartbeat();
     RealtimeService.instance.removeDeviceRemovedListener(_onRealtimeDeviceRemoved);
     RealtimeService.instance.addDeviceRemovedListener(_onRealtimeDeviceRemoved);
 
+    // Server dò xem máy trẻ có đang online không (trước khi phụ huynh xoá).
+    RealtimeService.instance.removeDevicePingListener(_onRealtimeDevicePing);
+    RealtimeService.instance.addDevicePingListener(_onRealtimeDevicePing);
+
     // locationRequested: lệnh tức thời, không gắn DB row — CHƯA cutover, vẫn
     // qua Socket.IO (cần Realtime Broadcast channel riêng, xem RealtimeService).
     socket.off('locationRequested');
@@ -1167,6 +1196,7 @@ _startHeartbeat();
     RealtimeService.instance.removeSchoolScheduleUpdatedListener(_onRealtimeSchoolScheduleUpdated);
     RealtimeService.instance.removeTimeExtensionResponseListener(_onRealtimeTimeExtensionResponse);
     RealtimeService.instance.removeDeviceRemovedListener(_onRealtimeDeviceRemoved);
+    RealtimeService.instance.removeDevicePingListener(_onRealtimeDevicePing);
 
     LocationService.instance.stop();
     YouTubeService.instance.stop();

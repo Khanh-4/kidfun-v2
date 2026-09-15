@@ -36,4 +36,8 @@ router.get('/:id/pairing-status', deviceController.getPairingStatus);
 // DELETE /api/devices/:id - Xóa thiết bị
 router.delete('/:id', deviceController.deleteDevice);
 
+// Chấm xem máy trẻ đã trả lời lệnh đánh thức chưa. Việc đánh thức nằm trong
+// chính response 409 của DELETE — xem deviceController.deleteDevice.
+router.get('/:id/liveness', deviceController.getLiveness);
+
 module.exports = router;

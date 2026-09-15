@@ -2,8 +2,52 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const { isDeviceOffline, minutesSinceLastSeen } = require('../utils/deviceStatus');
-const socketService = require('../services/socketService');
+const {
+  isDeviceFresh,
+  hasRespondedToPing,
+  minutesSinceLastSeen
+} = require('../utils/deviceStatus');
+
+/**
+ * Dò xem máy trẻ có đang online không — KIỂU BẤT ĐỒNG BỘ (async request-reply).
+ *
+ * Bản đầu giữ request của phụ huynh mở rồi poll DB trong 5 giây. Đo thật: một
+ * lần xoá mất 12,3 giây và màn hình phụ huynh đứng im suốt — vừa đốt compute
+ * Vercel, vừa đọc như app treo. Serverless không phải chỗ để busy-wait.
+ *
+ * Nay client điều phối, và việc đánh thức được ghép luôn vào response 409 của
+ * DELETE để khỏi tốn một round-trip riêng:
+ *   DELETE /:id            → 409 + baselineLastSeen, ĐỒNG THỜI đánh thức máy trẻ
+ *   GET /:id/liveness?since= → chấm một phát, 1 vòng DB
+ * App phụ huynh poll endpoint thứ hai với spinner có thể huỷ, và biết kết quả
+ * ngay giây máy trẻ trả lời thay vì luôn phải chờ hết thời gian chờ.
+ */
+
+// GET /api/devices/:id/liveness?since=<ISO>
+const getLiveness = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const since = req.query.since ? new Date(req.query.since) : null;
+
+    const device = await prisma.device.findFirst({
+      where: { id, userId: req.user.userId },
+      select: { lastSeen: true }
+    });
+
+    if (!device) {
+      return sendError(res, 'Device not found', 404, 'NOT_FOUND');
+    }
+
+    sendSuccess(res, {
+      alive: hasRespondedToPing(device.lastSeen, since),
+      lastSeen: device.lastSeen,
+      minutesSinceLastSeen: minutesSinceLastSeen(device.lastSeen)
+    });
+  } catch (error) {
+    console.error('Get liveness error:', error);
+    sendError(res, 'Failed to read liveness', 500, 'INTERNAL_ERROR');
+  }
+};
 
 // Cửa sổ coi là "vừa liên kết xong" khi phải suy ra thiết bị thật từ hồ sơ
 // (xem getPairingStatus). Rộng hơn thời gian một lần liên kết thật (child gọi
@@ -143,17 +187,33 @@ const deleteDevice = async (req, res) => {
       return sendError(res, 'Device not found', 404, 'NOT_FOUND');
     }
 
-    // App trẻ chỉ biết mình bị gỡ khi gọi được API (Realtime DELETE, heartbeat
-    // 404, hoặc lúc mở lại app) — xoá trong lúc nó mất mạng nghĩa là nó còn
-    // khoá máy/giám sát tiếp cho tới khi có mạng trở lại. Cảnh báo cho phụ
-    // huynh biết điều đó; `?force=true` là lựa chọn "Vẫn gỡ" trên dialog, dành
-    // cho trường hợp máy trẻ mất/hỏng và sẽ không bao giờ online lại nữa.
+    // App trẻ chỉ biết mình bị gỡ khi gọi được API — xoá lúc nó mất mạng nghĩa
+    // là nó còn khoá máy/giám sát tiếp cho tới khi có mạng trở lại. Nên phải
+    // biết máy trẻ CÓ ĐANG online hay không, chứ không đoán từ dấu vết cũ.
+    //
+    // `?force=true` là lựa chọn "Vẫn gỡ" trên dialog cảnh báo, dành cho máy trẻ
+    // đã mất/hỏng và sẽ không bao giờ online lại.
     //
     // lastSeen = null nghĩa là chưa từng có app trẻ nào chạy trên thiết bị này
     // (bản nháp mã liên kết, hoặc device đăng ký thủ công) — không có ai để
     // cảnh báo, cứ xoá.
     const force = req.query.force === 'true';
-    if (!force && device.lastSeen && isDeviceOffline(device.lastSeen)) {
+    if (!force && device.lastSeen && !isDeviceFresh(device.lastSeen)) {
+      // Không đủ bằng chứng máy trẻ đang online. KHÔNG tự dò ở đây: việc chờ
+      // thuộc về client (xem startLivenessProbe). App phụ huynh nhận 409 này,
+      // chạy vòng dò có spinner, rồi hoặc gọi lại với ?force=true (máy trẻ trả
+      // lời) hoặc hiện dialog cảnh báo (máy trẻ im lặng).
+      // Đánh thức máy trẻ ngay trong chính response này: ghi pingRequestedAt
+      // tạo một UPDATE trên bảng Device → Supabase Realtime đẩy xuống app trẻ
+      // (policy "family can read own devices" có vế `id = app_current_device_id()`)
+      // → app trẻ gọi POST /api/child/ping. Ghép vào đây thay vì bắt client gọi
+      // thêm một endpoint probe riêng: tiết kiệm trọn một round-trip trên đường
+      // găng mà phụ huynh đang ngồi chờ.
+      await prisma.device.update({
+        where: { id },
+        data: { pingRequestedAt: new Date() }
+      });
+
       return sendError(
         res,
         'Thiết bị của trẻ đang mất kết nối',
@@ -161,16 +221,27 @@ const deleteDevice = async (req, res) => {
         'DEVICE_OFFLINE',
         {
           lastSeen: device.lastSeen,
-          minutesSinceLastSeen: minutesSinceLastSeen(device.lastSeen)
+          minutesSinceLastSeen: minutesSinceLastSeen(device.lastSeen),
+          // Mốc để chấm câu trả lời. Phải là lastSeen TRƯỚC khi dò, không phải
+          // đồng hồ: máy trẻ có thể gọi tới trong lúc server còn đang truy vấn,
+          // dùng mốc đồng hồ thì câu trả lời hợp lệ ấy bị tính là "cũ".
+          baselineLastSeen: device.lastSeen
         }
       );
     }
 
     // Session không khai onDelete: Cascade trong schema (khác các bảng con còn
     // lại) nên phải xoá tay trước, nếu không prisma.device.delete ném FK error.
-    await prisma.session.deleteMany({ where: { deviceId: id } });
-    await prisma.fCMToken.deleteMany({ where: { deviceId: id } });
-    await prisma.device.delete({ where: { id } });
+    //
+    // Gộp vào một transaction thay vì 3 lệnh tuần tự: mỗi vòng tới Supabase tốn
+    // 0,3-1,5s nên 3 vòng là phần đáng kể của thời gian chờ mà phụ huynh nhìn
+    // thấy. Đồng thời tránh được trạng thái nửa vời (đã xoá session nhưng chưa
+    // xoá device) nếu một lệnh lỗi giữa chừng.
+    await prisma.$transaction([
+      prisma.session.deleteMany({ where: { deviceId: id } }),
+      prisma.fCMToken.deleteMany({ where: { deviceId: id } }),
+      prisma.device.delete({ where: { id } })
+    ]);
 
     // Log để đối chiếu với phía app trẻ: sau lệnh này mọi API child dùng
     // deviceCode đó sẽ trả 404 INVALID_DEVICE_CODE — chính là tín hiệu app trẻ
@@ -474,6 +545,7 @@ const getDeviceStatus = async (req, res) => {
 };
 
 module.exports = {
+  getLiveness,
   getAllDevices,
   registerDevice,
   getDeviceById,

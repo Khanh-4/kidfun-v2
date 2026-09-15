@@ -88,6 +88,11 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
     }
   }
 
+  /// Dò xem máy trẻ có đang online không (dùng khi server trả 409
+  /// DEVICE_OFFLINE). Không đụng tới state danh sách nên không gọi fetchDevices.
+  Future<bool> waitForDeviceAlive(int id, DateTime? baseline) =>
+      _repo.waitForDeviceAlive(id, baseline);
+
   Future<void> deleteDevice(int id, {bool force = false}) async {
     try {
       await _repo.deleteDevice(id, force: force);

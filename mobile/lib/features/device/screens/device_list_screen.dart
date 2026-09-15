@@ -33,6 +33,104 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
     return '${diff.inDays} ngày trước';
   }
 
+  /// Chạy vòng dò kèm dialog tiến trình. Phụ huynh huỷ được giữa chừng — đây
+  /// là điểm quan trọng so với việc để server giữ request: ở bản trước màn hình
+  /// đứng im hơn 10 giây, không có cách nào thoát và đọc như app treo.
+  /// Trả `null` khi phụ huynh bấm Huỷ — khác hẳn `false` (máy trẻ im lặng):
+  /// huỷ là dừng hẳn, không hiện tiếp dialog cảnh báo.
+  Future<bool?> _probeWithProgress(DeviceModel device, DateTime? baseline) async {
+    final probe =
+        ref.read(deviceProvider.notifier).waitForDeviceAlive(device.id, baseline);
+    var cancelled = false;
+
+    // ignore: unawaited_futures
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        // Đóng dialog ngay khi dò xong, không bắt phụ huynh chờ thêm.
+        probe.whenComplete(() {
+          if (Navigator.canPop(ctx)) Navigator.pop(ctx);
+        });
+        return AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Đang kiểm tra kết nối của máy trẻ…',
+                  style: GoogleFonts.nunito(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                cancelled = true;
+                Navigator.pop(ctx);
+              },
+              child: Text('Huỷ', style: GoogleFonts.nunito()),
+            ),
+          ],
+        );
+      },
+    );
+
+    final alive = await probe;
+    // Phụ huynh đã bấm Huỷ: bỏ hẳn thao tác xoá, đừng xoá sau lưng họ.
+    return cancelled ? null : alive;
+  }
+
+  /// Xác nhận lần đầu, trước khi biết máy trẻ online hay không. Dialog cảnh
+  /// báo mất kết nối (nếu có) sẽ hiện SAU dialog này.
+  Future<bool?> _confirmDelete(DeviceModel device) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.delete_outline, color: AppColors.danger),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Xoá thiết bị?',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Thiết bị "${device.deviceName}" sẽ bị gỡ khỏi tài khoản và ngừng '
+          'được giám sát. Lịch sử sử dụng, vị trí và các phiên của thiết bị này '
+          'cũng bị xoá theo, không khôi phục được.\n\n'
+          'Muốn dùng lại, bạn phải liên kết lại từ đầu bằng mã mới.',
+          style: GoogleFonts.nunito(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Huỷ', style: GoogleFonts.nunito()),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Xoá thiết bị',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Diễn giải số phút server trả về thành câu chữ. Số phút do server tính chứ
   /// không trừ ở client, vì đồng hồ máy phụ huynh có thể lệch.
   String _formatMinutesAgo(int? minutes) {
@@ -60,6 +158,22 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
       ));
     } on DeviceOfflineException catch (e) {
       if (!mounted) return;
+
+      // Server chỉ nói "không có bằng chứng máy trẻ đang online" (lastSeen cũ
+      // hơn 75 giây). Chưa đủ để kết luận: heartbeat chạy 60 giây một lần nên
+      // một máy đang chạy bình thường vẫn có thể rơi vào khoảng này. Đánh thức
+      // nó rồi chờ trả lời, có spinner để phụ huynh biết app không treo.
+      final alive = await _probeWithProgress(device, e.baselineLastSeen);
+      if (!mounted) return;
+      if (alive == null) return; // phụ huynh bấm Huỷ lúc đang dò
+
+      if (alive) {
+        // Máy trẻ vừa lên tiếng → nó sẽ nhận được lệnh gỡ ngay. Xoá luôn,
+        // không làm phiền phụ huynh bằng cảnh báo thừa.
+        await _deleteDevice(device, force: true);
+        return;
+      }
+
       final confirmed =
           await _confirmDeleteOfflineDevice(device, e.minutesSinceLastSeen);
       // Lần gọi lại mang force = true nên server không trả 409 nữa — chỉ lồng
@@ -171,6 +285,11 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
             : null,
         onDelete: () async {
           Navigator.pop(ctx);
+          // Hỏi lại trước khi vào luồng xoá: đây là thao tác không hoàn tác
+          // được (xoá thiết bị là xoá luôn lịch sử phiên, vị trí, usage của nó)
+          // và nút Xoá nằm ngay trong bảng tuỳ chọn nên rất dễ bấm nhầm.
+          final confirmed = await _confirmDelete(device);
+          if (confirmed != true) return;
           await _deleteDevice(device);
         },
       ),

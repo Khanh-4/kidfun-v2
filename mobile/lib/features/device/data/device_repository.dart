@@ -221,11 +221,48 @@ class DeviceRepository {
     }
   }
 
+  /// Hỏi một phát xem máy trẻ đã trả lời lệnh đánh thức chưa.
+  Future<bool> isDeviceAlive(int id, DateTime? since) async {
+    final res = await _dio.get(
+      '/api/devices/$id/liveness',
+      queryParameters: since == null
+          ? null
+          : {'since': since.toUtc().toIso8601String()},
+    );
+    return res.data['data']?['alive'] == true;
+  }
+
+  /// Chờ máy trẻ trả lời lệnh đánh thức, tối đa [timeout].
+  ///
+  /// Việc đánh thức đã được server làm ngay trong response 409 của
+  /// [deleteDevice], nên ở đây chỉ còn poll. Trả `true` ngay giây máy trẻ lên
+  /// tiếng, thay vì luôn phải chờ hết thời gian. Mỗi lần hỏi là một truy vấn
+  /// rẻ, khác hẳn việc giữ một request serverless mở để poll DB.
+  Future<bool> waitForDeviceAlive(
+    int id,
+    DateTime? baseline, {
+    Duration timeout = const Duration(seconds: 6),
+    Duration interval = const Duration(milliseconds: 700),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(interval);
+      try {
+        if (await isDeviceAlive(id, baseline)) return true;
+      } on DioException {
+        // Mạng của chính máy phụ huynh chập chờn — thử lại ở vòng sau.
+      }
+    }
+    return false;
+  }
+
   /// Xoá thiết bị khỏi tài khoản phụ huynh.
   ///
-  /// Server trả 409 `DEVICE_OFFLINE` nếu máy trẻ đã quá 3 phút không gửi
-  /// heartbeat — khi đó nó chưa thể biết mình bị gỡ. Đặt [force] = true để xoá
-  /// bất chấp (phụ huynh đã bấm "Vẫn gỡ" trên dialog cảnh báo).
+  /// Server trả 409 `DEVICE_OFFLINE` khi không có bằng chứng máy trẻ đang
+  /// online (lastSeen cũ hơn 75 giây). Khi đó app chạy [waitForDeviceAlive] rồi
+  /// gọi lại với [force] = true nếu máy trẻ lên tiếng, hoặc hiện dialog cảnh
+  /// báo nếu nó im lặng.
   Future<void> deleteDevice(int id, {bool force = false}) async {
     try {
       final response = await _dio.delete(
@@ -241,9 +278,13 @@ class DeviceRepository {
           data is Map &&
           data['code'] == 'DEVICE_OFFLINE') {
         final payload = data['data'];
+        final rawBaseline =
+            payload is Map ? payload['baselineLastSeen'] as String? : null;
         throw DeviceOfflineException(
           minutesSinceLastSeen:
               payload is Map ? payload['minutesSinceLastSeen'] as int? : null,
+          baselineLastSeen:
+              rawBaseline == null ? null : DateTime.parse(rawBaseline),
         );
       }
       if (e.response != null && e.response?.data['message'] != null) {
