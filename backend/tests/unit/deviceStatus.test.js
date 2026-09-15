@@ -1,5 +1,4 @@
 const {
-  isDeviceFresh,
   hasRespondedToPing,
   minutesSinceLastSeen,
 } = require('../../src/utils/deviceStatus');
@@ -9,71 +8,13 @@ const {
 // trên Vercel không còn chỗ nào set nó về false nên máy trẻ hết pin vẫn mang
 // isOnline = true vĩnh viễn (xem src/utils/deviceStatus.js).
 //
-// Vòng 1 (2026-09-15) dùng ngưỡng 3 phút không thấy heartbeat. Log production
-// cho thấy nó KHÔNG đủ: bạn test liên kết máy lúc 17:49:54 rồi bật máy bay và
-// xoá lúc 17:52:02 — mới 2 phút 08 giây nên guard cho qua. Vì `lastSeen` chỉ
-// được heartbeat 60s cập nhật, MỌI ngưỡng kiểu này đều mù trong vòng 1 phút
-// đầu sau khi mất mạng. Nay: tươi < 75s thì chắc chắn online, ngoài ra phải
-// DÒ CHỦ ĐỘNG (ghi pingRequestedAt → app trẻ trả lời → lastSeen mới).
-describe('isDeviceFresh', () => {
-  const now = new Date('2026-09-15T10:00:00Z');
-
-  test('heartbeat vừa chạy 30 giây trước → chắc chắn đang online', () => {
-    // Arrange
-    const lastSeen = new Date('2026-09-15T09:59:30Z');
-
-    // Act
-    const fresh = isDeviceFresh(lastSeen, now);
-
-    // Assert
-    expect(fresh).toBe(true);
-  });
-
-  test('đúng 74 giây (trong 1 nhịp heartbeat + lề) vẫn coi là tươi', () => {
-    // Arrange — heartbeat 60s cộng lề cho độ trễ Vercel 1-4s
-    const lastSeen = new Date('2026-09-15T09:58:46Z');
-
-    // Act
-    const fresh = isDeviceFresh(lastSeen, now);
-
-    // Assert
-    expect(fresh).toBe(true);
-  });
-
-  test('quá 75 giây thì KHÔNG còn chắc chắn — phải dò lại mới biết', () => {
-    // Arrange
-    const lastSeen = new Date('2026-09-15T09:58:44Z');
-
-    // Act
-    const fresh = isDeviceFresh(lastSeen, now);
-
-    // Assert
-    expect(fresh).toBe(false);
-  });
-
-  test('chưa từng có heartbeat (lastSeen null) thì không tươi', () => {
-    // Arrange
-    const lastSeen = null;
-
-    // Act
-    const fresh = isDeviceFresh(lastSeen, now);
-
-    // Assert
-    expect(fresh).toBe(false);
-  });
-
-  test('lastSeen ở tương lai (lệch đồng hồ) vẫn tính là tươi', () => {
-    // Arrange — máy trẻ báo giờ nhanh hơn server vài giây
-    const lastSeen = new Date('2026-09-15T10:00:20Z');
-
-    // Act
-    const fresh = isDeviceFresh(lastSeen, now);
-
-    // Assert
-    expect(fresh).toBe(true);
-  });
-});
-
+// Đã sai HAI lần vì cùng một giả định: suy ra "đang online" từ việc lastSeen
+// còn mới. Ngưỡng 3 phút (PR #294) trượt khi máy liên kết 17:49:54 rồi bị xoá
+// lúc 17:52:02; ngưỡng 75 giây (PR #295) trượt khi máy trẻ vừa heartbeat xong
+// mới bật máy bay (log 19:43:45 — DELETE trả thẳng 200, không qua bước dò).
+// `lastSeen` chỉ được cập nhật mỗi 60 giây nên không bao giờ phản ánh được
+// việc máy trẻ vừa mất mạng. Kết luận: KHÔNG có đường tắt, luôn phải dò chủ
+// động và chấm bằng hasRespondedToPing().
 describe('hasRespondedToPing', () => {
   // Mốc so sánh là lastSeen GỐC trước khi dò, không phải đồng hồ lúc bắt đầu
   // dò — server mất 1-3 giây mới ghi được pingRequestedAt, máy trẻ trả lời
