@@ -49,6 +49,30 @@ const getLiveness = async (req, res) => {
   }
 };
 
+// POST /api/devices/:id/delete-trace — log chẩn đoán TẠM THỜI của luồng xoá.
+//
+// Phụ huynh không lấy được logcat trên điện thoại, nên app tự gửi từng mốc
+// (bắt đầu dò, dò xong, hiện cảnh báo, lỗi...) về đây và ta đọc qua log Vercel.
+// Chỉ ghi log, không đụng DB. Gỡ khi luồng xoá thiết bị đã ổn định.
+const TRACE_EVENT_PATTERN = /^[a-z_]{1,40}$/;
+const TRACE_DETAIL_MAX = 300;
+
+const logDeleteTrace = (req, res) => {
+  const { event, detail } = req.body || {};
+  // Chặn chuỗi tuỳ ý (xuống dòng...) để client không giả được dòng log khác.
+  if (typeof event !== 'string' || !TRACE_EVENT_PATTERN.test(event)) {
+    return sendError(res, 'Invalid trace event', 400, 'VALIDATION_ERROR');
+  }
+  const safeDetail = typeof detail === 'string'
+    ? JSON.stringify(detail.slice(0, TRACE_DETAIL_MAX))
+    : '';
+
+  console.log(
+    `🩺 [DELETE-TRACE] user=${req.user.userId} device=${parseInt(req.params.id)} ${event} ${safeDetail}`
+  );
+  sendSuccess(res, { logged: true });
+};
+
 // Cửa sổ coi là "vừa liên kết xong" khi phải suy ra thiết bị thật từ hồ sơ
 // (xem getPairingStatus). Rộng hơn thời gian một lần liên kết thật (child gọi
 // /link rồi parent poll lại trong vài giây) nhưng vẫn đủ hẹp để không nhận nhầm
@@ -558,6 +582,7 @@ const getDeviceStatus = async (req, res) => {
 
 module.exports = {
   getLiveness,
+  logDeleteTrace,
   getAllDevices,
   registerDevice,
   getDeviceById,

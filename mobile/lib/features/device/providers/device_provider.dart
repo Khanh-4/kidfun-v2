@@ -93,6 +93,11 @@ class DeviceNotifier extends StateNotifier<DeviceState> {
   Future<bool> waitForDeviceAlive(int id, DateTime? baseline) =>
       _repo.waitForDeviceAlive(id, baseline);
 
+  /// Log chẩn đoán luồng xoá, gửi về server. Fire-and-forget.
+  void traceDelete(int id, String event, [String? detail]) {
+    _repo.traceDelete(id, event, detail);
+  }
+
   Future<void> deleteDevice(int id, {bool force = false}) async {
     try {
       await _repo.deleteDevice(id, force: force);
