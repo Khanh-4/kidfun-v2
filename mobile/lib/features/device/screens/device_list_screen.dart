@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/device_provider.dart';
 import '../data/device_exceptions.dart';
+import '../data/device_repository.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../../../shared/models/device_model.dart';
 import '../../../shared/models/profile_model.dart';
@@ -36,55 +39,71 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
   /// Chạy vòng dò kèm dialog tiến trình. Phụ huynh huỷ được giữa chừng — đây
   /// là điểm quan trọng so với việc để server giữ request: ở bản trước màn hình
   /// đứng im hơn 10 giây, không có cách nào thoát và đọc như app treo.
+  ///
   /// Trả `null` khi phụ huynh bấm Huỷ — khác hẳn `false` (máy trẻ im lặng):
-  /// huỷ là dừng hẳn, không hiện tiếp dialog cảnh báo.
+  /// huỷ là dừng hẳn, không hiện tiếp dialog cảnh báo. Lỗi hay quá hạn đều
+  /// tính là `false`, để phụ huynh luôn thấy cảnh báo thay vì kẹt ở spinner.
+  ///
+  /// Dialog do CHÍNH hàm này đóng, sau khi dò xong và TRƯỚC khi trả kết quả.
+  /// Bản trước đóng bằng `probe.whenComplete` đăng ký trong builder: callback
+  /// đó chạy SAU khi hàm gọi đã `await probe` xong và mở dialog cảnh báo, nên
+  /// `Navigator.pop` gỡ nhầm dialog cảnh báo vừa mở, spinner đứng nguyên (lỗi
+  /// D1, tái hiện trong test/features/device/device_delete_offline_flow_test).
   Future<bool?> _probeWithProgress(DeviceModel device, DateTime? baseline) async {
-    final probe =
-        ref.read(deviceProvider.notifier).waitForDeviceAlive(device.id, baseline);
-    var cancelled = false;
+    final notifier = ref.read(deviceProvider.notifier);
+    final navigator = Navigator.of(context);
+    final cancelled = Completer<bool?>();
+    var dialogOpen = true;
 
-    // ignore: unawaited_futures
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) {
-        // Đóng dialog ngay khi dò xong, không bắt phụ huynh chờ thêm.
-        probe.whenComplete(() {
-          if (Navigator.canPop(ctx)) Navigator.pop(ctx);
-        });
-        return AlertDialog(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
+      builder: (ctx) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'Đang kiểm tra kết nối của máy trẻ…\n'
+                'Có thể mất tới ${DeviceRepository.probeTimeout.inSeconds} giây.',
+                style: GoogleFonts.nunito(),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'Đang kiểm tra kết nối của máy trẻ…',
-                  style: GoogleFonts.nunito(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                cancelled = true;
-                Navigator.pop(ctx);
-              },
-              child: Text('Huỷ', style: GoogleFonts.nunito()),
             ),
           ],
-        );
-      },
-    );
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Huỷ', style: GoogleFonts.nunito()),
+          ),
+        ],
+      ),
+    ).whenComplete(() {
+      // Dialog đóng vì bất kỳ lý do gì ngoài việc dò xong (nút Huỷ, nút Back
+      // của Android) đều là phụ huynh bỏ ngang.
+      dialogOpen = false;
+      if (!cancelled.isCompleted) cancelled.complete(null);
+    });
 
-    final alive = await probe;
-    // Phụ huynh đã bấm Huỷ: bỏ hẳn thao tác xoá, đừng xoá sau lưng họ.
-    return cancelled ? null : alive;
+    final probe = notifier
+        .waitForDeviceAlive(device.id, baseline)
+        // Chốt chặn cuối: vòng dò đã tự giới hạn thời gian, nhưng nếu nó treo
+        // vì lý do nào khác thì phụ huynh vẫn không bị kẹt mãi.
+        .timeout(DeviceRepository.probeTimeout + const Duration(seconds: 15))
+        .then<bool?>((alive) => alive)
+        .catchError((Object e) {
+      notifier.traceDelete(device.id, 'probe_error', e.toString());
+      return false;
+    });
+
+    final result = await Future.any([probe, cancelled.future]);
+    if (dialogOpen) navigator.pop();
+    return result;
   }
 
   /// Hai nút hành động của dialog, CÙNG kích thước.
@@ -210,12 +229,18 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
       ));
     } on DeviceOfflineException catch (e) {
       if (!mounted) return;
+      final notifier = ref.read(deviceProvider.notifier);
+      notifier.traceDelete(device.id, 'offline_409',
+          'minutes=${e.minutesSinceLastSeen} baseline=${e.baselineLastSeen}');
 
       // Server chỉ nói "không có bằng chứng máy trẻ đang online" (lastSeen cũ
       // hơn 75 giây). Chưa đủ để kết luận: heartbeat chạy 60 giây một lần nên
       // một máy đang chạy bình thường vẫn có thể rơi vào khoảng này. Đánh thức
       // nó rồi chờ trả lời, có spinner để phụ huynh biết app không treo.
+      final probeStarted = DateTime.now();
       final alive = await _probeWithProgress(device, e.baselineLastSeen);
+      notifier.traceDelete(device.id, 'probe_done',
+          'alive=$alive after=${DateTime.now().difference(probeStarted).inSeconds}s mounted=$mounted');
       if (!mounted) return;
       if (alive == null) return; // phụ huynh bấm Huỷ lúc đang dò
 
@@ -226,8 +251,10 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
         return;
       }
 
+      notifier.traceDelete(device.id, 'warning_shown');
       final confirmed =
           await _confirmDeleteOfflineDevice(device, e.minutesSinceLastSeen);
+      notifier.traceDelete(device.id, 'warning_answered', 'confirmed=$confirmed');
       // Lần gọi lại mang force = true nên server không trả 409 nữa — chỉ lồng
       // đúng một tầng, không có nguy cơ đệ quy.
       if (confirmed == true) await _deleteDevice(device, force: true);

@@ -40,4 +40,7 @@ router.delete('/:id', deviceController.deleteDevice);
 // chính response 409 của DELETE — xem deviceController.deleteDevice.
 router.get('/:id/liveness', deviceController.getLiveness);
 
+// Log chẩn đoán tạm thời của luồng xoá — xem deviceController.logDeleteTrace.
+router.post('/:id/delete-trace', deviceController.logDeleteTrace);
+
 module.exports = router;

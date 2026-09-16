@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -232,6 +233,14 @@ class DeviceRepository {
     return res.data['data']?['alive'] == true;
   }
 
+  /// Thời gian tối đa chờ máy trẻ trả lời lệnh đánh thức.
+  ///
+  /// Bằng chu kỳ heartbeat 60 giây cộng biên cho request chậm (log production
+  /// có heartbeat mất 12 giây): kể cả khi lệnh đánh thức qua Realtime bị lỡ,
+  /// một máy trẻ còn sống vẫn kịp heartbeat trong khoảng này. Phụ huynh bấm
+  /// Huỷ được bất cứ lúc nào.
+  static const probeTimeout = Duration(seconds: 75);
+
   /// Chờ máy trẻ trả lời lệnh đánh thức, tối đa [timeout].
   ///
   /// Việc đánh thức đã được server làm ngay trong response 409 của
@@ -241,20 +250,40 @@ class DeviceRepository {
   Future<bool> waitForDeviceAlive(
     int id,
     DateTime? baseline, {
-    Duration timeout = const Duration(seconds: 6),
-    Duration interval = const Duration(milliseconds: 700),
+    Duration timeout = probeTimeout,
+    Duration interval = const Duration(seconds: 2),
+    Duration requestTimeout = const Duration(seconds: 10),
   }) async {
     final deadline = DateTime.now().add(timeout);
 
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(interval);
       try {
-        if (await isDeviceAlive(id, baseline)) return true;
+        // Timeout riêng cho từng lần hỏi: timeout mặc định của Dio tới 45 giây,
+        // một request treo sẽ kéo vòng dò vượt xa [deadline].
+        if (await isDeviceAlive(id, baseline).timeout(requestTimeout)) {
+          return true;
+        }
       } on DioException {
         // Mạng của chính máy phụ huynh chập chờn — thử lại ở vòng sau.
+      } on TimeoutException {
+        // Như trên.
       }
     }
     return false;
+  }
+
+  /// Gửi một mốc của luồng xoá về server để đọc qua log Vercel — thay cho
+  /// logcat khi không cắm được máy. Không bao giờ ném lỗi, không chặn UI.
+  Future<void> traceDelete(int id, String event, [String? detail]) async {
+    try {
+      await _dio
+          .post('/api/devices/$id/delete-trace',
+              data: {'event': event, if (detail != null) 'detail': detail})
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // Log chẩn đoán hỏng thì thôi, không được làm hỏng luồng xoá.
+    }
   }
 
   /// Xoá thiết bị khỏi tài khoản phụ huynh.
