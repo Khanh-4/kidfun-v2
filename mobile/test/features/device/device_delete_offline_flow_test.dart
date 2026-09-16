@@ -21,16 +21,17 @@ class FakeDeviceNotifier extends StateNotifier<DeviceState>
   final Future<bool> Function() probe;
   final deleteCalls = <bool>[];
 
-  final traces = <String>[];
+  var probeCancelled = false;
 
   @override
   Future<void> fetchDevices() async {}
 
   @override
-  void traceDelete(int id, String event, [String? detail]) => traces.add(event);
-
-  @override
-  Future<bool> waitForDeviceAlive(int id, DateTime? baseline) => probe();
+  Future<bool> waitForDeviceAlive(int id, DateTime? baseline,
+      {Future<void>? cancel}) {
+    cancel?.then((_) => probeCancelled = true);
+    return probe();
+  }
 
   @override
   Future<void> deleteDevice(int id, {bool force = false}) async {
@@ -109,12 +110,6 @@ void main() {
     await tester.tap(find.text('Vẫn gỡ'));
     await tester.pumpAndSettle();
     expect(notifier.deleteCalls, [false, true]);
-    expect(notifier.traces, [
-      'offline_409',
-      'probe_done',
-      'warning_shown',
-      'warning_answered',
-    ]);
   });
 
   testWidgets('bấm Huỷ lúc đang dò → đóng spinner, không cảnh báo, không xoá',
@@ -130,6 +125,8 @@ void main() {
     expect(find.textContaining('Đang kiểm tra kết nối'), findsNothing);
     expect(find.text('Máy trẻ đang mất kết nối'), findsNothing);
     expect(notifier.deleteCalls, [false]);
+    // Huỷ phải dừng cả vòng dò, không để nó poll server ngầm tới hết giờ.
+    expect(notifier.probeCancelled, isTrue);
 
     // Cho vòng dò giả chạy hết: kết quả muộn không được mở lại dialog nào.
     await tester.pump(const Duration(seconds: 80));

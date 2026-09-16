@@ -247,17 +247,24 @@ class DeviceRepository {
   /// [deleteDevice], nên ở đây chỉ còn poll. Trả `true` ngay giây máy trẻ lên
   /// tiếng, thay vì luôn phải chờ hết thời gian. Mỗi lần hỏi là một truy vấn
   /// rẻ, khác hẳn việc giữ một request serverless mở để poll DB.
+  ///
+  /// [cancel] hoàn thành khi phụ huynh bấm Huỷ: vòng dò dừng ở lượt kế tiếp
+  /// thay vì tiếp tục poll server ngầm tới hết [timeout].
   Future<bool> waitForDeviceAlive(
     int id,
     DateTime? baseline, {
+    Future<void>? cancel,
     Duration timeout = probeTimeout,
     Duration interval = const Duration(seconds: 2),
     Duration requestTimeout = const Duration(seconds: 10),
   }) async {
+    var cancelled = false;
+    cancel?.then((_) => cancelled = true);
     final deadline = DateTime.now().add(timeout);
 
-    while (DateTime.now().isBefore(deadline)) {
+    while (!cancelled && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(interval);
+      if (cancelled) break;
       try {
         // Timeout riêng cho từng lần hỏi: timeout mặc định của Dio tới 45 giây,
         // một request treo sẽ kéo vòng dò vượt xa [deadline].
@@ -271,19 +278,6 @@ class DeviceRepository {
       }
     }
     return false;
-  }
-
-  /// Gửi một mốc của luồng xoá về server để đọc qua log Vercel — thay cho
-  /// logcat khi không cắm được máy. Không bao giờ ném lỗi, không chặn UI.
-  Future<void> traceDelete(int id, String event, [String? detail]) async {
-    try {
-      await _dio
-          .post('/api/devices/$id/delete-trace',
-              data: {'event': event, if (detail != null) 'detail': detail})
-          .timeout(const Duration(seconds: 10));
-    } catch (_) {
-      // Log chẩn đoán hỏng thì thôi, không được làm hỏng luồng xoá.
-    }
   }
 
   /// Xoá thiết bị khỏi tài khoản phụ huynh.

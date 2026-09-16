@@ -91,15 +91,12 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
     });
 
     final probe = notifier
-        .waitForDeviceAlive(device.id, baseline)
+        .waitForDeviceAlive(device.id, baseline, cancel: cancelled.future)
         // Chốt chặn cuối: vòng dò đã tự giới hạn thời gian, nhưng nếu nó treo
         // vì lý do nào khác thì phụ huynh vẫn không bị kẹt mãi.
         .timeout(DeviceRepository.probeTimeout + const Duration(seconds: 15))
         .then<bool?>((alive) => alive)
-        .catchError((Object e) {
-      notifier.traceDelete(device.id, 'probe_error', e.toString());
-      return false;
-    });
+        .catchError((Object _) => false);
 
     final result = await Future.any([probe, cancelled.future]);
     if (dialogOpen) navigator.pop();
@@ -229,18 +226,12 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
       ));
     } on DeviceOfflineException catch (e) {
       if (!mounted) return;
-      final notifier = ref.read(deviceProvider.notifier);
-      notifier.traceDelete(device.id, 'offline_409',
-          'minutes=${e.minutesSinceLastSeen} baseline=${e.baselineLastSeen}');
 
       // Server chỉ nói "không có bằng chứng máy trẻ đang online" (lastSeen cũ
       // hơn 75 giây). Chưa đủ để kết luận: heartbeat chạy 60 giây một lần nên
       // một máy đang chạy bình thường vẫn có thể rơi vào khoảng này. Đánh thức
       // nó rồi chờ trả lời, có spinner để phụ huynh biết app không treo.
-      final probeStarted = DateTime.now();
       final alive = await _probeWithProgress(device, e.baselineLastSeen);
-      notifier.traceDelete(device.id, 'probe_done',
-          'alive=$alive after=${DateTime.now().difference(probeStarted).inSeconds}s mounted=$mounted');
       if (!mounted) return;
       if (alive == null) return; // phụ huynh bấm Huỷ lúc đang dò
 
@@ -251,10 +242,8 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
         return;
       }
 
-      notifier.traceDelete(device.id, 'warning_shown');
       final confirmed =
           await _confirmDeleteOfflineDevice(device, e.minutesSinceLastSeen);
-      notifier.traceDelete(device.id, 'warning_answered', 'confirmed=$confirmed');
       // Lần gọi lại mang force = true nên server không trả 409 nữa — chỉ lồng
       // đúng một tầng, không có nguy cơ đệ quy.
       if (confirmed == true) await _deleteDevice(device, force: true);
