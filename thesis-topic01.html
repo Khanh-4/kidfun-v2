@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mô Tả Đồ Án Chuyên Ngành — Đề Tài 01</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+  :root {
+    --ink: #1c2433;
+    --muted: #5b6577;
+    --line: #d9dee7;
+    --soft: #f3f5f9;
+    --navy: #1f3a6e;
+    --navy-soft: #e7edf7;
+    --green: #1b7a55;
+    --green-soft: #e4f3ec;
+    --amber: #a8620a;
+    --amber-soft: #fbf1e1;
+  }
+
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--ink);
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+    font-size: 10.3pt;
+    line-height: 1.55;
+  }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    height: 257mm;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+  }
+  .cover .school {
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: .04em;
+    font-size: 11pt;
+    color: var(--navy);
+  }
+  .cover .school small {
+    display: block;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--muted);
+    font-size: 9.5pt;
+    margin-top: 2px;
+  }
+  .cover .rule { height: 2px; background: var(--navy); margin: 14px 0 0; }
+  .cover .middle { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .cover .kicker {
+    font-size: 9.5pt;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 10px;
+  }
+  .cover h1 {
+    font-size: 21pt;
+    line-height: 1.3;
+    margin: 0 0 12px;
+    color: var(--navy);
+    font-weight: 800;
+  }
+  .cover .en {
+    font-size: 11pt;
+    font-style: italic;
+    color: var(--muted);
+    margin: 0 0 26px;
+  }
+  .cover .tagline {
+    border-left: 3px solid var(--green);
+    padding: 4px 0 4px 14px;
+    color: var(--ink);
+    max-width: 150mm;
+  }
+  .meta { width: 100%; border-collapse: collapse; font-size: 9.8pt; }
+  .meta td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .meta td:first-child { width: 42mm; color: var(--muted); font-weight: 600; }
+  .blank { display: inline-block; min-width: 95mm; border-bottom: 1px dotted #9aa3b2; }
+
+  /* ---------- Body ---------- */
+  h2 {
+    font-size: 13.5pt;
+    color: var(--navy);
+    margin: 22px 0 8px;
+    padding-bottom: 5px;
+    border-bottom: 1.5px solid var(--navy);
+    page-break-after: avoid;
+  }
+  h2 .no { color: var(--green); margin-right: 6px; }
+  h3 { font-size: 11pt; margin: 14px 0 5px; color: var(--ink); page-break-after: avoid; }
+  p { margin: 0 0 7px; text-align: justify; }
+  ul, ol { margin: 0 0 8px; padding-left: 20px; }
+  li { margin-bottom: 3px; }
+  .lead { font-size: 10.8pt; }
+  .new-page { page-break-before: always; }
+
+  table.grid { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 9.4pt; }
+  table.grid th, table.grid td { border: 1px solid var(--line); padding: 5px 7px; vertical-align: top; text-align: left; }
+  table.grid th { background: var(--navy-soft); color: var(--navy); font-weight: 700; }
+  table.grid tr { page-break-inside: avoid; }
+  table.grid .c { text-align: center; white-space: nowrap; }
+  table.grid ul { margin: 0; padding-left: 16px; }
+
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--navy);
+    background: var(--soft);
+    padding: 9px 12px;
+    margin: 8px 0 10px;
+    page-break-inside: avoid;
+  }
+  .callout.amber { border-left-color: var(--amber); background: var(--amber-soft); }
+  .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+  .callout b.t { display: block; margin-bottom: 3px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 7.6pt;
+    font-weight: 700;
+    padding: 0 6px;
+    border-radius: 3px;
+    vertical-align: 1px;
+  }
+  .tag.core { background: var(--navy); color: #fff; }
+  .tag.sup { background: var(--line); color: var(--ink); }
+  .tag.new { background: var(--green); color: #fff; }
+
+  .rq { counter-reset: rq; list-style: none; padding-left: 0; }
+  .rq li { counter-increment: rq; padding-left: 42px; position: relative; margin-bottom: 6px; text-align: justify; }
+  .rq li::before {
+    content: "RQ" counter(rq);
+    position: absolute; left: 0; top: 0;
+    font-weight: 800; color: var(--green);
+  }
+
+  figure { margin: 8px 0 12px; page-break-inside: avoid; }
+  figcaption { font-size: 8.8pt; color: var(--muted); text-align: center; margin-top: 4px; }
+  svg text { font-family: 'Be Vietnam Pro', Arial, sans-serif; }
+
+  code { font-size: 8.8pt; background: var(--soft); padding: 0 3px; border-radius: 2px; }
+  .refs { font-size: 8.9pt; padding-left: 22px; }
+  .refs li { margin-bottom: 4px; text-align: left; }
+  .refs a { color: var(--navy); word-break: break-all; }
+  .foot-note { font-size: 8.6pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="school">
+    TRƯỜNG ĐẠI HỌC CÔNG NGHỆ TP. HỒ CHÍ MINH (HUTECH)
+    <small>Đồ án chuyên ngành</small>
+  </div>
+  <div class="rule"></div>
+
+  <div class="middle">
+    <div class="kicker">Mô tả đề tài đồ án chuyên ngành · Đề tài 01</div>
+    <h1>Ứng dụng học máy dự đoán và phát hiện bất thường trong hành vi sử dụng thiết bị di động của trẻ em, tích hợp vào hệ thống giám sát KidFun</h1>
+    <p class="en">Machine Learning for Forecasting and Anomaly Detection of Children's Mobile Device Usage in a Parental Control System</p>
+    <div class="tagline">
+      Chuyển hệ thống quản lý thời gian sử dụng thiết bị từ <b>phản ứng sau khi trẻ vi phạm</b> sang <b>dự báo và cảnh báo trước</b>:
+      dữ liệu hành vi → mô hình học máy → cảnh báo và gợi ý có giải thích cho phụ huynh.
+    </div>
+  </div>
+
+  <table class="meta">
+    <tr><td>Nền tảng kế thừa</td><td>KidFun V2, hệ thống quản lý thời gian sử dụng thiết bị cho trẻ em (Đồ án cơ sở), đang vận hành trên Vercel và Supabase PostgreSQL, ứng dụng Flutter cho phụ huynh và trẻ</td></tr>
+    <tr><td>Nhóm thực hiện</td><td>Nhóm 60</td></tr>
+    <tr><td>Thành viên</td><td><span class="blank">&nbsp;</span></td></tr>
+    <tr><td>Giảng viên hướng dẫn</td><td><span class="blank">&nbsp;</span></td></tr>
+    <tr><td>Thời gian thực hiện</td><td>9 tuần</td></tr>
+  </table>
+</section>
+
+<!-- ================= 1. TÊN ĐỀ TÀI ================= -->
+<h2><span class="no">1.</span>Tên đề tài</h2>
+<table class="grid">
+  <tr><th style="width:30mm">Tiếng Việt</th><td><b>Ứng dụng học máy dự đoán và phát hiện bất thường trong hành vi sử dụng thiết bị di động của trẻ em, tích hợp vào hệ thống giám sát KidFun</b></td></tr>
+  <tr><th>Tiếng Anh</th><td><i>Machine Learning for Forecasting and Anomaly Detection of Children's Mobile Device Usage in a Parental Control System</i></td></tr>
+  <tr><th>Lĩnh vực</th><td>Học máy ứng dụng · Dự báo chuỗi thời gian · Phát hiện bất thường · Khai phá dữ liệu</td></tr>
+</table>
+
+<h3>Đặt vấn đề</h3>
+<p>
+  KidFun V2 hiện cho phép phụ huynh đặt giới hạn thời gian theo từng ngày trong tuần, chặn ứng dụng và website, theo dõi vị trí và nội dung YouTube.
+  Tuy nhiên, các cơ chế này đều mang tính <b>phản ứng</b>: hệ thống chỉ khoá máy hoặc gửi cảnh báo <i>sau khi</i> trẻ đã dùng hết giới hạn,
+  và phụ huynh chỉ thấy thói quen bất thường của con khi tự mở báo cáo ra xem.
+</p>
+<p>
+  Hành vi sử dụng thiết bị của trẻ lại có tính chu kỳ rõ rệt: ngày thường khác cuối tuần, mùa thi khác kỳ nghỉ.
+  Một khảo sát 1.802 trẻ 3–12 tuổi tại bốn thành phố lớn của Việt Nam cho thấy tỷ lệ trẻ dùng thiết bị 3–4 giờ mỗi ngày
+  là khoảng 1% vào ngày thường nhưng lên tới 7–9% vào cuối tuần và ngày lễ [10]. Chính tính chu kỳ này làm cho việc <b>dự báo</b> trở nên khả thi.
+  Đề tài đặt câu hỏi: <i>có thể dự đoán trước ngày nào trẻ có nguy cơ vượt giới hạn, và tự động phát hiện thay đổi bất thường trong thói quen, để phụ huynh can thiệp sớm hay không?</i>
+</p>
+
+<h3>Câu hỏi nghiên cứu</h3>
+<ol class="rq">
+  <li>Với lịch sử sử dụng của một trẻ, mô hình nào dự đoán tổng thời gian sử dụng ngày hôm sau chính xác nhất trong số mô hình cơ sở đơn giản, XGBoost, Prophet và LSTM? Mô hình phức tạp có thực sự tốt hơn mô hình cơ sở khi dữ liệu của mỗi trẻ chỉ kéo dài vài tuần đến vài tháng không?</li>
+  <li>Xác suất "ngày mai vượt giới hạn" do mô hình đưa ra có đủ tin cậy (phân biệt tốt và được hiệu chỉnh) để làm căn cứ gửi cảnh báo trước cho phụ huynh không?</li>
+  <li>Các phương pháp phát hiện bất thường không giám sát (Isolation Forest, DBSCAN, Autoencoder) phát hiện được những kiểu hành vi bất thường nào (dùng máy lúc khuya, tăng đột biến, ứng dụng lạ), với độ chính xác (precision) và độ phủ (recall) bao nhiêu?</li>
+</ol>
+
+<!-- ================= 2. ĐẦU VÀO – ĐẦU RA ================= -->
+<h2 class="new-page"><span class="no">2.</span>Đầu vào, đầu ra và các module</h2>
+<p class="lead">
+  Đề tài gồm 4 module. <b>Trọng tâm nghiên cứu là Module 1 và Module 2</b>, hai module được thực nghiệm và đánh giá định lượng đầy đủ.
+  Module 3 và Module 4 dựa trên kết quả của hai module trọng tâm để tạo giá trị trực tiếp cho phụ huynh.
+</p>
+
+<h3>2.1. Nguồn dữ liệu đầu vào</h3>
+<table class="grid">
+  <tr><th style="width:36mm">Nguồn</th><th>Nội dung</th><th style="width:34mm">Vai trò</th></tr>
+  <tr>
+    <td><b>Dữ liệu KidFun</b><br><span class="foot-note">(đã có)</span></td>
+    <td>
+      <code>UsageSession</code> (thời điểm bắt đầu và kết thúc phiên, cho ra chuỗi tổng thời gian theo giờ),
+      <code>AppUsageLog</code> (tổng thời gian theo ngày của từng ứng dụng),
+      <code>TimeLimit</code> (giới hạn theo thứ trong tuần),
+      <code>TimeExtensionRequest</code> (số lần và số phút xin thêm, được duyệt hay bị từ chối),
+      <code>Warning</code>, <code>YouTubeLog</code> (mức nguy hiểm nội dung 1–5),
+      <code>GeofenceEvent</code> (ra/vào vùng an toàn)
+    </td>
+    <td>Dữ liệu thật để demo và đánh giá cuối</td>
+  </tr>
+  <tr>
+    <td><b>Dữ liệu theo giờ của từng ứng dụng</b> <span class="tag new">MỚI</span></td>
+    <td>
+      Bổ sung vào ứng dụng của trẻ một bộ thu thập dựa trên <code>UsageStatsManager.queryEvents</code> của Android [6],
+      ghi số giây sử dụng của từng ứng dụng trong từng khung giờ vào một bảng mới.
+      Hiện tại <code>AppUsageLog</code> chỉ có tổng theo ngày, nên chưa biết được trẻ dùng ứng dụng nào vào lúc nào.
+    </td>
+    <td>Điều kiện để có heatmap theo giờ và phát hiện việc dùng máy lúc khuya</td>
+  </tr>
+  <tr>
+    <td><b>Bộ dữ liệu công khai</b></td>
+    <td>
+      <b>LSApp</b>: 292 người dùng, 8 tháng, khoảng 600.000 sự kiện mở/đóng ứng dụng có dấu thời gian [1];
+      <b>StudentLife</b>: 48 sinh viên, 10 tuần, gồm khoá/mở màn hình và lịch sử dùng ứng dụng [2];
+      <b>Tsinghua App Usage</b>: 1.000 người dùng, 1 tuần, nhật ký dùng ứng dụng theo trạm gốc [3]
+    </td>
+    <td>Kiểm chứng phương pháp trên dữ liệu thật quy mô lớn</td>
+  </tr>
+  <tr>
+    <td><b>Bộ sinh dữ liệu mô phỏng</b> <span class="tag new">MỚI</span></td>
+    <td>
+      Sinh hồ sơ sử dụng của trẻ theo nhóm tuổi, có chu kỳ tuần, lịch học, mùa thi, Tết và nghỉ hè của Việt Nam,
+      và có phản ứng với giới hạn của phụ huynh (xin thêm giờ khi gần hết).
+      Mức trung bình được hiệu chỉnh theo các khảo sát đã công bố [7][8][9][10]. Dữ liệu sinh ra có cài sẵn các bất thường kèm nhãn để đánh giá Module 2.
+    </td>
+    <td>Bù cho lượng dữ liệu trẻ em còn ít; tạo nhãn bất thường</td>
+  </tr>
+</table>
+
+<div class="callout amber">
+  <b class="t">Ghi chú về tính trung thực của dữ liệu</b>
+  <p>
+    Các bộ dữ liệu công khai được thu từ người lớn và sinh viên, không phải trẻ em. Dữ liệu thật trong KidFun hiện còn ít.
+    Vì vậy báo cáo sẽ ghi rõ kết quả nào đo trên dữ liệu công khai, kết quả nào trên dữ liệu mô phỏng và kết quả nào trên dữ liệu thật,
+    đồng thời coi khác biệt giữa hành vi người lớn và trẻ em là một hạn chế cần thảo luận.
+  </p>
+</div>
+
+<h3>2.2. Đặc trưng (features)</h3>
+<p>
+  Thời gian sử dụng trễ 1 ngày và 7 ngày; trung bình và độ lệch chuẩn trượt 7 và 14 ngày; thứ trong tuần; cờ cuối tuần, ngày lễ, mùa thi, nghỉ hè;
+  giới hạn của ngày cần dự đoán; số lần và số phút xin thêm giờ gần đây; tỷ trọng các nhóm ứng dụng giải trí, học tập, mạng xã hội;
+  số phút dùng máy trong khung 22:00–06:00; mức nguy hiểm trung bình của nội dung YouTube đã xem; thời gian ở ngoài vùng an toàn.
+</p>
+
+<h3>2.3. Đầu ra của từng module</h3>
+<table class="grid">
+  <tr><th style="width:40mm">Module</th><th style="width:40mm">Đầu vào chính</th><th>Đầu ra</th></tr>
+  <tr>
+    <td><b>M1 — Dự đoán thời gian sử dụng</b><br><span class="tag core">TRỌNG TÂM</span></td>
+    <td>Chuỗi thời gian sử dụng theo ngày, đặc trưng lịch, giới hạn</td>
+    <td>
+      (1) Số phút dự kiến dùng ngày mai, kèm khoảng dự báo;<br>
+      (2) <b>Xác suất vượt giới hạn ngày mai</b>;<br>
+      (3) Khi xác suất vượt ngưỡng: gửi thông báo đẩy (FCM) cho phụ huynh vào buổi tối hôm trước
+    </td>
+  </tr>
+  <tr>
+    <td><b>M2 — Phát hiện bất thường</b><br><span class="tag core">TRỌNG TÂM</span></td>
+    <td>Vector đặc trưng theo ngày và theo khung giờ</td>
+    <td>
+      (1) Điểm bất thường cho từng ngày hoặc khung giờ;<br>
+      (2) <b>Lý do</b> dễ hiểu, ví dụ: "dùng 95 phút sau 23:00, gấp 6 lần mức thường ngày";<br>
+      (3) Cảnh báo cho phụ huynh khi điểm vượt ngưỡng
+    </td>
+  </tr>
+  <tr>
+    <td><b>M3 — Khai phá mẫu hành vi</b><br><span class="tag sup">BỔ TRỢ</span></td>
+    <td>Lịch sử theo giờ, theo ứng dụng, theo vị trí</td>
+    <td>Heatmap giờ × thứ; các nhóm thói quen (K-Means); luật kết hợp (Apriori), ví dụ: "thứ Bảy + YouTube buổi tối → thường vượt giới hạn"</td>
+  </tr>
+  <tr>
+    <td><b>M4 — Gợi ý thông minh</b><br><span class="tag sup">BỔ TRỢ</span></td>
+    <td>Kết quả M1–M3 và các khuyến nghị tham chiếu</td>
+    <td>Gợi ý theo luật: điều chỉnh giới hạn từng ngày, khung giờ nên bật School Mode, ứng dụng nên hạn chế; đối chiếu với khuyến nghị của WHO [7] và mức trung bình theo độ tuổi [8]</td>
+  </tr>
+</table>
+
+<p>
+  <b>Nơi hiển thị:</b> tab <b>"AI Insights"</b> mới trong ứng dụng Flutter của phụ huynh, gồm biểu đồ dự báo, heatmap, danh sách bất thường kèm lý do và các gợi ý.
+  <b>AI chỉ dự báo và gợi ý; mọi thay đổi về giới hạn vẫn do phụ huynh quyết định.</b>
+</p>
+
+<!-- ================= 3. KIẾN TRÚC ================= -->
+<h2 class="new-page"><span class="no">3.</span>Kiến trúc tích hợp</h2>
+<p>
+  Mô hình được <b>huấn luyện offline</b> và chạy <b>theo lô</b>, không cần một máy chủ AI chạy liên tục.
+  Cách này phù hợp với hạ tầng serverless hiện tại của KidFun: Vercel không duy trì tiến trình chạy liên tục, và mỗi request mất 1–4 giây.
+  Một tác vụ Python chạy theo lịch (phương án chính là GitHub Actions, dự phòng là Vercel Python Function) đọc dữ liệu từ PostgreSQL, chạy mô hình rồi ghi kết quả ngược lại vào cơ sở dữ liệu.
+  Dự đoán cho ngày mai chạy mỗi tối; chấm điểm bất thường chạy theo lô nhiều lần trong ngày.
+</p>
+
+<figure>
+<svg viewBox="0 0 760 330" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sơ đồ kiến trúc tích hợp module học máy vào KidFun">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6577"/>
+    </marker>
+    <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1b7a55"/>
+    </marker>
+  </defs>
+
+  <!-- Child app -->
+  <rect x="10" y="30" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
+  <text x="110" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">Ứng dụng của trẻ</text>
+  <text x="110" y="72" text-anchor="middle" font-size="11" fill="#5b6577">Flutter + Kotlin (Android)</text>
+  <rect x="24" y="84" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
+  <text x="110" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Thu thập theo giờ/ứng dụng</text>
+
+  <!-- Backend -->
+  <rect x="280" y="30" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
+  <text x="380" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">Backend Node.js</text>
+  <text x="380" y="72" text-anchor="middle" font-size="11" fill="#5b6577">Vercel serverless</text>
+  <rect x="294" y="84" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
+  <text x="380" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">API kết quả + gửi FCM</text>
+
+  <!-- DB -->
+  <rect x="550" y="30" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
+  <text x="650" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">PostgreSQL</text>
+  <text x="650" y="72" text-anchor="middle" font-size="11" fill="#5b6577">Supabase</text>
+  <rect x="564" y="84" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
+  <text x="650" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Bảng dự đoán / bất thường</text>
+
+  <!-- Parent app -->
+  <rect x="280" y="200" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
+  <text x="380" y="224" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">Ứng dụng phụ huynh</text>
+  <text x="380" y="242" text-anchor="middle" font-size="11" fill="#5b6577">Flutter</text>
+  <rect x="294" y="254" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
+  <text x="380" y="271" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Tab "AI Insights"</text>
+
+  <!-- ML pipeline -->
+  <rect x="550" y="200" width="200" height="92" rx="6" fill="#e4f3ec" stroke="#1b7a55" stroke-width="1.5"/>
+  <text x="650" y="224" text-anchor="middle" font-size="13" font-weight="700" fill="#1b7a55">Pipeline học máy</text>
+  <text x="650" y="242" text-anchor="middle" font-size="11" fill="#1c2433">Python · scikit-learn · XGBoost</text>
+  <text x="650" y="258" text-anchor="middle" font-size="11" fill="#1c2433">Prophet · PyTorch</text>
+  <text x="650" y="276" text-anchor="middle" font-size="10.5" fill="#5b6577">chạy theo lịch, theo lô</text>
+
+  <!-- Offline training -->
+  <rect x="10" y="200" width="200" height="92" rx="6" fill="#fff" stroke="#1b7a55" stroke-dasharray="5 4"/>
+  <text x="110" y="226" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1b7a55">Huấn luyện offline</text>
+  <text x="110" y="246" text-anchor="middle" font-size="11" fill="#5b6577">Dataset công khai</text>
+  <text x="110" y="263" text-anchor="middle" font-size="11" fill="#5b6577">+ bộ sinh dữ liệu mô phỏng</text>
+  <text x="110" y="280" text-anchor="middle" font-size="11" fill="#5b6577">→ mô hình đã huấn luyện</text>
+
+  <!-- Arrows -->
+  <line x1="210" y1="64" x2="277" y2="64" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="244" y="56" text-anchor="middle" font-size="9.5" fill="#5b6577">gửi log</text>
+
+  <line x1="483" y1="64" x2="547" y2="64" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)" marker-start="url(#ar)"/>
+
+  <line x1="630" y1="124" x2="630" y2="197" stroke="#1b7a55" stroke-width="1.5" marker-end="url(#arg)"/>
+  <text x="624" y="165" text-anchor="end" font-size="9.5" fill="#1b7a55">đọc lịch sử</text>
+  <line x1="672" y1="198" x2="672" y2="125" stroke="#1b7a55" stroke-width="1.5" marker-end="url(#arg)"/>
+  <text x="678" y="165" font-size="9.5" fill="#1b7a55">ghi kết quả</text>
+
+  <line x1="380" y1="124" x2="380" y2="197" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="388" y="164" font-size="9.5" fill="#5b6577">API + thông báo đẩy</text>
+
+  <path d="M110 292 L110 312 L650 312 L650 295" fill="none" stroke="#1b7a55" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arg)"/>
+  <text x="380" y="326" text-anchor="middle" font-size="9.5" fill="#1b7a55">nạp mô hình đã huấn luyện</text>
+</svg>
+<figcaption>Hình 1. Module học máy gắn vào hệ thống KidFun hiện có. Khối viền xanh là phần làm mới trong đồ án; khối xám là phần đã có trong KidFun V2.</figcaption>
+</figure>
+
+<div class="callout">
+  <b class="t">Tác động lên mã nguồn hiện có</b>
+  <ul>
+    <li><b>Ứng dụng của trẻ:</b> thêm bộ thu thập dữ liệu theo giờ và theo ứng dụng (Kotlin) cùng luồng đồng bộ lên server.</li>
+    <li><b>Backend:</b> thêm bảng lưu kết quả, API đọc kết quả, gửi cảnh báo qua FCM sẵn có. Không thay đổi các API hiện tại.</li>
+    <li><b>Ứng dụng phụ huynh:</b> thêm tab "AI Insights".</li>
+    <li><b>Phần nghiên cứu học máy</b> nằm trong một module Python độc lập, có thể chạy và đánh giá riêng.</li>
+  </ul>
+</div>
+
+<!-- ================= 4. TÍNH KHOA HỌC ================= -->
+<h2 class="new-page"><span class="no">4.</span>Tính khoa học</h2>
+<p>
+  Đề tài không dừng ở việc gắn một mô hình AI vào ứng dụng, mà xây dựng một quy trình thực nghiệm có thể kiểm chứng và lặp lại
+  để trả lời ba câu hỏi nghiên cứu nêu ở mục 1.
+</p>
+
+<h3>4.1. Phát biểu bài toán</h3>
+<ul>
+  <li><b>Hồi quy chuỗi thời gian:</b> dự đoán <i>y<sub>t+1</sub></i>, tổng số phút sử dụng của ngày mai, từ lịch sử và đặc trưng tính đến ngày <i>t</i>.</li>
+  <li><b>Phân loại nhị phân có xác suất:</b> ước lượng <i>P(y<sub>t+1</sub> &gt; L<sub>t+1</sub>)</i>, với <i>L</i> là giới hạn phụ huynh đặt cho ngày đó. Mục tiêu dự đoán gắn với giới hạn riêng của từng trẻ, không phải một ngưỡng chung.</li>
+  <li><b>Phát hiện bất thường không giám sát:</b> gán điểm bất thường cho mỗi ngày hoặc khung giờ mà không cần nhãn khi huấn luyện.</li>
+</ul>
+
+<h3>4.2. Thiết kế thực nghiệm</h3>
+<table class="grid">
+  <tr><th style="width:34mm">Thành phần</th><th>Module 1 — Dự đoán</th><th>Module 2 — Bất thường</th></tr>
+  <tr>
+    <td><b>Mô hình cơ sở</b></td>
+    <td>Naive (ngày mai bằng hôm nay); Seasonal naive (bằng cùng thứ tuần trước); trung bình trượt 7 ngày</td>
+    <td>Ngưỡng z-score riêng cho từng trẻ</td>
+  </tr>
+  <tr>
+    <td><b>Mô hình so sánh</b></td>
+    <td>XGBoost [11], Prophet [12], LSTM [13]</td>
+    <td>Isolation Forest [14], DBSCAN [15], Autoencoder</td>
+  </tr>
+  <tr>
+    <td><b>Chia dữ liệu</b></td>
+    <td colspan="2">Kiểm định trượt theo thời gian (walk-forward): chỉ dùng quá khứ để dự đoán tương lai, không xáo trộn ngẫu nhiên, nhằm tránh rò rỉ thông tin</td>
+  </tr>
+  <tr>
+    <td><b>Độ đo</b></td>
+    <td>MAE, RMSE cho số phút; ROC-AUC, Brier score và biểu đồ hiệu chỉnh (calibration) cho xác suất vượt giới hạn</td>
+    <td>Precision, Recall, F1, PR-AUC trên các bất thường có nhãn được cài vào dữ liệu mô phỏng</td>
+  </tr>
+  <tr>
+    <td><b>Phân tích loại bỏ (ablation)</b></td>
+    <td colspan="2">Lần lượt bỏ từng nhóm đặc trưng (theo giờ, xin thêm giờ, nội dung YouTube, vị trí) để đo đóng góp của từng nguồn tín hiệu, đặc biệt là dữ liệu theo giờ do đồ án mới thu thập</td>
+  </tr>
+  <tr>
+    <td><b>Kiểm định thống kê</b></td>
+    <td colspan="2">So sánh sai số giữa các mô hình trên từng hồ sơ trẻ bằng kiểm định Wilcoxon (cặp, phi tham số); báo cáo kèm khoảng tin cậy thay vì chỉ một con số</td>
+  </tr>
+</table>
+
+<p>
+  Module 3 dùng K-Means và luật kết hợp Apriori [16]. Module 4 là hệ luật dựa trên các tài liệu tham chiếu [7][8], nên mỗi gợi ý đều truy được nguồn gốc.
+  Toàn bộ thực nghiệm cố định seed ngẫu nhiên, lưu lại tham số của bộ sinh dữ liệu và mã nguồn để có thể chạy lại.
+</p>
+
+<!-- ================= 5. TÍNH MỚI ================= -->
+<h2><span class="no">5.</span>Tính mới và độc đáo</h2>
+<ol>
+  <li>
+    <b>Từ phản ứng sang dự báo.</b>
+    Các công cụ quản lý thời gian dùng thiết bị phổ biến chủ yếu đặt giới hạn và báo cáo sau sự việc.
+    Đề tài đưa vào một hệ thống đang vận hành khả năng cảnh báo <i>trước</i> một ngày, gắn với giới hạn riêng của từng trẻ.
+  </li>
+  <li>
+    <b>Tín hiệu đặc thù của hệ thống quản lý thời gian dùng thiết bị.</b>
+    Các nghiên cứu về hành vi dùng ứng dụng thường chỉ có nhật ký mở ứng dụng.
+    Dữ liệu KidFun có thêm <i>giới hạn do phụ huynh đặt</i>, <i>hành vi xin thêm giờ</i> (trẻ "thương lượng" với phụ huynh),
+    <i>mức nguy hiểm của nội dung đã xem</i> và <i>vị trí theo vùng an toàn</i>.
+    Phân tích loại bỏ ở mục 4.2 đo được mỗi tín hiệu đóng góp bao nhiêu vào kết quả.
+  </li>
+  <li>
+    <b>Bộ sinh dữ liệu hành vi trẻ em theo bối cảnh Việt Nam.</b>
+    Bộ sinh mô phỏng lịch học, mùa thi, Tết, nghỉ hè và phản ứng của trẻ trước giới hạn, được hiệu chỉnh theo các khảo sát đã công bố.
+    Bộ sinh có thể dùng lại cho các nghiên cứu khác, trong bối cảnh dữ liệu thật về trẻ em khó thu thập vì lý do quyền riêng tư.
+  </li>
+  <li>
+    <b>Cảnh báo bất thường có giải thích.</b>
+    Mỗi cảnh báo nêu rõ đặc trưng nào lệch khỏi thói quen và lệch bao nhiêu, thay vì chỉ đưa ra một điểm số khó hiểu với phụ huynh.
+  </li>
+  <li>
+    <b>Đánh giá trung thực khi dữ liệu nhỏ.</b>
+    Đề tài so sánh mô hình học sâu với mô hình đơn giản trong điều kiện dữ liệu ít, đúng với thực tế của một gia đình.
+    Nếu LSTM không vượt được XGBoost hay mô hình cơ sở, đó vẫn là một kết luận có giá trị cho việc chọn mô hình khi triển khai.
+  </li>
+</ol>
+
+<!-- ================= 6. TÍNH KHẢ THI ================= -->
+<h2><span class="no">6.</span>Tính khả thi</h2>
+
+<h3>6.1. Cơ sở thuận lợi</h3>
+<ul>
+  <li><b>Hạ tầng đã vận hành:</b> KidFun V2 đã có đăng nhập, liên kết thiết bị, đồng bộ dữ liệu sử dụng, thông báo đẩy FCM, tác vụ định kỳ (Vercel Cron) và cơ sở dữ liệu trên Supabase. Đồ án không phải xây lại nền tảng.</li>
+  <li><b>Dữ liệu từ nhiều nguồn:</b> ba bộ dữ liệu công khai, bộ sinh mô phỏng và dữ liệu thật từ KidFun. Thiếu một nguồn thì vẫn còn các nguồn khác.</li>
+  <li><b>Công nghệ mã nguồn mở, phổ biến:</b> Python, pandas, scikit-learn, XGBoost, Prophet, PyTorch; chạy được trên các gói miễn phí.</li>
+  <li><b>Suy luận theo lô</b> không cần máy chủ AI chạy liên tục, nên không phát sinh chi phí vận hành.</li>
+</ul>
+
+<h3>6.2. Kế hoạch 9 tuần</h3>
+<table class="grid">
+  <tr><th style="width:14mm" class="c">Tuần</th><th>Công việc</th><th style="width:46mm">Kết quả bàn giao</th></tr>
+  <tr><td class="c">1</td><td>Chốt thiết kế; tải và khảo sát dữ liệu công khai (EDA); đặc tả đặc trưng; làm bộ thu thập theo giờ trên ứng dụng của trẻ</td><td>Tài liệu thiết kế, báo cáo EDA</td></tr>
+  <tr><td class="c">2</td><td>Đưa bộ thu thập vào sử dụng để <b>bắt đầu tích luỹ dữ liệu thật càng sớm càng tốt</b>; xây và hiệu chỉnh bộ sinh dữ liệu mô phỏng; pipeline tiền xử lý</td><td>Bộ sinh dữ liệu, pipeline đặc trưng</td></tr>
+  <tr><td class="c">3</td><td>M1: các mô hình cơ sở, XGBoost, Prophet</td><td>Kết quả thực nghiệm M1 (đợt 1)</td></tr>
+  <tr><td class="c">4</td><td>M1: LSTM; xác suất vượt giới hạn và hiệu chỉnh; đánh giá walk-forward</td><td>Bảng so sánh M1 hoàn chỉnh</td></tr>
+  <tr><td class="c">5</td><td>M2: Isolation Forest, DBSCAN, Autoencoder; cài bất thường có nhãn; đánh giá; sinh lý do giải thích</td><td>Bảng so sánh M2</td></tr>
+  <tr><td class="c">6</td><td>M3: heatmap, K-Means, Apriori. M4: hệ luật gợi ý</td><td>Kết quả M3, bộ luật M4</td></tr>
+  <tr><td class="c">7</td><td>Tích hợp: tác vụ chạy theo lịch, bảng kết quả, API backend, cảnh báo FCM, tab "AI Insights" trong ứng dụng phụ huynh</td><td>Hệ thống chạy đầu cuối</td></tr>
+  <tr><td class="c">8</td><td>Kiểm thử trên máy thật; đánh giá trên dữ liệu thật đã thu; phân tích loại bỏ</td><td>Kết quả đánh giá cuối</td></tr>
+  <tr><td class="c">9</td><td>Viết báo cáo, slide, kịch bản demo; thời gian dự phòng</td><td>Báo cáo, slide, demo</td></tr>
+</table>
+
+<h3>6.3. Rủi ro và hướng xử lý</h3>
+<table class="grid">
+  <tr><th style="width:52mm">Rủi ro</th><th>Hướng xử lý</th></tr>
+  <tr><td>Dữ liệu thật về trẻ em còn ít</td><td>Huấn luyện và so sánh chủ yếu trên dữ liệu công khai và mô phỏng; dữ liệu thật dùng để demo và kiểm tra cuối; ghi rõ trong báo cáo</td></tr>
+  <tr><td>Khác biệt hành vi giữa người lớn (dữ liệu công khai) và trẻ em</td><td>Dùng dữ liệu công khai để kiểm chứng phương pháp, không chuyển nguyên mô hình sang trẻ em; nêu thành hạn chế</td></tr>
+  <tr><td>LSTM quá khớp khi dữ liệu nhỏ</td><td>Regularization, early stopping; so sánh công bằng với mô hình cơ sở; kết quả âm cũng được báo cáo</td></tr>
+  <tr><td>Một số hãng Android hạn chế quyền thống kê sử dụng hoặc chạy nền</td><td>Kiểm thử trên ít nhất 2 dòng máy; hướng dẫn cấp quyền; nếu thiếu dữ liệu theo giờ thì quay về dùng dữ liệu theo ngày</td></tr>
+  <tr><td>4 module trong 9 tuần</td><td>Ưu tiên M1, M2 với thực nghiệm đầy đủ; M3, M4 làm ở mức gọn, dựa trên kết quả của M1, M2</td></tr>
+  <tr><td>Quyền riêng tư của trẻ</td><td>Chỉ dùng dữ liệu có sự đồng ý của phụ huynh; ẩn danh khi phân tích; dữ liệu không rời khỏi hệ thống của nhóm</td></tr>
+</table>
+
+<!-- ================= 7. TÍNH THỰC TIỄN ================= -->
+<h2><span class="no">7.</span>Tính thực tiễn và khả năng áp dụng</h2>
+<ul>
+  <li>
+    <b>Nhu cầu có thật:</b> một khảo sát năm 2023 với 295 bà mẹ Việt Nam cho thấy trẻ từ 3 tuổi trở lên dùng điện thoại trung bình
+    1 giờ 22 phút mỗi ngày, 72% phụ huynh có đặt quy định về thời lượng, và mức kiểm soát giảm dần khi trẻ lớn [9].
+    Tại Mỹ, trẻ 8–12 tuổi dùng màn hình trung bình 4 giờ 44 phút mỗi ngày, thanh thiếu niên 7 giờ 22 phút [8].
+    WHO khuyến nghị trẻ 2–4 tuổi dùng màn hình không quá 1 giờ mỗi ngày [7].
+  </li>
+  <li>
+    <b>Áp dụng ngay vào sản phẩm đang chạy:</b> kết quả được tích hợp vào KidFun chứ không chỉ nằm trong notebook.
+    Phụ huynh nhận cảnh báo từ tối hôm trước, biết vì sao một ngày bị coi là bất thường, và nhận gợi ý điều chỉnh giới hạn.
+  </li>
+  <li>
+    <b>Giảm thao tác cho phụ huynh:</b> thay vì phải tự đọc báo cáo hằng ngày, phụ huynh được hệ thống chủ động báo khi có điều đáng chú ý.
+  </li>
+  <li>
+    <b>Mở rộng được:</b> quy trình dữ liệu → đặc trưng → mô hình → cảnh báo có giải thích có thể áp dụng cho các sản phẩm sức khoẻ số khác,
+    hoặc cho nhà trường khi quản lý thiết bị học tập.
+  </li>
+</ul>
+
+<!-- ================= 8. PHẠM VI & Ý NGHĨA ================= -->
+<h2 class="new-page"><span class="no">8.</span>Phạm vi và ý nghĩa</h2>
+
+<h3>8.1. Phạm vi</h3>
+<table class="grid">
+  <tr><th style="width:50%">Trong phạm vi</th><th>Ngoài phạm vi</th></tr>
+  <tr>
+    <td>
+      <ul>
+        <li>Thiết bị của trẻ chạy Android</li>
+        <li>4 module: dự đoán (M1), bất thường (M2), khai phá mẫu (M3), gợi ý (M4); thực nghiệm đầy đủ cho M1 và M2</li>
+        <li>Thu thập dữ liệu theo giờ và theo ứng dụng</li>
+        <li>Suy luận theo lô: dự đoán mỗi tối, chấm điểm bất thường nhiều lần trong ngày</li>
+        <li>Tab "AI Insights" trong ứng dụng phụ huynh (Flutter)</li>
+        <li>Đánh giá trên dữ liệu công khai, dữ liệu mô phỏng và dữ liệu thật thu được</li>
+      </ul>
+    </td>
+    <td>
+      <ul>
+        <li>Thiết bị iOS</li>
+        <li>Cảnh báo tức thì theo từng nhịp heartbeat</li>
+        <li>AI tự động thay đổi giới hạn hoặc khoá máy khi chưa có phụ huynh duyệt</li>
+        <li>Học liên kết (Federated Learning), thuộc hướng Đề tài 03</li>
+        <li>Phân tích nội dung đa phương thức (ảnh, video), thuộc hướng Đề tài 04</li>
+        <li>Giao diện web cho phụ huynh</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+<h3>8.2. Ý nghĩa</h3>
+<ul>
+  <li><b>Khoa học:</b> đưa ra một so sánh có kiểm chứng giữa mô hình cơ sở, học máy cổ điển và học sâu cho bài toán dự báo hành vi dùng thiết bị khi dữ liệu nhỏ, kèm phân tích đóng góp của từng nguồn tín hiệu đặc thù của hệ thống quản lý thời gian dùng thiết bị.</li>
+  <li><b>Thực tiễn:</b> nâng cấp một hệ thống đang vận hành từ chặn sau khi vi phạm sang cảnh báo và gợi ý trước.</li>
+  <li><b>Xã hội:</b> hỗ trợ phụ huynh hình thành thói quen dùng thiết bị lành mạnh cho trẻ, theo hướng đồng hành thay vì chỉ cấm đoán.</li>
+  <li><b>Đào tạo:</b> nhóm thực hiện trọn vẹn vòng đời học máy trong một sản phẩm thật: thu thập dữ liệu, xây dựng đặc trưng, thực nghiệm, đánh giá, triển khai và theo dõi.</li>
+</ul>
+
+<!-- ================= TÀI LIỆU ================= -->
+<h2><span class="no">9.</span>Tài liệu tham khảo</h2>
+<ol class="refs">
+  <li>Aliannejadi, M. et al. <i>LSApp: Large dataset of Sequential mobile App usage.</i> University of Amsterdam. <a href="https://dare.uva.nl/id/cb6506a2-dc81-488a-a7cc-be653662e658">dare.uva.nl/id/cb6506a2-dc81-488a-a7cc-be653662e658</a></li>
+  <li>Wang, R. et al. (2014). <i>StudentLife: Assessing Mental Health, Academic Performance and Behavioral Trends of College Students using Smartphones.</i> ACM UbiComp. Dữ liệu: <a href="https://studentlife.cs.dartmouth.edu/dataset.html">studentlife.cs.dartmouth.edu/dataset.html</a></li>
+  <li>Tsinghua University FIB Lab. <i>App Usage Behavior Modeling and Prediction — Tsinghua App Usage Dataset.</i> <a href="https://fi.ee.tsinghua.edu.cn/appusage/">fi.ee.tsinghua.edu.cn/appusage/</a></li>
+  <li>Aliannejadi, M. et al. (2021). <i>Context-Aware Target Apps Selection and Recommendation for Enhancing Personal Mobile Assistants.</i> <a href="https://arxiv.org/abs/2101.03394">arxiv.org/abs/2101.03394</a></li>
+  <li>Tsinghua FIB Lab (2019). <i>UbiComp/ISWC 2019 Tutorial on Smartphone App Usage, Understanding, Modelling, and Prediction.</i> <a href="https://fi.ee.tsinghua.edu.cn/UbiCompTutorial.html">fi.ee.tsinghua.edu.cn/UbiCompTutorial.html</a></li>
+  <li>Android Developers. <i>UsageStatsManager.</i> <a href="https://developer.android.com/reference/android/app/usage/UsageStatsManager">developer.android.com/reference/android/app/usage/UsageStatsManager</a></li>
+  <li>World Health Organization (2019). <i>To grow up healthy, children need to sit less and play more</i> (Guidelines on physical activity, sedentary behaviour and sleep for children under 5 years of age). <a href="https://www.who.int/news/item/24-04-2019-to-grow-up-healthy-children-need-to-sit-less-and-play-more">who.int/news/item/24-04-2019-to-grow-up-healthy-children-need-to-sit-less-and-play-more</a></li>
+  <li>Common Sense Media (2019). <i>The Common Sense Census: Media Use by Tweens and Teens.</i> <a href="https://www.commonsensemedia.org/about-us/news/press-releases/the-common-sense-census-media-use-by-tweens-and-teens-new-research">commonsensemedia.org/about-us/news/press-releases/the-common-sense-census-media-use-by-tweens-and-teens-new-research</a></li>
+  <li>Q&amp;Me Vietnam Market Research (2023). <i>Smartphone usage among Vietnamese children.</i> <a href="https://qandme.net/en/report/smartphone-usage-among-vietnamese-children.html">qandme.net/en/report/smartphone-usage-among-vietnamese-children.html</a></li>
+  <li>Tuoi Tre News (2014). <i>78% of Vietnam children under 6 use digital device: survey.</i> Khảo sát của Trung tâm Nghiên cứu Văn hoá, Giáo dục và Đời sống Xã hội (Hội Dân tộc học và Nhân học TP.HCM) trên 1.051 phụ huynh, 1.802 trẻ 3–12 tuổi. <a href="https://news.tuoitre.vn/78-of-vietnam-children-under-6-use-digital-device-survey-1039027.htm">news.tuoitre.vn/78-of-vietnam-children-under-6-use-digital-device-survey-1039027.htm</a></li>
+  <li>Chen, T., Guestrin, C. (2016). <i>XGBoost: A Scalable Tree Boosting System.</i> ACM SIGKDD.</li>
+  <li>Taylor, S. J., Letham, B. (2018). <i>Forecasting at Scale.</i> The American Statistician, 72(1).</li>
+  <li>Hochreiter, S., Schmidhuber, J. (1997). <i>Long Short-Term Memory.</i> Neural Computation, 9(8).</li>
+  <li>Liu, F. T., Ting, K. M., Zhou, Z.-H. (2008). <i>Isolation Forest.</i> IEEE ICDM.</li>
+  <li>Ester, M., Kriegel, H.-P., Sander, J., Xu, X. (1996). <i>A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise.</i> KDD.</li>
+  <li>Agrawal, R., Srikant, R. (1994). <i>Fast Algorithms for Mining Association Rules.</i> VLDB.</li>
+</ol>
+
+</body>
+</html>
