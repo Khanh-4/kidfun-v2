@@ -19,7 +19,8 @@
 - Đọc chuỗi sự kiện `ACTIVITY_RESUMED` (1) / `ACTIVITY_PAUSED` (2) — trên Android cũ là `MOVE_TO_FOREGROUND` / `MOVE_TO_BACKGROUND`, cùng mã số.
 - Ghép thành các **khoảng foreground** `[start, end)` cho từng package. Khoảng nào chưa đóng (app đang mở) thì cắt ở thời điểm hiện tại.
 - Ngắt khoảng khi gặp `SCREEN_NON_INTERACTIVE` (16, API 28+) hoặc `DEVICE_SHUTDOWN` (26) để không đếm thời gian màn hình tắt.
-- **Cắt khoảng theo ranh giới giờ** (giờ địa phương của máy, VN = UTC+7) rồi cộng dồn → `(giờ, package) → số giây, số lần mở`.
+- **Cắt khoảng theo ranh giới giờ UTC** rồi cộng dồn → `(giờ, package) → số giây, số lần mở`. VN là UTC+7, không đổi giờ mùa hè, nên ranh giới giờ UTC trùng đúng ranh giới giờ VN; không cần xử lý múi giờ trên máy.
+- Mở lại cùng app trong vòng 2 giây (chuyển màn hình nội bộ app) không tính là lần mở mới.
 - Bỏ qua chính app KidFun và launcher (màn hình chính) — không phải hành vi "dùng app".
 
 ### 2.2. Cách tính lại: luôn tính lại trọn vẹn, gửi giá trị tuyệt đối (idempotent)

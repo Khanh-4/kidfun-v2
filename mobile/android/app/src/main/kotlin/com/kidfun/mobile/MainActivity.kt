@@ -9,6 +9,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.kidfun.mobile.helpers.UsageStatsHelper
+import com.kidfun.mobile.usage.HourlyUsageScheduler
 import com.kidfun.mobile.services.AppBlockerService
 import com.kidfun.mobile.services.KidFunService
 import com.kidfun.mobile.services.AppLimitChecker
@@ -29,6 +30,22 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getAppUsage" -> result.success(usageHelper.getTodayUsage())
+
+                    // Đồ án chuyên ngành: thu thập thời gian dùng app theo giờ (WorkManager, 30 phút/lần)
+                    "scheduleHourlyUsageSync" -> {
+                        val baseUrl = call.argument<String>("baseUrl")
+                        if (baseUrl.isNullOrEmpty()) {
+                            result.error("INVALID_ARGS", "baseUrl is required", null)
+                        } else {
+                            HourlyUsageScheduler.schedule(this, baseUrl)
+                            result.success(null)
+                        }
+                    }
+
+                    "cancelHourlyUsageSync" -> {
+                        HourlyUsageScheduler.cancel(this)
+                        result.success(null)
+                    }
 
                     "getInstalledApps" -> result.success(usageHelper.getInstalledApps())
 

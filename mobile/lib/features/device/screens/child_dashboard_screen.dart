@@ -13,6 +13,7 @@ import '../../../core/network/realtime_service.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/services/child_link_service.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/services/native_service.dart';
 import '../../../core/services/policy_service.dart';
 import '../../../core/services/location_service.dart';
@@ -206,6 +207,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 5: Sync app usage every 5 minutes
     _startUsageSync();
+
+    // Đồ án chuyên ngành: dữ liệu theo giờ do WorkManager gửi nền, không phụ thuộc màn hình này
+    NativeService.scheduleHourlyUsageSync(ApiConstants.baseUrl)
+        .catchError((e) => print('📊 [HOURLY] Lên lịch thất bại: $e'));
 
     // Sprint 5: Sync blocked apps from server
     _syncBlockedApps();

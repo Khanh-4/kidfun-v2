@@ -57,6 +57,17 @@ class NativeService {
     return await _channel.invokeMethod('lockScreen') as bool;
   }
 
+  /// Đồ án chuyên ngành: lên lịch WorkManager (Kotlin) gửi thời gian dùng app
+  /// theo giờ lên server, 30 phút/lần. Gọi nhiều lần không sao (KEEP).
+  static Future<void> scheduleHourlyUsageSync(String baseUrl) async {
+    await _channel.invokeMethod('scheduleHourlyUsageSync', {'baseUrl': baseUrl});
+  }
+
+  /// Huỷ lịch gửi dữ liệu theo giờ (khi gỡ liên kết)
+  static Future<void> cancelHourlyUsageSync() async {
+    await _channel.invokeMethod('cancelHourlyUsageSync');
+  }
+
   /// Kiểm tra quyền UsageStats đã cấp chưa
   static Future<bool> hasUsageStatsPermission() async {
     return await _channel.invokeMethod('hasUsageStatsPermission') as bool;
