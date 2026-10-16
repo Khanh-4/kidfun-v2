@@ -191,3 +191,7 @@ reports/
 .agents/
 .reports/
 scratch/
+
+# Android signing keys — never commit (repo is public)
+*.keystore
+*.jks
