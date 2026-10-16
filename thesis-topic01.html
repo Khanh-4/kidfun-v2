@@ -173,6 +173,8 @@
     <div class="tagline">
       Chuyển hệ thống quản lý thời gian sử dụng thiết bị từ <b>phản ứng sau khi trẻ vi phạm</b> sang <b>dự báo và cảnh báo trước</b>:
       dữ liệu hành vi → mô hình học máy → cảnh báo và gợi ý có giải thích cho phụ huynh.
+      Bất thường nghiêm trọng (dùng máy lúc 2–3 giờ sáng) được phát hiện và báo <b>ngay trên máy của trẻ</b>,
+      và hệ thống <b>học từ xác nhận đúng/sai của phụ huynh</b>.
     </div>
   </div>
 
@@ -182,6 +184,7 @@
     <tr><td>Thành viên</td><td><span class="blank">&nbsp;</span></td></tr>
     <tr><td>Giảng viên hướng dẫn</td><td><span class="blank">&nbsp;</span></td></tr>
     <tr><td>Thời gian thực hiện</td><td>9 tuần</td></tr>
+    <tr><td>Phiên bản</td><td>Bản 2 (16/10/2026), cập nhật theo 4 góp ý của giảng viên hướng dẫn (tóm tắt ở mục 1)</td></tr>
   </table>
 </section>
 
@@ -211,10 +214,37 @@
   <li>Với lịch sử sử dụng của một trẻ, mô hình nào dự đoán tổng thời gian sử dụng ngày hôm sau chính xác nhất trong số mô hình cơ sở đơn giản, XGBoost, Prophet và LSTM? Mô hình phức tạp có thực sự tốt hơn mô hình cơ sở khi dữ liệu của mỗi trẻ chỉ kéo dài vài tuần đến vài tháng không?</li>
   <li>Xác suất "ngày mai vượt giới hạn" do mô hình đưa ra có đủ tin cậy (phân biệt tốt và được hiệu chỉnh) để làm căn cứ gửi cảnh báo trước cho phụ huynh không?</li>
   <li>Các phương pháp phát hiện bất thường không giám sát (Isolation Forest, DBSCAN, Autoencoder) phát hiện được những kiểu hành vi bất thường nào (dùng máy lúc khuya, tăng đột biến, ứng dụng lạ), với độ chính xác (precision) và độ phủ (recall) bao nhiêu?</li>
+  <li>Một lớp phát hiện nhẹ chạy ngay trên máy của trẻ báo được bất thường khẩn (dùng máy lúc khuya) nhanh đến mức nào so với chấm điểm theo lô trên server, và tốn thêm bao nhiêu pin khi dữ liệu thường được gửi gộp theo đợt?</li>
+  <li>Xác nhận "đúng/sai" của phụ huynh giúp giảm tỷ lệ báo nhầm bao nhiêu sau một số lần phản hồi, trong khi vẫn giữ được độ phủ với các bất thường thật?</li>
 </ol>
 
+<h3>Cập nhật theo góp ý của giảng viên hướng dẫn</h3>
+<table class="grid">
+  <tr><th style="width:42mm">Góp ý</th><th>Cách đưa vào đề tài</th><th style="width:20mm" class="c">Mục</th></tr>
+  <tr>
+    <td><b>Báo động ngay lập tức</b>, xử lý trên máy</td>
+    <td>Module 2 chia hai tầng: <b>tầng 1 chạy trên máy của trẻ</b> (luật và thống kê nhẹ so với thói quen của chính trẻ) báo ngay trong vài phút khi trẻ dùng máy lúc khuya hoặc tăng đột biến; <b>tầng 2 trên server</b> chạy các mô hình học máy theo lô như kế hoạch cũ</td>
+    <td class="c">2.3, 3.1</td>
+  </tr>
+  <tr>
+    <td><b>Giải thích lý do</b> rõ ràng</td>
+    <td>Mọi cảnh báo đi kèm một câu dễ hiểu, sinh từ đặc trưng lệch nhiều nhất so với mức thường ngày của trẻ, ví dụ: "Bé chơi game đêm muộn tăng gấp 3 lần so với bình thường"; với mô hình XGBoost dùng SHAP [17] để chọn đặc trưng đóng góp chính</td>
+    <td class="c">2.4</td>
+  </tr>
+  <tr>
+    <td><b>Chạy ngầm không tốn pin</b></td>
+    <td>Dữ liệu thường được gom và gửi theo đợt bằng WorkManager [18]; chỉ cảnh báo khẩn mới gửi ngay. Đo mức tiêu hao pin trước và sau trên máy thật</td>
+    <td class="c">3.2</td>
+  </tr>
+  <tr>
+    <td><b>Cha mẹ xác nhận đúng/sai</b></td>
+    <td>Nút "Đúng là bất thường" / "Do cuối tuần cho phép" trên thông báo và trong ứng dụng phụ huynh. Phản hồi được lưu lại để điều chỉnh ngưỡng riêng cho từng trẻ và làm nhãn huấn luyện lại</td>
+    <td class="c">2.4, 4.3</td>
+  </tr>
+</table>
+
 <!-- ================= 2. ĐẦU VÀO – ĐẦU RA ================= -->
-<h2 class="new-page"><span class="no">2.</span>Đầu vào, đầu ra và các module</h2>
+<h2><span class="no">2.</span>Đầu vào, đầu ra và các module</h2>
 <p class="lead">
   Đề tài gồm 4 module. <b>Trọng tâm nghiên cứu là Module 1 và Module 2</b>, hai module được thực nghiệm và đánh giá định lượng đầy đủ.
   Module 3 và Module 4 dựa trên kết quả của hai module trọng tâm để tạo giá trị trực tiếp cho phụ huynh.
@@ -262,6 +292,14 @@
     </td>
     <td>Bù cho lượng dữ liệu trẻ em còn ít; tạo nhãn bất thường</td>
   </tr>
+  <tr>
+    <td><b>Phản hồi của phụ huynh</b> <span class="tag new">MỚI</span></td>
+    <td>
+      Mỗi lần phụ huynh bấm "Đúng là bất thường" hoặc "Do cuối tuần cho phép" (hay một lý do được phép khác) trên một cảnh báo,
+      hệ thống lưu một bản ghi gồm cảnh báo, loại phản hồi và thời điểm vào một bảng mới.
+    </td>
+    <td>Nhãn thật từ phụ huynh để hiệu chỉnh ngưỡng và huấn luyện lại</td>
+  </tr>
 </table>
 
 <div class="callout amber">
@@ -293,12 +331,16 @@
     </td>
   </tr>
   <tr>
-    <td><b>M2 — Phát hiện bất thường</b><br><span class="tag core">TRỌNG TÂM</span></td>
-    <td>Vector đặc trưng theo ngày và theo khung giờ</td>
+    <td><b>M2 — Phát hiện bất thường (hai tầng)</b><br><span class="tag core">TRỌNG TÂM</span></td>
     <td>
-      (1) Điểm bất thường cho từng ngày hoặc khung giờ;<br>
-      (2) <b>Lý do</b> dễ hiểu, ví dụ: "dùng 95 phút sau 23:00, gấp 6 lần mức thường ngày";<br>
-      (3) Cảnh báo cho phụ huynh khi điểm vượt ngưỡng
+      <b>Tầng 1 (trên máy):</b> sự kiện dùng ứng dụng vừa thu, mức thường ngày của trẻ được server gửi xuống<br>
+      <b>Tầng 2 (server):</b> vector đặc trưng theo ngày và theo khung giờ
+    </td>
+    <td>
+      (1) <b>Tầng 1:</b> cảnh báo tức thì trong vài phút khi trẻ dùng máy trong khung giờ khuya hoặc tăng đột biến so với thói quen;<br>
+      (2) <b>Tầng 2:</b> điểm bất thường cho từng ngày hoặc khung giờ, phát hiện các kiểu bất thường tinh vi hơn;<br>
+      (3) <b>Lý do</b> dễ hiểu kèm theo mọi cảnh báo, ví dụ: "Bé chơi game đêm muộn tăng gấp 3 lần so với bình thường";<br>
+      (4) Nút xác nhận đúng/sai cho phụ huynh
     </td>
   </tr>
   <tr>
@@ -318,13 +360,51 @@
   <b>AI chỉ dự báo và gợi ý; mọi thay đổi về giới hạn vẫn do phụ huynh quyết định.</b>
 </p>
 
-<!-- ================= 3. KIẾN TRÚC ================= -->
-<h2 class="new-page"><span class="no">3.</span>Kiến trúc tích hợp</h2>
+<h3>2.4. Cảnh báo có giải thích và vòng phản hồi của phụ huynh</h3>
 <p>
-  Mô hình được <b>huấn luyện offline</b> và chạy <b>theo lô</b>, không cần một máy chủ AI chạy liên tục.
-  Cách này phù hợp với hạ tầng serverless hiện tại của KidFun: Vercel không duy trì tiến trình chạy liên tục, và mỗi request mất 1–4 giây.
+  <b>Sinh lý do.</b> Với mỗi cảnh báo, hệ thống so sánh các đặc trưng của khung thời gian bị báo với mức thường ngày của chính trẻ
+  (trung bình cùng khung giờ, cùng loại ngày trong 2–4 tuần gần nhất), chọn 1–2 đặc trưng lệch nhiều nhất rồi điền vào mẫu câu tiếng Việt:
+  nhóm ứng dụng, khung giờ, mức tăng. Ví dụ: <i>"Bé chơi game đêm muộn (01:00–03:00) tăng gấp 3 lần so với bình thường"</i>,
+  <i>"Hôm nay bé đã dùng YouTube 3 giờ, thường ngày khoảng 1 giờ"</i>. Với mô hình XGBoost ở tầng 2, giá trị SHAP [17] cho biết đặc trưng nào đẩy dự đoán lên nhiều nhất.
+  Câu giải thích không chứa thuật ngữ hay điểm số kỹ thuật.
+</p>
+<p>
+  <b>Vòng phản hồi.</b> Phụ huynh có hai lựa chọn ngay trên thông báo và trong tab "AI Insights":
+  <b>"Đúng là bất thường"</b> hoặc <b>"Do cuối tuần cho phép"</b> (và các lý do được phép khác như ngày lễ, đi chơi xa).
+  Phản hồi được dùng theo hai mức:
+</p>
+<ul>
+  <li><b>Ngắn hạn:</b> điều chỉnh ngưỡng riêng của từng trẻ theo loại ngày và loại cảnh báo. Ví dụ, nếu phụ huynh nhiều lần xác nhận dùng máy nhiều vào thứ Bảy là được phép, ngưỡng của thứ Bảy được nới ra để không làm phiền nữa.</li>
+  <li><b>Dài hạn:</b> phản hồi trở thành nhãn thật để chọn lại ngưỡng của tầng 2 và huấn luyện lại mô hình khi tích luỹ đủ.</li>
+</ul>
+
+<!-- ================= 3. KIẾN TRÚC ================= -->
+<h2><span class="no">3.</span>Kiến trúc tích hợp</h2>
+<p>
+  Hệ thống phát hiện có <b>hai tầng</b>. Tầng 1 chạy ngay trên máy của trẻ để báo các bất thường khẩn mà không phải chờ server.
+  Tầng 2 gồm các mô hình học máy được <b>huấn luyện offline</b> và chạy <b>theo lô</b>, không cần một máy chủ AI chạy liên tục.
+  Cách chia này phù hợp với hạ tầng serverless hiện tại của KidFun: Vercel không duy trì tiến trình chạy liên tục, và mỗi request mất 1–4 giây.
+</p>
+
+<h3>3.1. Tầng 1: phát hiện tức thì trên máy của trẻ</h3>
+<ul>
+  <li>Bộ thu thập theo giờ (Kotlin) đã đọc sự kiện dùng ứng dụng từ <code>UsageStatsManager</code> [6]. Tầng 1 dùng lại chính dữ liệu này nên không phải đọc thêm.</li>
+  <li>Bộ luật nhẹ kiểm tra: (a) có dùng máy trong khung giờ khuya do phụ huynh đặt hoặc mặc định 23:00–05:00 không; (b) thời gian một nhóm ứng dụng trong khung giờ hiện tại có vượt k lần mức thường ngày không.</li>
+  <li>Mức thường ngày (trung bình và độ lệch theo khung giờ, loại ngày, nhóm ứng dụng) do tầng 2 tính hằng đêm rồi gửi xuống máy khi đồng bộ, nên không chạy mô hình nặng trên điện thoại.</li>
+  <li>Khi phát hiện, ứng dụng gửi ngay một sự kiện cảnh báo kèm câu giải thích lên backend. Backend gửi thông báo đẩy (FCM) cho phụ huynh. Các cảnh báo cùng loại trong một khoảng ngắn được gộp lại để không làm phiền.</li>
+  <li>Các bất thường tinh vi hơn (thói quen thay đổi dần, ứng dụng lạ, tổ hợp nhiều tín hiệu) vẫn do tầng 2 phát hiện.</li>
+</ul>
+
+<h3>3.2. Tầng 2 và chạy ngầm tiết kiệm pin</h3>
+<p>
   Một tác vụ Python chạy theo lịch (phương án chính là GitHub Actions, dự phòng là Vercel Python Function) đọc dữ liệu từ PostgreSQL, chạy mô hình rồi ghi kết quả ngược lại vào cơ sở dữ liệu.
-  Dự đoán cho ngày mai chạy mỗi tối; chấm điểm bất thường chạy theo lô nhiều lần trong ngày.
+  Dự đoán cho ngày mai chạy mỗi tối; chấm điểm bất thường chạy theo lô nhiều lần trong ngày; mức thường ngày cho tầng 1 và ngưỡng theo phản hồi của phụ huynh được cập nhật hằng đêm.
+</p>
+<p>
+  Ở phía ứng dụng của trẻ, dữ liệu thường được <b>gom lại và gửi theo đợt</b> bằng WorkManager [18], có ưu tiên lúc có mạng và lúc đang sạc;
+  chỉ sự kiện cảnh báo khẩn mới được gửi ngay. Cách này giảm số lần đánh thức máy và bật mạng so với việc đồng bộ dày đặc như hiện nay (5 phút/lần),
+  giúp máy không nóng, không mau hết pin và ít bị hệ điều hành tắt ứng dụng theo dõi.
+  Mức tiêu hao pin được đo trên máy thật trong 24 giờ trước và sau khi thay đổi (<code>adb shell dumpsys batterystats</code>).
 </p>
 
 <figure>
@@ -339,11 +419,13 @@
   </defs>
 
   <!-- Child app -->
-  <rect x="10" y="30" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
+  <rect x="10" y="30" width="200" height="124" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
   <text x="110" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">Ứng dụng của trẻ</text>
   <text x="110" y="72" text-anchor="middle" font-size="11" fill="#5b6577">Flutter + Kotlin (Android)</text>
   <rect x="24" y="84" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
-  <text x="110" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Thu thập theo giờ/ứng dụng</text>
+  <text x="110" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Thu thập + gửi theo đợt</text>
+  <rect x="24" y="116" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
+  <text x="110" y="133" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Tầng 1: phát hiện tức thì</text>
 
   <!-- Backend -->
   <rect x="280" y="30" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
@@ -357,21 +439,21 @@
   <text x="650" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">PostgreSQL</text>
   <text x="650" y="72" text-anchor="middle" font-size="11" fill="#5b6577">Supabase</text>
   <rect x="564" y="84" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
-  <text x="650" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Bảng dự đoán / bất thường</text>
+  <text x="650" y="101" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Kết quả AI + phản hồi</text>
 
   <!-- Parent app -->
   <rect x="280" y="200" width="200" height="92" rx="6" fill="#f3f5f9" stroke="#9aa3b2"/>
   <text x="380" y="224" text-anchor="middle" font-size="13" font-weight="700" fill="#1c2433">Ứng dụng phụ huynh</text>
   <text x="380" y="242" text-anchor="middle" font-size="11" fill="#5b6577">Flutter</text>
   <rect x="294" y="254" width="172" height="26" rx="4" fill="#e4f3ec" stroke="#1b7a55" stroke-dasharray="4 3"/>
-  <text x="380" y="271" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">Tab "AI Insights"</text>
+  <text x="380" y="271" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1b7a55">AI Insights + nút Đúng/Sai</text>
 
   <!-- ML pipeline -->
   <rect x="550" y="200" width="200" height="92" rx="6" fill="#e4f3ec" stroke="#1b7a55" stroke-width="1.5"/>
   <text x="650" y="224" text-anchor="middle" font-size="13" font-weight="700" fill="#1b7a55">Pipeline học máy</text>
   <text x="650" y="242" text-anchor="middle" font-size="11" fill="#1c2433">Python · scikit-learn · XGBoost</text>
   <text x="650" y="258" text-anchor="middle" font-size="11" fill="#1c2433">Prophet · PyTorch</text>
-  <text x="650" y="276" text-anchor="middle" font-size="10.5" fill="#5b6577">chạy theo lịch, theo lô</text>
+  <text x="650" y="276" text-anchor="middle" font-size="10.5" fill="#5b6577">Tầng 2 · theo lô · học từ phản hồi</text>
 
   <!-- Offline training -->
   <rect x="10" y="200" width="200" height="92" rx="6" fill="#fff" stroke="#1b7a55" stroke-dasharray="5 4"/>
@@ -382,7 +464,9 @@
 
   <!-- Arrows -->
   <line x1="210" y1="64" x2="277" y2="64" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)"/>
-  <text x="244" y="56" text-anchor="middle" font-size="9.5" fill="#5b6577">gửi log</text>
+  <text x="244" y="56" text-anchor="middle" font-size="9.5" fill="#5b6577">theo đợt</text>
+  <path d="M210 129 L244 129 L244 104 L277 104" fill="none" stroke="#1b7a55" stroke-width="1.5" marker-end="url(#arg)"/>
+  <text x="246" y="145" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1b7a55">báo ngay</text>
 
   <line x1="483" y1="64" x2="547" y2="64" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)" marker-start="url(#ar)"/>
 
@@ -391,21 +475,22 @@
   <line x1="672" y1="198" x2="672" y2="125" stroke="#1b7a55" stroke-width="1.5" marker-end="url(#arg)"/>
   <text x="678" y="165" font-size="9.5" fill="#1b7a55">ghi kết quả</text>
 
-  <line x1="380" y1="124" x2="380" y2="197" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="380" y1="124" x2="380" y2="197" stroke="#5b6577" stroke-width="1.5" marker-end="url(#ar)" marker-start="url(#ar)"/>
   <text x="388" y="164" font-size="9.5" fill="#5b6577">API + thông báo đẩy</text>
+  <text x="372" y="164" text-anchor="end" font-size="9.5" fill="#1b7a55">phản hồi đúng/sai</text>
 
   <path d="M110 292 L110 312 L650 312 L650 295" fill="none" stroke="#1b7a55" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arg)"/>
   <text x="380" y="326" text-anchor="middle" font-size="9.5" fill="#1b7a55">nạp mô hình đã huấn luyện</text>
 </svg>
-<figcaption>Hình 1. Module học máy gắn vào hệ thống KidFun hiện có. Khối viền xanh là phần làm mới trong đồ án; khối xám là phần đã có trong KidFun V2.</figcaption>
+<figcaption>Hình 1. Module học máy gắn vào hệ thống KidFun hiện có. Khối viền xanh là phần làm mới trong đồ án; khối xám là phần đã có trong KidFun V2. Tầng 1 báo ngay từ máy của trẻ; tầng 2 chạy theo lô và cập nhật mức thường ngày, ngưỡng cho tầng 1.</figcaption>
 </figure>
 
 <div class="callout">
   <b class="t">Tác động lên mã nguồn hiện có</b>
   <ul>
-    <li><b>Ứng dụng của trẻ:</b> thêm bộ thu thập dữ liệu theo giờ và theo ứng dụng (Kotlin) cùng luồng đồng bộ lên server.</li>
-    <li><b>Backend:</b> thêm bảng lưu kết quả, API đọc kết quả, gửi cảnh báo qua FCM sẵn có. Không thay đổi các API hiện tại.</li>
-    <li><b>Ứng dụng phụ huynh:</b> thêm tab "AI Insights".</li>
+    <li><b>Ứng dụng của trẻ:</b> thêm bộ thu thập dữ liệu theo giờ và theo ứng dụng (Kotlin), chuyển đồng bộ sang gửi theo đợt bằng WorkManager, thêm bộ luật phát hiện tức thì (tầng 1).</li>
+    <li><b>Backend:</b> thêm bảng lưu kết quả và bảng phản hồi của phụ huynh; API đọc kết quả, nhận cảnh báo tức thì từ máy trẻ, nhận phản hồi; gửi cảnh báo qua FCM sẵn có. Không thay đổi các API hiện tại.</li>
+    <li><b>Ứng dụng phụ huynh:</b> thêm tab "AI Insights" và nút xác nhận đúng/sai trên thông báo và trong danh sách cảnh báo.</li>
     <li><b>Phần nghiên cứu học máy</b> nằm trong một module Python độc lập, có thể chạy và đánh giá riêng.</li>
   </ul>
 </div>
@@ -414,7 +499,7 @@
 <h2 class="new-page"><span class="no">4.</span>Tính khoa học</h2>
 <p>
   Đề tài không dừng ở việc gắn một mô hình AI vào ứng dụng, mà xây dựng một quy trình thực nghiệm có thể kiểm chứng và lặp lại
-  để trả lời ba câu hỏi nghiên cứu nêu ở mục 1.
+  để trả lời năm câu hỏi nghiên cứu nêu ở mục 1.
 </p>
 
 <h3>4.1. Phát biểu bài toán</h3>
@@ -461,6 +546,31 @@
   Toàn bộ thực nghiệm cố định seed ngẫu nhiên, lưu lại tham số của bộ sinh dữ liệu và mã nguồn để có thể chạy lại.
 </p>
 
+<h3>4.3. Đánh giá cảnh báo tức thì, mức pin và vòng phản hồi</h3>
+<table class="grid">
+  <tr><th style="width:34mm">Thành phần</th><th>Cách đánh giá</th><th style="width:48mm">Độ đo</th></tr>
+  <tr>
+    <td><b>Tầng 1 trên máy</b> (RQ4)</td>
+    <td>Cài các kịch bản dùng máy lúc khuya và tăng đột biến trên máy thật; so sánh với việc chỉ chấm điểm theo lô trên server</td>
+    <td>Độ trễ từ lúc bất thường bắt đầu đến khi phụ huynh nhận thông báo; precision, recall của bộ luật</td>
+  </tr>
+  <tr>
+    <td><b>Tiêu hao pin</b> (RQ4)</td>
+    <td>Đo trên cùng máy, cùng kịch bản sử dụng trong 24 giờ: đồng bộ 5 phút/lần như hiện nay và gửi theo đợt có tầng 1</td>
+    <td>% pin tiêu hao do ứng dụng, số lần đánh thức máy, số request mạng</td>
+  </tr>
+  <tr>
+    <td><b>Vòng phản hồi</b> (RQ5)</td>
+    <td>Trên dữ liệu mô phỏng có nhãn, dùng một "phụ huynh mô phỏng" trả lời đúng/sai theo nhãn thật (có thêm nhiễu); đo chỉ số trước và sau mỗi lượt điều chỉnh ngưỡng. Phản hồi thật thu được trong tuần 7–8 dùng để kiểm tra lại</td>
+    <td>Tỷ lệ báo nhầm, recall, số cảnh báo mỗi tuần theo số lần phản hồi</td>
+  </tr>
+  <tr>
+    <td><b>Câu giải thích</b></td>
+    <td>Kiểm tra câu sinh ra có khớp với đặc trưng thật sự lệch; lấy ý kiến một nhóm nhỏ phụ huynh về mức dễ hiểu</td>
+    <td>Tỷ lệ câu đúng; điểm dễ hiểu theo thang 1–5</td>
+  </tr>
+</table>
+
 <!-- ================= 5. TÍNH MỚI ================= -->
 <h2><span class="no">5.</span>Tính mới và độc đáo</h2>
 <ol>
@@ -483,7 +593,16 @@
   </li>
   <li>
     <b>Cảnh báo bất thường có giải thích.</b>
-    Mỗi cảnh báo nêu rõ đặc trưng nào lệch khỏi thói quen và lệch bao nhiêu, thay vì chỉ đưa ra một điểm số khó hiểu với phụ huynh.
+    Mỗi cảnh báo nêu rõ đặc trưng nào lệch khỏi thói quen và lệch bao nhiêu bằng câu tiếng Việt dễ hiểu, thay vì chỉ đưa ra một điểm số khó hiểu với phụ huynh.
+  </li>
+  <li>
+    <b>Phát hiện hai tầng: tức thì trên máy và học máy trên server.</b>
+    Bất thường khẩn được báo ngay từ máy của trẻ mà không cần chạy mô hình nặng trên điện thoại, nhờ mức thường ngày do server tính sẵn;
+    dữ liệu thường được gửi theo đợt để tiết kiệm pin. Đề tài đo cụ thể cả độ trễ cảnh báo lẫn chi phí pin của thiết kế này.
+  </li>
+  <li>
+    <b>Phụ huynh tham gia vào vòng học.</b>
+    Xác nhận đúng/sai của phụ huynh vừa giảm báo nhầm cho từng gia đình, vừa tạo ra nhãn thật, nguồn dữ liệu mà các nghiên cứu phát hiện bất thường không giám sát thường thiếu.
   </li>
   <li>
     <b>Đánh giá trung thực khi dữ liệu nhỏ.</b>
@@ -500,20 +619,20 @@
   <li><b>Hạ tầng đã vận hành:</b> KidFun V2 đã có đăng nhập, liên kết thiết bị, đồng bộ dữ liệu sử dụng, thông báo đẩy FCM, tác vụ định kỳ (Vercel Cron) và cơ sở dữ liệu trên Supabase. Đồ án không phải xây lại nền tảng.</li>
   <li><b>Dữ liệu từ nhiều nguồn:</b> ba bộ dữ liệu công khai, bộ sinh mô phỏng và dữ liệu thật từ KidFun. Thiếu một nguồn thì vẫn còn các nguồn khác.</li>
   <li><b>Công nghệ mã nguồn mở, phổ biến:</b> Python, pandas, scikit-learn, XGBoost, Prophet, PyTorch; chạy được trên các gói miễn phí.</li>
-  <li><b>Suy luận theo lô</b> không cần máy chủ AI chạy liên tục, nên không phát sinh chi phí vận hành.</li>
+  <li><b>Suy luận theo lô</b> không cần máy chủ AI chạy liên tục, nên không phát sinh chi phí vận hành. Tầng 1 trên máy chỉ là bộ luật nhẹ, không cần thư viện học máy trên điện thoại.</li>
 </ul>
 
 <h3>6.2. Kế hoạch 9 tuần</h3>
 <table class="grid">
   <tr><th style="width:14mm" class="c">Tuần</th><th>Công việc</th><th style="width:46mm">Kết quả bàn giao</th></tr>
-  <tr><td class="c">1</td><td>Chốt thiết kế; tải và khảo sát dữ liệu công khai (EDA); đặc tả đặc trưng; làm bộ thu thập theo giờ trên ứng dụng của trẻ</td><td>Tài liệu thiết kế, báo cáo EDA</td></tr>
-  <tr><td class="c">2</td><td>Đưa bộ thu thập vào sử dụng để <b>bắt đầu tích luỹ dữ liệu thật càng sớm càng tốt</b>; xây và hiệu chỉnh bộ sinh dữ liệu mô phỏng; pipeline tiền xử lý</td><td>Bộ sinh dữ liệu, pipeline đặc trưng</td></tr>
+  <tr><td class="c">1</td><td>Chốt thiết kế hai tầng; tải và khảo sát dữ liệu công khai (EDA); đặc tả đặc trưng; làm bộ thu thập theo giờ trên ứng dụng của trẻ; đo mức pin hiện tại làm mốc so sánh</td><td>Tài liệu thiết kế, báo cáo EDA, số đo pin ban đầu</td></tr>
+  <tr><td class="c">2</td><td>Đưa bộ thu thập và cơ chế gửi theo đợt (WorkManager) vào sử dụng để <b>bắt đầu tích luỹ dữ liệu thật càng sớm càng tốt</b>; xây và hiệu chỉnh bộ sinh dữ liệu mô phỏng; pipeline tiền xử lý</td><td>Bộ sinh dữ liệu, pipeline đặc trưng</td></tr>
   <tr><td class="c">3</td><td>M1: các mô hình cơ sở, XGBoost, Prophet</td><td>Kết quả thực nghiệm M1 (đợt 1)</td></tr>
   <tr><td class="c">4</td><td>M1: LSTM; xác suất vượt giới hạn và hiệu chỉnh; đánh giá walk-forward</td><td>Bảng so sánh M1 hoàn chỉnh</td></tr>
-  <tr><td class="c">5</td><td>M2: Isolation Forest, DBSCAN, Autoencoder; cài bất thường có nhãn; đánh giá; sinh lý do giải thích</td><td>Bảng so sánh M2</td></tr>
-  <tr><td class="c">6</td><td>M3: heatmap, K-Means, Apriori. M4: hệ luật gợi ý</td><td>Kết quả M3, bộ luật M4</td></tr>
-  <tr><td class="c">7</td><td>Tích hợp: tác vụ chạy theo lịch, bảng kết quả, API backend, cảnh báo FCM, tab "AI Insights" trong ứng dụng phụ huynh</td><td>Hệ thống chạy đầu cuối</td></tr>
-  <tr><td class="c">8</td><td>Kiểm thử trên máy thật; đánh giá trên dữ liệu thật đã thu; phân tích loại bỏ</td><td>Kết quả đánh giá cuối</td></tr>
+  <tr><td class="c">5</td><td>M2 tầng 2: Isolation Forest, DBSCAN, Autoencoder; cài bất thường có nhãn; đánh giá. Bộ sinh câu giải thích (mẫu câu, SHAP)</td><td>Bảng so sánh M2, bộ sinh câu giải thích</td></tr>
+  <tr><td class="c">6</td><td>M2 tầng 1: bộ luật trên máy trẻ, tính và gửi mức thường ngày xuống máy, API nhận cảnh báo tức thì. Vòng phản hồi: bảng phản hồi, điều chỉnh ngưỡng, thực nghiệm "phụ huynh mô phỏng". M3, M4 ở mức gọn (heatmap, K-Means, hệ luật gợi ý)</td><td>Tầng 1 chạy được, kết quả vòng phản hồi, M3/M4 gọn</td></tr>
+  <tr><td class="c">7</td><td>Tích hợp: tác vụ chạy theo lịch, bảng kết quả, API backend, cảnh báo FCM kèm nút đúng/sai, tab "AI Insights" trong ứng dụng phụ huynh</td><td>Hệ thống chạy đầu cuối</td></tr>
+  <tr><td class="c">8</td><td>Kiểm thử trên máy thật: độ trễ cảnh báo, mức pin trước/sau; đánh giá trên dữ liệu và phản hồi thật đã thu; phân tích loại bỏ</td><td>Kết quả đánh giá cuối</td></tr>
   <tr><td class="c">9</td><td>Viết báo cáo, slide, kịch bản demo; thời gian dự phòng</td><td>Báo cáo, slide, demo</td></tr>
 </table>
 
@@ -523,8 +642,10 @@
   <tr><td>Dữ liệu thật về trẻ em còn ít</td><td>Huấn luyện và so sánh chủ yếu trên dữ liệu công khai và mô phỏng; dữ liệu thật dùng để demo và kiểm tra cuối; ghi rõ trong báo cáo</td></tr>
   <tr><td>Khác biệt hành vi giữa người lớn (dữ liệu công khai) và trẻ em</td><td>Dùng dữ liệu công khai để kiểm chứng phương pháp, không chuyển nguyên mô hình sang trẻ em; nêu thành hạn chế</td></tr>
   <tr><td>LSTM quá khớp khi dữ liệu nhỏ</td><td>Regularization, early stopping; so sánh công bằng với mô hình cơ sở; kết quả âm cũng được báo cáo</td></tr>
-  <tr><td>Một số hãng Android hạn chế quyền thống kê sử dụng hoặc chạy nền</td><td>Kiểm thử trên ít nhất 2 dòng máy; hướng dẫn cấp quyền; nếu thiếu dữ liệu theo giờ thì quay về dùng dữ liệu theo ngày</td></tr>
-  <tr><td>4 module trong 9 tuần</td><td>Ưu tiên M1, M2 với thực nghiệm đầy đủ; M3, M4 làm ở mức gọn, dựa trên kết quả của M1, M2</td></tr>
+  <tr><td>Một số hãng Android hạn chế quyền thống kê sử dụng hoặc chạy nền, tắt ứng dụng theo dõi để tiết kiệm pin</td><td>Gửi theo đợt để giảm tải nền; kiểm thử trên ít nhất 2 dòng máy; hướng dẫn cấp quyền và tắt tối ưu pin cho ứng dụng; nếu thiếu dữ liệu theo giờ thì quay về dùng dữ liệu theo ngày</td></tr>
+  <tr><td>Cảnh báo tức thì báo nhầm, làm phiền phụ huynh lúc nửa đêm</td><td>Tầng 1 chỉ dùng luật có ngưỡng chặt cho các trường hợp rõ ràng; gộp cảnh báo cùng loại; phụ huynh chọn được khung giờ và mức độ muốn nhận; ngưỡng được nới theo phản hồi "được phép"</td></tr>
+  <tr><td>Phản hồi thật của phụ huynh ít trong thời gian làm đồ án</td><td>Đánh giá vòng phản hồi chủ yếu bằng "phụ huynh mô phỏng" trên dữ liệu có nhãn; phản hồi thật dùng để minh hoạ và kiểm tra lại</td></tr>
+  <tr><td>Khối lượng tăng thêm do 4 góp ý trong 9 tuần</td><td>Ưu tiên M1, M2 (cả hai tầng) và vòng phản hồi với thực nghiệm đầy đủ; M3, M4 thu gọn thêm (bỏ Apriori nếu thiếu thời gian), dựa trên kết quả của M1, M2</td></tr>
   <tr><td>Quyền riêng tư của trẻ</td><td>Chỉ dùng dữ liệu có sự đồng ý của phụ huynh; ẩn danh khi phân tích; dữ liệu không rời khỏi hệ thống của nhóm</td></tr>
 </table>
 
@@ -539,10 +660,12 @@
   </li>
   <li>
     <b>Áp dụng ngay vào sản phẩm đang chạy:</b> kết quả được tích hợp vào KidFun chứ không chỉ nằm trong notebook.
-    Phụ huynh nhận cảnh báo từ tối hôm trước, biết vì sao một ngày bị coi là bất thường, và nhận gợi ý điều chỉnh giới hạn.
+    Phụ huynh nhận cảnh báo từ tối hôm trước, được báo ngay khi trẻ lén dùng máy lúc khuya, biết vì sao một ngày bị coi là bất thường, và nhận gợi ý điều chỉnh giới hạn.
+    Ứng dụng của trẻ chạy ngầm nhẹ hơn, ít nóng máy và tốn pin hơn.
   </li>
   <li>
     <b>Giảm thao tác cho phụ huynh:</b> thay vì phải tự đọc báo cáo hằng ngày, phụ huynh được hệ thống chủ động báo khi có điều đáng chú ý.
+    Chỉ cần một lần bấm "đúng/sai", hệ thống tự điều chỉnh để những lần sau báo đúng hơn và ít làm phiền hơn.
   </li>
   <li>
     <b>Mở rộng được:</b> quy trình dữ liệu → đặc trưng → mô hình → cảnh báo có giải thích có thể áp dụng cho các sản phẩm sức khoẻ số khác,
@@ -561,8 +684,10 @@
       <ul>
         <li>Thiết bị của trẻ chạy Android</li>
         <li>4 module: dự đoán (M1), bất thường (M2), khai phá mẫu (M3), gợi ý (M4); thực nghiệm đầy đủ cho M1 và M2</li>
-        <li>Thu thập dữ liệu theo giờ và theo ứng dụng</li>
-        <li>Suy luận theo lô: dự đoán mỗi tối, chấm điểm bất thường nhiều lần trong ngày</li>
+        <li>Thu thập dữ liệu theo giờ và theo ứng dụng, gửi theo đợt để tiết kiệm pin</li>
+        <li>Phát hiện tức thì trên máy của trẻ (tầng 1, bộ luật nhẹ)</li>
+        <li>Suy luận theo lô trên server (tầng 2): dự đoán mỗi tối, chấm điểm bất thường nhiều lần trong ngày</li>
+        <li>Câu giải thích cho mọi cảnh báo; nút xác nhận đúng/sai và điều chỉnh ngưỡng theo phản hồi</li>
         <li>Tab "AI Insights" trong ứng dụng phụ huynh (Flutter)</li>
         <li>Đánh giá trên dữ liệu công khai, dữ liệu mô phỏng và dữ liệu thật thu được</li>
       </ul>
@@ -570,7 +695,8 @@
     <td>
       <ul>
         <li>Thiết bị iOS</li>
-        <li>Cảnh báo tức thì theo từng nhịp heartbeat</li>
+        <li>Chạy mô hình học máy nặng (LSTM, Autoencoder) trên điện thoại</li>
+        <li>Huấn luyện lại mô hình liên tục theo thời gian thực (chỉ huấn luyện lại định kỳ theo lô)</li>
         <li>AI tự động thay đổi giới hạn hoặc khoá máy khi chưa có phụ huynh duyệt</li>
         <li>Học liên kết (Federated Learning), thuộc hướng Đề tài 03</li>
         <li>Phân tích nội dung đa phương thức (ảnh, video), thuộc hướng Đề tài 04</li>
@@ -607,6 +733,8 @@
   <li>Liu, F. T., Ting, K. M., Zhou, Z.-H. (2008). <i>Isolation Forest.</i> IEEE ICDM.</li>
   <li>Ester, M., Kriegel, H.-P., Sander, J., Xu, X. (1996). <i>A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise.</i> KDD.</li>
   <li>Agrawal, R., Srikant, R. (1994). <i>Fast Algorithms for Mining Association Rules.</i> VLDB.</li>
+  <li>Lundberg, S. M., Lee, S.-I. (2017). <i>A Unified Approach to Interpreting Model Predictions.</i> NeurIPS. <a href="https://arxiv.org/abs/1705.07874">arxiv.org/abs/1705.07874</a></li>
+  <li>Android Developers. <i>WorkManager — Background work.</i> <a href="https://developer.android.com/topic/libraries/architecture/workmanager">developer.android.com/topic/libraries/architecture/workmanager</a></li>
 </ol>
 
 </body>
