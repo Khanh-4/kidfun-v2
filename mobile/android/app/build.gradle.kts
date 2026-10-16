@@ -72,4 +72,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+    // Đồ án chuyên ngành: gửi thời gian dùng app theo giờ theo đợt, chạy nền nhẹ pin
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    testImplementation("junit:junit:4.13.2")
 }

@@ -110,6 +110,8 @@ class ChildLinkService {
         .catchError((e) => print('🔗 [LINK] setBlockedDomains lỗi (bỏ qua): $e'));
     await NativeService.stopForegroundService()
         .catchError((e) => print('🔗 [LINK] stopForegroundService lỗi (bỏ qua): $e'));
+    await NativeService.cancelHourlyUsageSync()
+        .catchError((e) => print('🔗 [LINK] cancelHourlyUsageSync lỗi (bỏ qua): $e'));
 
     // 2. Ngắt kênh realtime — token realtime của child gắn với deviceId vừa bị
     //    xoá nên giữ lại cũng vô nghĩa.
