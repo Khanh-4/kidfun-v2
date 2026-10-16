@@ -47,6 +47,7 @@ model Profile {
   usageSessions UsageSession[]
   timeExtensionRequests TimeExtensionRequest[]
   appUsageLogs  AppUsageLog[]
+  appUsageHourly AppUsageHourly[]
   blockedApps   BlockedApp[]
   locationLogs  LocationLog[]
   geofences     Geofence[]
@@ -90,6 +91,7 @@ model Device {
   usageSessions UsageSession[]
   timeExtensionRequests TimeExtensionRequest[]
   appUsageLogs  AppUsageLog[]
+  appUsageHourly AppUsageHourly[]
   locationLogs  LocationLog[]
   sosAlerts     SOSAlert[]
   youtubeLogs   YouTubeLog[]
@@ -260,6 +262,27 @@ model AppUsageLog {
   device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, deviceId, packageName, date])
+}
+
+// Thời gian dùng từng app theo từng giờ (đồ án chuyên ngành — dữ liệu cho mô hình học máy).
+// hourStart là thời điểm UTC tròn giờ; máy trẻ gửi giá trị tuyệt đối, server ghi đè.
+model AppUsageHourly {
+  id           Int      @id @default(autoincrement())
+  profileId    Int
+  deviceId     Int
+  packageName  String
+  appName      String?
+  hourStart    DateTime
+  usageSeconds Int
+  launchCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, packageName, hourStart])
+  @@index([profileId, hourStart])
 }
 
 model LocationLog {

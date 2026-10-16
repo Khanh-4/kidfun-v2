@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 const { sendPushToUser } = require('../services/firebaseService');
+const { parseHourlyBuckets } = require('../utils/hourlyUsage');
 
 // Helper: get VN date as 'YYYY-MM-DD' string (avoids UTC/VN day-boundary mismatch on Railway)
 const getVnDateStr = (date = new Date()) => {
@@ -291,4 +292,68 @@ const getAllApps = async (req, res) => {
   }
 };
 
-module.exports = { syncAppUsage, getDailyUsage, getWeeklyUsage, getAllApps };
+// POST /api/child/app-usage/hourly
+// Máy trẻ gửi thời gian dùng từng app theo từng giờ (đồ án chuyên ngành).
+// Giá trị tuyệt đối → upsert ghi đè; ô không hợp lệ bị bỏ qua, không làm hỏng cả lô.
+const syncHourlyUsage = async (req, res) => {
+  try {
+    const { deviceCode, buckets } = req.body;
+
+    if (!deviceCode) {
+      return sendError(res, 'deviceCode is required', 400, 'MISSING_FIELDS');
+    }
+
+    const { valid, rejected, error } = parseHourlyBuckets(buckets);
+    if (error) {
+      return sendError(res, error, 400, 'INVALID_BUCKETS');
+    }
+
+    const device = await prisma.device.findFirst({
+      where: { deviceCode },
+      select: { id: true, profileId: true },
+    });
+
+    if (!device || !device.profileId) {
+      return sendError(res, 'Device not linked to any profile', 404, 'DEVICE_NOT_LINKED');
+    }
+
+    if (valid.length === 0) {
+      return sendError(res, 'No valid buckets', 400, 'INVALID_BUCKETS');
+    }
+
+    await prisma.$transaction(
+      valid.map((b) =>
+        prisma.appUsageHourly.upsert({
+          where: {
+            deviceId_packageName_hourStart: {
+              deviceId: device.id,
+              packageName: b.packageName,
+              hourStart: b.hourStart,
+            },
+          },
+          update: {
+            usageSeconds: b.usageSeconds,
+            launchCount: b.launchCount,
+            ...(b.appName ? { appName: b.appName } : {}),
+          },
+          create: {
+            profileId: device.profileId,
+            deviceId: device.id,
+            packageName: b.packageName,
+            appName: b.appName,
+            hourStart: b.hourStart,
+            usageSeconds: b.usageSeconds,
+            launchCount: b.launchCount,
+          },
+        })
+      )
+    );
+
+    return sendSuccess(res, { upserted: valid.length, rejected }, 201);
+  } catch (err) {
+    console.error('syncHourlyUsage error:', err);
+    return sendError(res, err.message, 500, 'INTERNAL_ERROR');
+  }
+};
+
+module.exports = { syncAppUsage, syncHourlyUsage, getDailyUsage, getWeeklyUsage, getAllApps };
