@@ -80,6 +80,12 @@ class HourlyUsageWorker(context: Context, params: WorkerParameters) : Worker(con
         }
 
         saveSent(prefs, sent)
+        // M2 tầng 1 (đồ án chuyên ngành): kiểm tra luật trên chính các ô vừa tính, báo phụ huynh ngay.
+        try {
+            Tier1Client.run(prefs, baseUrl, deviceCode, buckets, nowMs)
+        } catch (e: Exception) {
+            Log.w(TAG, "Luật tầng 1 lỗi, bỏ qua lần này: ${e.message}")
+        }
         return Result.success()
     }
 
@@ -191,7 +197,9 @@ class HourlyUsageWorker(context: Context, params: WorkerParameters) : Worker(con
         }
 
         fun clearState(context: Context) {
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_SENT).apply()
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            prefs.edit().remove(KEY_SENT).apply()
+            Tier1Client.clearState(prefs)
         }
     }
 }

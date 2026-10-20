@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+from features import Calendar, load_categories  # noqa: E402
 from features.common import CATEGORIES, NIGHT_HOURS  # noqa: E402
 from tier1.rules import BASELINE_DAYS, DEFAULT_RULES, build_baseline, night_min, relax, spike_ratio  # noqa: E402
 
@@ -140,7 +141,12 @@ def plot(weekly: dict[str, pd.DataFrame], path: Path) -> None:
 
 
 def baseline_json_sizes(hours: pd.DataFrame) -> pd.Series:
-    sizes = [len(json.dumps(build_baseline(g, pid, SPLIT))) for pid, g in hours.groupby("profileId")]
+    """Kích thước JSON thật gửi xuống máy (kèm bảng nhóm app và loại ngày)."""
+    cal, cats = Calendar.load(), load_categories()
+    sizes = [
+        len(json.dumps(build_baseline(g, pid, SPLIT, calendar=cal, categories=cats), ensure_ascii=False))
+        for pid, g in hours.groupby("profileId")
+    ]
     return pd.Series(sizes, name="byte")
 
 
