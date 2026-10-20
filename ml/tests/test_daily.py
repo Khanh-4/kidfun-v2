@@ -42,6 +42,11 @@ def test_usage_after_cutoff_only_reaches_target_not_features():
     assert df.loc["2026-10-06", "y_lag1"] == 70  # ngày t−1 tính đủ cả ngày
 
 
+def test_same_weekday_last_week_matches_target_weekday():
+    df = build(hourly(("2026-10-06 10:00", 45), ("2026-10-12 10:00", 10), ("2026-10-13 10:00", 20)))
+    assert df.loc["2026-10-12", "y_same_dow_last_week"] == 45  # ngày mai 13/10 và 6/10 đều là thứ Ba
+
+
 def test_utc_17h_is_midnight_of_next_vn_day():
     local = to_vn(pd.Series([pd.Timestamp("2026-10-05 17:00", tz="UTC")]))
     assert local.iloc[0] == pd.Timestamp("2026-10-06 00:00")
