@@ -8,7 +8,7 @@ giờ không có dòng nào là 0 phút.
 import numpy as np
 import pandas as pd
 
-from .common import CATEGORIES, NIGHT_HOURS, Calendar, night_key, to_vn
+from .common import CATEGORIES, NIGHT_HOURS, Calendar, to_vn
 from .daily import HIGH_DANGER, prepare_hourly
 
 BASELINE_DAYS = 28
@@ -39,11 +39,7 @@ def build_day_anomaly_features(
     hours = build_hourly_features(hourly, calendar=calendar, categories=categories)
     if hours.empty:
         return pd.DataFrame()
-    h = prepare_hourly(hourly, categories)
-    frames = [
-        _profile_days(pid, g, h[h["profileId"] == pid], youtube, ext_requests)
-        for pid, g in hours.groupby("profileId")
-    ]
+    frames = [_profile_days(pid, g, youtube, ext_requests) for pid, g in hours.groupby("profileId")]
     return pd.concat(frames, ignore_index=True)
 
 
@@ -108,7 +104,7 @@ def _new_app_minutes(h: pd.DataFrame, days: pd.DatetimeIndex) -> np.ndarray:
     return out
 
 
-def _profile_days(pid, hours: pd.DataFrame, h: pd.DataFrame, youtube, ext) -> pd.DataFrame:
+def _profile_days(pid, hours: pd.DataFrame, youtube, ext) -> pd.DataFrame:
     by_day = hours.groupby("date")
     days = pd.DatetimeIndex(sorted(hours["date"].unique()))
     day_min = by_day["hour_min"].sum().reindex(days)
@@ -126,8 +122,8 @@ def _profile_days(pid, hours: pd.DataFrame, h: pd.DataFrame, youtube, ext) -> pd
             usual_mix = cat_min[window].sum(axis=0) / cat_min[window].sum()
             mix_l1[i] = np.abs(today_mix - usual_mix).sum()
 
-    night = h[h["hour"].isin(NIGHT_HOURS)]
-    night_min = night.groupby(night_key(night["local"]))["minutes"].sum().reindex(days, fill_value=0)
+    # Khung khuya trong CHÍNH ngày d (0–5h sáng và 22–23h), khớp với nhãn/giờ của ngày đó
+    night_min = hours[hours["is_night"]].groupby("date")["hour_min"].sum().reindex(days, fill_value=0)
     high_danger = lambda df: df["dangerLevel"] >= HIGH_DANGER  # noqa: E731
     return pd.DataFrame(
         {

@@ -18,6 +18,7 @@ LATE_NIGHT_MINUTES = 15
 SLEEP_WINDOW_START = 20  # cửa sổ ngủ: 20:00 ngày t−1 → 08:00 ngày t
 SLEEP_WINDOW_HOURS = 12
 HIGH_DANGER = 4
+HOLIDAY_HORIZON_DAYS = 14  # xa hơn 14 ngày thì "sắp nghỉ" không còn ý nghĩa; để nguyên thành biến chỉ thời gian
 
 
 def prepare_hourly(hourly: pd.DataFrame, categories: dict[str, str]) -> pd.DataFrame:
@@ -117,6 +118,7 @@ def _calendar(calendar: Calendar, target_dates: pd.Series) -> pd.DataFrame:
     angle = 2 * np.pi * flags["dow"].to_numpy() / 7
     cols = ["is_weekend", "is_holiday", "is_school_day", "is_exam_period", "is_summer", "days_to_next_holiday"]
     out = pd.DataFrame({c: flags[c].to_numpy() for c in cols}, index=target_dates.index)
+    out["days_to_next_holiday"] = out["days_to_next_holiday"].clip(upper=HOLIDAY_HORIZON_DAYS)
     return out.assign(dow_sin=np.sin(angle), dow_cos=np.cos(angle))
 
 

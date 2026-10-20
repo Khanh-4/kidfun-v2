@@ -7,8 +7,8 @@
 
 | Mô hình | Mô phỏng (trẻ em, 17.955) | LSApp (người lớn, 945) | StudentLife (sinh viên, 984) |
 |---|---|---|---|
-| XGBoost (tỷ lệ) | **33,6** | 84,5 | 146,5 |
-| XGBoost (tuyệt đối) | 33,8 | 83,3 | 148,9 |
+| XGBoost (tỷ lệ) | **33,5** | 84,2 | 148,6 |
+| XGBoost (tuyệt đối) | 34,0 | 83,3 | 149,5 |
 | LSTM | 36,8 | **80,2** | **142,3** |
 | Prophet | 37,4 | 85,8 | 168,0 |
 | Seasonal naive | 51,4 | 103,8 | 184,5 |
@@ -33,39 +33,39 @@
 | Mô hình | ROC-AUC | Brier | ECE |
 |---|---|---|---|
 | Phân phối chuẩn quanh MA7 | 0,656 | 0,265 | 0,227 |
-| XGBoost phân loại | **0,732** | **0,191** | 0,033 |
-| XGBoost + hiệu chỉnh isotonic | 0,727 | **0,191** | **0,007** |
+| XGBoost phân loại | **0,732** | **0,191** | 0,034 |
+| XGBoost + hiệu chỉnh isotonic | 0,725 | **0,191** | **0,006** |
 
 Bảng tin cậy của mô hình đã hiệu chỉnh:
 
 | Khoảng xác suất dự đoán | Số ngày | Xác suất dự đoán trung bình | Tỷ lệ vượt thực tế |
 |---|---|---|---|
-| 0–0,2 | 3.598 | 0,11 | 0,11 |
-| 0,2–0,4 | 4.332 | 0,31 | 0,30 |
-| 0,4–0,6 | 4.341 | 0,49 | 0,49 |
-| 0,6–0,8 | 640 | 0,65 | 0,63 |
-| 0,8–1 | 27 | 0,91 | 0,70 |
+| 0–0,2 | 3.345 | 0,11 | 0,10 |
+| 0,2–0,4 | 4.532 | 0,31 | 0,30 |
+| 0,4–0,6 | 4.400 | 0,49 | 0,49 |
+| 0,6–0,8 | 637 | 0,65 | 0,63 |
+| 0,8–1 | 24 | 0,87 | 0,67 |
 
-- Hiệu chỉnh isotonic giảm ECE từ 0,033 xuống 0,007: **"70%" thì thực tế xảy ra khoảng 70%**. Đây là điều kiện để
-  câu cảnh báo "khả năng vượt giới hạn X%" (đặc tả 05 mục 3) đáng tin với phụ huynh. Riêng khoảng > 0,8 chỉ có 27 ngày
+- Hiệu chỉnh isotonic giảm ECE từ 0,034 xuống 0,006: **"70%" thì thực tế xảy ra khoảng 70%**. Đây là điều kiện để
+  câu cảnh báo "khả năng vượt giới hạn X%" (đặc tả 05 mục 3) đáng tin với phụ huynh. Riêng khoảng > 0,8 chỉ có 24 ngày
   nên còn lệch.
 - ROC-AUC chỉ khoảng 0,73. Lý do: trong bộ sinh mô phỏng, trẻ có vượt giới hạn hay không phụ thuộc phần lớn vào việc
   phụ huynh **duyệt hay từ chối** xin thêm giờ, và việc này ngẫu nhiên, không dự đoán trước được. Trên dữ liệu thật,
   mức này phụ thuộc vào thói quen duyệt của từng gia đình.
-- Ngưỡng gửi cảnh báo đề xuất: **p ≥ 0,6**, chiếm khoảng 5% số ngày, tỷ lệ đúng khoảng 64%. Sẽ điều chỉnh lại bằng vòng
+- Ngưỡng gửi cảnh báo đề xuất: **p ≥ 0,6**, chiếm khoảng 5% số ngày, tỷ lệ đúng khoảng 63%. Sẽ điều chỉnh lại bằng vòng
   phản hồi của phụ huynh ở tuần 6.
 
-## 3. Phân tích loại bỏ nhóm đặc trưng (XGBoost, mô phỏng; MAE đầy đủ = 33,8)
+## 3. Phân tích loại bỏ nhóm đặc trưng (XGBoost, mô phỏng; MAE đầy đủ = 34,0)
 
 | Biến thể | MAE | Tăng so với đầy đủ |
 |---|---|---|
-| Chỉ nhóm A (lịch sử) | 38,0 | +4,2 |
-| Bỏ B. Lịch | 36,4 | +2,5 |
-| Bỏ A. Lịch sử | 36,2 | +2,4 |
-| Bỏ C. Giới hạn | 34,6 | +0,8 |
-| Bỏ G, E, F, D, H | 33,9–34,1 | ≤ +0,3 |
+| Chỉ nhóm A (lịch sử) | 38,0 | +4,1 |
+| Bỏ B. Lịch | 36,4 | +2,4 |
+| Bỏ A. Lịch sử | 36,1 | +2,2 |
+| Bỏ C. Giới hạn | 34,6 | +0,6 |
+| Bỏ G, E, H, D, F | 33,9–34,2 | ≤ +0,2 |
 
-- Các nhóm ngoài lịch sử giúp giảm 11% MAE (38,0 → 33,8). **Lịch VN (B) đóng góp nhiều nhất, sau đó là giới hạn
+- Các nhóm ngoài lịch sử giúp giảm khoảng 10% MAE (38,0 → 34,0). **Lịch VN (B) đóng góp nhiều nhất, sau đó là giới hạn
   (C)**: đây chính là các tín hiệu mà dữ liệu công khai không có.
 - Các nhóm D (xin thêm giờ), F (khuya), H (nội dung YouTube) gần như không giúp dự đoán **tổng số phút**. Một phần do
   bộ sinh mô phỏng không cho các nhóm này ảnh hưởng tới tổng ngày hôm sau. Vai trò chính của chúng là ở M2 (bất thường)
@@ -78,6 +78,10 @@ Bảng tin cậy của mô hình đã hiệu chỉnh:
 - Chưa kiểm định ý nghĩa thống kê của chênh lệch giữa các mô hình (dự kiến làm kiểm định Diebold–Mariano ở tuần 8
   cùng dữ liệu thật).
 - LSTM chưa dò siêu tham số (14 ngày, 32 nút ẩn, 12 epoch).
+- **Đã sửa ở tuần 5:** đặc trưng `days_to_next_holiday` (số ngày tới kỳ nghỉ) để nguyên thì giảm đều theo thời gian
+  trong tập kiểm tra (tháng 3 → hè), nên XGBoost dùng nó như một biến chỉ thời gian. Nó đứng đầu SHAP ở 64% cảnh báo
+  vượt giới hạn dù bộ sinh mô phỏng không có hiệu ứng "trước kỳ nghỉ". Nay chặn ở 14 ngày; số liệu trên là sau khi
+  sửa (MAE gần như không đổi, chứng tỏ đặc trưng này không giúp ích thật).
 
 ## 5. Việc tuần 5
 
