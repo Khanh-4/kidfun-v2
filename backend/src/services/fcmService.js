@@ -121,3 +121,26 @@ exports.sendSOSPushNotification = async (user, profile, sos) => {
     console.error('❌ [FCM SOS] Error:', err.message);
   }
 };
+
+/**
+ * Push notification cảnh báo hành vi (đồ án chuyên ngành, M2 tầng 1).
+ * @param {object} profile - Prisma Profile (cần .userId, .profileName, .id)
+ * @param {object} alert - BehaviorAlert record (cần .id, .rule, .message)
+ */
+exports.sendBehaviorAlertPush = async (profile, alert) => {
+  if (!profile) return;
+  try {
+    await sendPushToUser(profile.userId, {
+      title: `Cảnh báo sử dụng của ${profile.profileName}`,
+      body: alert.message,
+      data: {
+        type: 'BEHAVIOR_ALERT',
+        alertId: String(alert.id),
+        profileId: String(profile.id),
+        rule: alert.rule,
+      },
+    });
+  } catch (err) {
+    console.error('❌ [FCM Behavior Alert] Error:', err.message);
+  }
+};

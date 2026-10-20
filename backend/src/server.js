@@ -89,6 +89,7 @@ app.use('/api/geofences', geofenceRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/web-categories', webFilteringRoutes);
 app.use('/api', youtubeRoutes);
+app.use('/api/behavior-alerts', require('./routes/behaviorAlerts'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -197,6 +198,11 @@ app.get('/api/cron/daily-reports', verifyCronSecret, async (req, res) => {
     res.status(500).json({ success: false, message: 'Daily reports failed' });
   }
 });
+// Tác vụ ML ban đêm (đồ án chuyên ngành) ghi mức thường ngày cho luật tầng 1. PUT + body JSON lớn
+// (tới 50 trẻ × 64 KB) nên nới giới hạn body riêng cho route này.
+const behaviorAlertController = require('./controllers/behaviorAlertController');
+app.put('/api/cron/behavior-baselines', verifyCronSecret, express.json({ limit: '4mb' }),
+  behaviorAlertController.upsertBaselines);
 app.get('/api/cron/weekly-reports', verifyCronSecret, async (req, res) => {
   try {
     await reportWorker.runWeeklyReports();

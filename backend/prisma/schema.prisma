@@ -61,6 +61,8 @@ model Profile {
   aiAlerts       AIAlert[]
   blockedVideos  BlockedVideo[]
   reportSnapshots ReportSnapshot[]
+  behaviorAlerts   BehaviorAlert[]
+  behaviorBaseline BehaviorBaseline?
 }
 
 model Device {
@@ -92,6 +94,7 @@ model Device {
   timeExtensionRequests TimeExtensionRequest[]
   appUsageLogs  AppUsageLog[]
   appUsageHourly AppUsageHourly[]
+  behaviorAlerts BehaviorAlert[]
   locationLogs  LocationLog[]
   sosAlerts     SOSAlert[]
   youtubeLogs   YouTubeLog[]
@@ -546,4 +549,41 @@ model ReportSnapshot {
 
   @@unique([profileId, type, periodStart])
   @@index([profileId, type, periodStart])
+}
+
+// Đồ án chuyên ngành (M2): cảnh báo hành vi bất thường + phản hồi của phụ huynh.
+// Tầng 1 (máy trẻ) gửi lên ngay khi phát hiện; tầng 2 / M1 (tác vụ ban đêm) ghi sau.
+model BehaviorAlert {
+  id           Int       @id @default(autoincrement())
+  profileId    Int
+  deviceId     Int?
+  source       String    // TIER1 | TIER2 | M1
+  rule         String    // night | spike | ...
+  category     String    @default("all") // video | game | social | study | other | all
+  dayType      String?   // school | weekend | off
+  slotStart    DateTime  // ô giờ (UTC, tròn giờ) mà cảnh báo nói tới
+  minutes      Float?
+  usualMinutes Float?
+  message      String    // câu giải thích tiếng Việt gửi phụ huynh
+  feedback     String?   // CONFIRMED | ALLOWED_WEEKEND | ALLOWED_HOLIDAY | ALLOWED_OTHER
+  feedbackAt   DateTime?
+  notifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  device  Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  // Một cảnh báo cho mỗi (trẻ, nguồn, luật, nhóm app, giờ): máy trẻ gửi lại không tạo trùng
+  @@unique([profileId, source, rule, category, slotStart])
+  @@index([profileId, createdAt])
+}
+
+// Mức thường ngày tính hằng đêm cho luật tầng 1 (JSON vài KB, đặc tả docs/thesis/05 mục 2.3)
+model BehaviorBaseline {
+  profileId  Int      @id
+  payload    Json
+  validUntil DateTime
+  updatedAt  DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
