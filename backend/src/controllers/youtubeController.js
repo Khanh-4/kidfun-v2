@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { ownedBy } = require('../utils/ownership');
 
 // POST /api/child/youtube-logs — Child batch upload
 exports.batchUploadLogs = async (req, res) => {
@@ -252,7 +253,7 @@ exports.blockVideo = async (req, res) => {
 exports.unblockVideo = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const blocked = await prisma.blockedVideo.findUnique({ where: { id } });
+    const blocked = await prisma.blockedVideo.findFirst({ where: { id, ...ownedBy(req) } });
     if (!blocked) return sendError(res, 'Not found', 404);
 
     await prisma.blockedVideo.delete({ where: { id } });
