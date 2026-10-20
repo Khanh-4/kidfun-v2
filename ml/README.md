@@ -79,6 +79,16 @@ Kết quả: `reports/m1_round2.md`. PyTorch cài bản CPU: `pip install torch=
 Luật tầng 1, z-score, Isolation Forest, Autoencoder (mức giờ và ngày), DBSCAN (mức ngày); học trước 01/03/2026,
 kiểm tra sau; đo cả tỷ lệ câu giải thích nói đúng loại bất thường. Kết quả: `reports/m2_round1.md`.
 
+## Tuần 6 — luật tầng 1, vòng phản hồi, M3/M4
+
+```bash
+.venv/bin/python -m models.m2.feedback --sim data/sim --out reports   # ~2 phút, RQ5
+.venv/bin/python -m models.m3m4 --sim data/sim --out reports          # ~1 phút
+```
+
+`tier1/rules.py` là bản tham chiếu của luật chạy trên máy trẻ; `tier1/test_vectors.json` là ca kiểm thử dùng chung với
+bản Kotlin (sinh từ `tests/test_tier1.py::CASES`).
+
 ## Test
 
 ```bash
