@@ -29,3 +29,29 @@ curl -L -o ml/data/dataset_rds.zip https://zenodo.org/api/records/3529253/files/
 cd ml/data && unzip dataset_rds.zip 'dataset_rds/other/app_usage.Rds' 'dataset_rds/sensing/phonelock.Rds' && cd ../..
 ml/.venv/bin/python ml/eda/studentlife_eda.py ml/data/dataset_rds ml/reports
 ```
+
+## Đặc trưng (`features/`) — đặc tả: `docs/thesis/05-dac-ta-dac-trung.md`
+
+- `build_daily_features()` — M1, một dòng / (trẻ, ngày t), tính lúc 21:00 giờ VN, kèm nhãn `y_next`, `over_limit_next`.
+- `build_hourly_features()`, `build_day_anomaly_features()` — M2, theo giờ và theo ngày.
+- Đầu vào: DataFrame cùng tên cột với bảng Prisma (`AppUsageHourly`, `TimeLimit`, `TimeExtensionRequest`,
+  `YouTubeLog`, `GeofenceEvent`), mốc thời gian UTC. Cấu hình: `config/app_categories.csv`,
+  `config/vn_school_calendar.csv` (nhiều ngày là ước lượng — xem cột `note`).
+
+## Bộ sinh dữ liệu mô phỏng (`simulator/`)
+
+```bash
+cd ml
+.venv/bin/python -m simulator --children 100 --start 2025-09-01 --days 365 --out data/sim   # ~20 giây
+```
+
+Xuất `data/sim/*.csv` (cùng cột bảng Prisma) + `anomalies.csv` (nhãn: `night_use`, `spike`, `new_app`,
+`binge_day`, `danger_content`; cột `hours` = các giờ VN bị cài). Kết quả kiểm tra (seed 42, trẻ không đặt giới hạn,
+phút/ngày học): 3–5 tuổi 88 (mục tiêu 82), 11–14 tuổi 316 (284), 15–17 tuổi 431 (442); cuối tuần/ngày nghỉ ≈ 1,5×.
+Trên đặc trưng M2: `hour_z` trung vị của giờ bị cài bất thường là 5,0 so với 0,0 ở giờ bình thường.
+
+## Test
+
+```bash
+cd ml && .venv/bin/python -m pytest -q
+```

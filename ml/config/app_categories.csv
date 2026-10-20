@@ -1,0 +1,34 @@
+packageName,appName,category
+com.google.android.youtube,YouTube,video
+com.google.android.apps.youtube.kids,YouTube Kids,video
+com.ss.android.ugc.trill,TikTok,video
+com.zhiliaoapp.musically,TikTok,video
+com.netflix.mediaclient,Netflix,video
+com.garena.game.kgvn,Liên Quân Mobile,game
+com.dts.freefireth,Free Fire,game
+com.roblox.client,Roblox,game
+com.mojang.minecraftpe,Minecraft,game
+com.tencent.ig,PUBG Mobile,game
+com.mobile.legends,Mobile Legends,game
+com.supercell.clashofclans,Clash of Clans,game
+com.supercell.brawlstars,Brawl Stars,game
+com.kiloo.subwaysurf,Subway Surfers,game
+com.king.candycrushsaga,Candy Crush Saga,game
+com.facebook.katana,Facebook,social
+com.facebook.orca,Messenger,social
+com.zing.zalo,Zalo,social
+com.instagram.android,Instagram,social
+com.whatsapp,WhatsApp,social
+com.discord,Discord,social
+com.snapchat.android,Snapchat,social
+org.telegram.messenger,Telegram,social
+com.duolingo,Duolingo,study
+com.google.android.apps.classroom,Google Classroom,study
+us.zoom.videomeetings,Zoom,study
+com.microsoft.teams,Microsoft Teams,study
+org.khanacademy.android,Khan Academy,study
+com.microblink.photomath,Photomath,study
+com.quizlet.quizletandroid,Quizlet,study
+com.android.chrome,Chrome,other
+com.google.android.apps.photos,Google Photos,other
+com.android.camera,Camera,other
