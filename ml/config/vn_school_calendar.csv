@@ -1,0 +1,22 @@
+start,end,kind,name,note
+2025-06-01,2025-09-04,summer,Nghỉ hè 2025,ước lượng
+2025-09-05,2026-05-31,school_year,Năm học 2025-2026,khai giảng 5/9; kết thúc ước lượng
+2025-09-01,2025-09-02,holiday,Quốc khánh,
+2025-12-22,2026-01-09,exam,Kiểm tra cuối học kỳ I,ước lượng
+2026-01-01,2026-01-01,holiday,Tết Dương lịch,
+2026-02-14,2026-02-22,holiday,Tết Nguyên đán Bính Ngọ,mùng 1 = 17/2/2026
+2026-02-09,2026-02-27,school_break,Nghỉ Tết của học sinh,ước lượng; lịch từng tỉnh khác nhau
+2026-04-26,2026-04-27,holiday,Giỗ Tổ Hùng Vương,10/3 âm lịch + nghỉ bù
+2026-04-30,2026-05-01,holiday,Giải phóng miền Nam + Quốc tế Lao động,
+2026-05-04,2026-05-15,exam,Kiểm tra cuối học kỳ II,ước lượng
+2026-06-01,2026-09-04,summer,Nghỉ hè 2026,ước lượng
+2026-09-05,2027-05-31,school_year,Năm học 2026-2027,khai giảng 5/9; kết thúc ước lượng
+2026-09-01,2026-09-02,holiday,Quốc khánh,ngày nghỉ liền kề ước lượng
+2026-12-21,2027-01-08,exam,Kiểm tra cuối học kỳ I,ước lượng
+2027-01-01,2027-01-01,holiday,Tết Dương lịch,
+2027-02-04,2027-02-10,holiday,Tết Nguyên đán Đinh Mùi,mùng 1 = 6/2/2027; các ngày nghỉ ước lượng
+2027-01-30,2027-02-17,school_break,Nghỉ Tết của học sinh,ước lượng
+2027-04-16,2027-04-16,holiday,Giỗ Tổ Hùng Vương,10/3 âm lịch
+2027-04-30,2027-05-01,holiday,Giải phóng miền Nam + Quốc tế Lao động,
+2027-05-03,2027-05-14,exam,Kiểm tra cuối học kỳ II,ước lượng
+2027-06-01,2027-08-31,summer,Nghỉ hè 2027,ước lượng
