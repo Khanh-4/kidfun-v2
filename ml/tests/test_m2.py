@@ -91,4 +91,4 @@ def test_top_reasons_uses_xgboost_shap():
 
     x = pd.DataFrame({"is_weekend": [0, 1] * 50, "noise": np.random.default_rng(0).random(100)})
     model = xgb.XGBClassifier(n_estimators=20, max_depth=2, n_jobs=1).fit(x, x["is_weekend"])
-    assert top_reasons(model, x.iloc[[1]]) == [["is_weekend"]]
+    assert top_reasons(model, x.iloc[[1]], k=1) == [["is_weekend"]]

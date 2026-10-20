@@ -70,6 +70,15 @@ StudentLife), khoảng 10 phút:
 
 Kết quả: `reports/m1_round2.md`. PyTorch cài bản CPU: `pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu`.
 
+## M2 tầng 2 — phát hiện bất thường (`models/m2/`) + câu giải thích (`models/explain.py`)
+
+```bash
+.venv/bin/python -m models.m2.evaluate --sim data/sim --out reports   # ~3 phút
+```
+
+Luật tầng 1, z-score, Isolation Forest, Autoencoder (mức giờ và ngày), DBSCAN (mức ngày); học trước 01/03/2026,
+kiểm tra sau; đo cả tỷ lệ câu giải thích nói đúng loại bất thường. Kết quả: `reports/m2_round1.md`.
+
 ## Test
 
 ```bash

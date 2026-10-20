@@ -120,3 +120,9 @@ def test_app_share_uses_categories():
     )
     t = df.loc["2026-10-05"]
     assert t["share_game"] == 0.75 and t["share_study"] == 0.25
+
+
+def test_days_to_next_holiday_is_capped():
+    df = build(hourly(("2026-03-02 10:00", 10), ("2026-04-25 10:00", 10)))
+    assert df["days_to_next_holiday"].max() == 14
+    assert df.loc["2026-04-24", "days_to_next_holiday"] == 1  # ngày mai 25/4, Giỗ Tổ 26/4

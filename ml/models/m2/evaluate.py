@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from ..explain import explain_day, explain_hour, explain_over_limit, top_reasons
+from ..explain import explain_day, explain_hour, explain_over_limit, first_explainable, top_reasons
 from ..m1.data import sim_daily_features
 from ..m1.models import _matrix
 from ..m1.over_limit import XGBClassifier, limited
@@ -80,7 +80,7 @@ def over_limit_examples(sim_dir: Path, n: int = 3) -> list[str]:
     top = test.assign(p=clf.predict_proba(test)).nlargest(200, "p").sample(n, random_state=0)
     reasons = top_reasons(clf.model, _matrix(top, clf.cols))
     return [
-        explain_over_limit(r.target_date, r.limit_tomorrow, r.p, reason[0] if reason else None)[1]
+        explain_over_limit(r.target_date, r.limit_tomorrow, r.p, first_explainable(reason))[1]
         for r, reason in zip(top.itertuples(), reasons)
     ]
 

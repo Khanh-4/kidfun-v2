@@ -85,3 +85,9 @@ def test_day_level_features():
     assert r["max_hour_min"] == 80 and r["n_active_hours"] == 2
     assert r["mix_l1"] == pytest.approx(2 * (1 - 10 / 40))  # chỉ game; thường 25% game / 75% video
     assert r["yt_danger_high"] == 1
+
+
+def test_day_night_minutes_count_early_morning_of_the_same_day():
+    extra = [(at(TEST_DAY, 2), 30, GAME)]
+    df = build_day_anomaly_features(usual_days(extra), calendar=CAL, categories=CATS).set_index("date")
+    assert df.loc[TEST_DAY, "night_min"] == 30

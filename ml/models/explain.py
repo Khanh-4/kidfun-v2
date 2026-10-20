@@ -47,8 +47,8 @@ def explain_hour(row: pd.Series, new_app_name: str | None = None) -> tuple[str, 
     hour, used = int(row["hour"]), row["hour_min"]
     new_app = row.get("new_app_min", 0)
     if new_app and new_app >= NOTABLE_MINUTES:
-        name = new_app_name or "một ứng dụng bé chưa từng dùng"
-        return "new_app", f"Bé dùng {name} lúc {hour}h trong {minutes(new_app)}."
+        name = new_app_name or "một ứng dụng mới"
+        return "new_app", f"Bé dùng {name} lúc {hour}h trong {minutes(new_app)} — trước đây bé gần như chưa dùng."
     if (row["is_night"] or row["in_sleep_window"]) and used >= NOTABLE_MINUTES:
         activity = CATEGORY_VI[_top_category(row)]
         return "night_use", f"Bé {activity} lúc {hour}h trong {minutes(used)} — giờ này bé thường đã ngủ."
@@ -69,7 +69,7 @@ def explain_day(row: pd.Series) -> tuple[str, str]:
     if new_app and new_app >= NOTABLE_MINUTES:
         return "new_app", f"Hôm nay bé dùng một ứng dụng mới trong {minutes(new_app)}."
     if row.get("night_min", 0) >= NOTABLE_MINUTES:
-        return "night_use", f"Bé dùng máy {minutes(row['night_min'])} vào giờ ngủ (từ 22h tới 6h sáng)."
+        return "night_use", f"Hôm nay bé dùng máy {minutes(row['night_min'])} vào giờ ngủ (22h–6h sáng)."
     ratio = row.get("day_ratio")
     if ratio is not None and not np.isnan(ratio) and ratio >= SPIKE_RATIO:
         kind = DAY_TYPE_VI.get(row.get("day_type"), "ngày")
@@ -103,14 +103,22 @@ REASON_VI = {
     "night_min_7d": "tuần này bé hay thức khuya dùng máy",
     "share_game": "gần đây bé chơi game nhiều",
     "share_video": "gần đây bé xem video nhiều",
+    "share_social": "gần đây bé dùng mạng xã hội nhiều",
+    "ext_req_today": "hôm nay bé đã xin thêm giờ",
+    "days_to_next_holiday": "sắp tới kỳ nghỉ",
 }
 
 
-def top_reasons(model: xgb.XGBModel, x: pd.DataFrame, k: int = 1) -> list[list[str]]:
+def top_reasons(model: xgb.XGBModel, x: pd.DataFrame, k: int = 3) -> list[list[str]]:
     """Tên k đặc trưng có đóng góp SHAP dương lớn nhất cho từng dòng (XGBoost tính sẵn: pred_contribs)."""
     contribs = model.get_booster().predict(xgb.DMatrix(x), pred_contribs=True)[:, :-1]  # bỏ cột bias
     order = np.argsort(-contribs, axis=1)[:, :k]
     return [[x.columns[j] for j in row if contribs[i, j] > 0] for i, row in enumerate(order)]
+
+
+def first_explainable(reasons: list[str]) -> str | None:
+    """Lý do đầu tiên (theo SHAP) có câu tiếng Việt tương ứng."""
+    return next((r for r in reasons if r in REASON_VI), None)
 
 
 def explain_over_limit(target_date: pd.Timestamp, limit: float, prob: float, reason: str | None) -> tuple[str, str]:
