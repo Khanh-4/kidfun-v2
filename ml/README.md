@@ -61,6 +61,15 @@ Walk-forward theo tuần (huấn luyện trên mọi ngày trước tuần kiể
 Mô hình: naive, seasonal naive, MA7, XGBoost (tuyệt đối / tỷ lệ so với MA7), Prophet mỗi trẻ một mô hình.
 Kết quả: `reports/m1_round1.md`.
 
+Bảng so sánh hoàn chỉnh (tuần 4: thêm LSTM, xác suất vượt giới hạn + hiệu chỉnh isotonic, ablation nhóm đặc trưng,
+StudentLife), khoảng 10 phút:
+
+```bash
+.venv/bin/python -m models.m1.round2 --sim data/sim --lsapp data/lsapp.tsv.gz --studentlife data/dataset_rds --out reports
+```
+
+Kết quả: `reports/m1_round2.md`. PyTorch cài bản CPU: `pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu`.
+
 ## Test
 
 ```bash
