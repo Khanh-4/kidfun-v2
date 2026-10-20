@@ -7,7 +7,10 @@
 
 1. **Máy:** dùng đúng một chiếc điện thoại Android làm máy trẻ cho cả lần đo này và lần đo sau.
 2. **Bản app — phải là bản RELEASE:** bản debug của Flutter chạy chế độ JIT nên tốn pin hơn hẳn, đo sẽ sai.
-   Trong thư mục `mobile/` (nhánh `develop` mới nhất, đã có 5 file bí mật):
+   **Chọn đúng bản code:** lần đo mốc dùng commit `5b0a0b0` (trước khi có bộ thu thập theo giờ), lần đo sau dùng
+   `develop` mới nhất — xem [docs/flowtest/04-do-pin.md](../flowtest/04-do-pin.md). (Bản cũ của hướng dẫn này ghi
+   "develop mới nhất" cho lần mốc; từ PR #303 trở đi `develop` đã có thay đổi cần đo nên không còn là mốc.)
+   Trong thư mục `mobile/` (đã có 5 file bí mật):
    ```
    git rev-parse --short HEAD
    flutter build apk --release
