@@ -51,6 +51,37 @@ def lsapp_hourly(path: Path) -> pd.DataFrame:
     )
 
 
+def studentlife_hourly(rds_dir: Path) -> pd.DataFrame:
+    """StudentLife -> định dạng AppUsageHourly: mỗi ảnh chụp 'đang dùng' (20 phút một lần) tính 20 phút cho app
+    trên cùng. Ngày có < 50% số ảnh chụp bị bỏ (thành ngày thiếu). Giờ America/New_York, xử lý như LSApp."""
+    sys.path.insert(0, str(ML_DIR / "eda"))
+    import studentlife_eda as sl  # noqa: E402
+
+    snap = sl.snapshots(*sl.load(rds_dir))
+    local = snap["local"].dt.tz_localize(None)
+    snap = snap.assign(date=local.dt.normalize(), hour_start=local.dt.floor("h"))
+    coverage = snap.groupby(["uid", "date"])["active"].transform("size")
+    used = snap[snap["active"] & (coverage >= sl.MIN_COVERAGE * sl.SNAPSHOTS_PER_DAY)]
+    hourly = used.groupby(["uid", "package", "hour_start"]).size().rename("snaps").reset_index()
+    # Có người được chụp dày hơn 20 phút/lần -> chặn mỗi giờ tối đa 60 phút, co theo tỷ lệ giữa các app
+    per_hour = hourly.groupby(["uid", "hour_start"])["snaps"].transform("sum") * sl.SNAPSHOT_MINUTES
+    minutes = hourly["snaps"] * sl.SNAPSHOT_MINUTES * (60 / per_hour).clip(upper=1)
+    return pd.DataFrame(
+        {
+            "profileId": hourly["uid"],
+            "packageName": hourly["package"],
+            "hourStart": (hourly["hour_start"] - pd.Timedelta(hours=7)).dt.tz_localize("UTC"),
+            "usageSeconds": (minutes * 60).round().astype(int),
+            "launchCount": hourly["snaps"],
+        }
+    )
+
+
+def studentlife_daily_features(rds_dir: Path) -> pd.DataFrame:
+    daily = build_daily_features(studentlife_hourly(rds_dir), calendar=Calendar.load(), categories=load_categories())
+    return daily.assign(ageGroup="adult")
+
+
 def lsapp_daily_features(path: Path) -> pd.DataFrame:
     daily = build_daily_features(lsapp_hourly(path), calendar=Calendar.load(), categories=load_categories())
     return daily.assign(ageGroup="adult")
