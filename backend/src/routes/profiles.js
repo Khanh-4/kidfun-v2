@@ -2,9 +2,24 @@ const express = require('express');
 const router = express.Router();
 const profileController = require('../controllers/profileController');
 const { authenticate } = require('../middleware/auth');
+const { sendError } = require('../middleware/responseHandler');
+const { findOwnedProfile } = require('../utils/ownership');
 
 // Tất cả routes cần xác thực
 router.use(authenticate);
+
+// Mọi route có :id ở file này thao tác trên một profile -> chỉ chủ profile được dùng. Trước đây nhiều
+// controller (YouTube, cảnh báo AI, vị trí...) tin thẳng :id, nên phụ huynh A đổi số là xem được con nhà B.
+// Token của máy trẻ mang userId của phụ huynh sở hữu thiết bị nên vẫn qua được kiểm tra này.
+router.param('id', async (req, res, next, id) => {
+  try {
+    const owned = await findOwnedProfile(parseInt(id, 10), req.user.userId);
+    if (!owned) return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
 
 // GET /api/profiles - Lấy tất cả profiles của user
 router.get('/', profileController.getAllProfiles);

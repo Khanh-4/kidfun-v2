@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { ownedBy } = require('../utils/ownership');
 
 // GET /api/profiles/:id/geofences — Danh sách geofences của profile
 exports.getGeofences = async (req, res) => {
@@ -49,6 +50,9 @@ exports.updateGeofence = async (req, res) => {
       return sendError(res, 'Radius must be between 50 and 5000 meters', 400);
     }
 
+    if (!(await prisma.geofence.findFirst({ where: { id, ...ownedBy(req) }, select: { id: true } }))) {
+      return sendError(res, 'Geofence not found', 404);
+    }
     const geofence = await prisma.geofence.update({
       where: { id },
       data: {
@@ -70,7 +74,11 @@ exports.updateGeofence = async (req, res) => {
 // DELETE /api/geofences/:id — Xóa geofence
 exports.deleteGeofence = async (req, res) => {
   try {
-    await prisma.geofence.delete({ where: { id: parseInt(req.params.id) } });
+    const id = parseInt(req.params.id);
+    if (!(await prisma.geofence.findFirst({ where: { id, ...ownedBy(req) }, select: { id: true } }))) {
+      return sendError(res, 'Geofence not found', 404);
+    }
+    await prisma.geofence.delete({ where: { id } });
     return sendSuccess(res, { message: 'Geofence deleted' });
   } catch (err) {
     if (err.code === 'P2025') return sendError(res, 'Geofence not found', 404);

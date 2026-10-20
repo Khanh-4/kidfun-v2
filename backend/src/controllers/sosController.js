@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { ownedBy } = require('../utils/ownership');
 const socketService = require('../services/socketService');
 const { sendSOSPushNotification } = require('../services/fcmService');
 const { uploadSosAudio, getSosAudioSignedUrl } = require('../utils/supabaseStorage');
@@ -101,6 +102,9 @@ exports.getSOSHistory = async (req, res) => {
 exports.acknowledgeSOS = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (!(await prisma.sOSAlert.findFirst({ where: { id, ...ownedBy(req) }, select: { id: true } }))) {
+      return sendError(res, 'SOS alert not found', 404);
+    }
     const sos = await prisma.sOSAlert.update({
       where: { id },
       data: { status: 'ACKNOWLEDGED', acknowledgedAt: new Date() },
@@ -126,6 +130,9 @@ exports.acknowledgeSOS = async (req, res) => {
 exports.resolveSOS = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (!(await prisma.sOSAlert.findFirst({ where: { id, ...ownedBy(req) }, select: { id: true } }))) {
+      return sendError(res, 'SOS alert not found', 404);
+    }
     const sos = await prisma.sOSAlert.update({
       where: { id },
       data: { status: 'RESOLVED', resolvedAt: new Date() },
