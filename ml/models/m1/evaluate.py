@@ -69,7 +69,8 @@ def mae_by(preds: pd.DataFrame, names: list[str], key) -> pd.DataFrame:
 def day_type(preds: pd.DataFrame) -> pd.Series:
     school = preds["is_school_day"].astype(bool)
     weekend = preds["is_weekend"].astype(bool)
-    kind = np.where(school, "ngày học", np.where(weekend, "cuối tuần", "ngày nghỉ"))
+    other = "ngày nghỉ" if school.any() else "ngày thường"  # dữ liệu ngoài lịch VN (vd LSApp) không có ngày học
+    kind = np.where(school, "ngày học", np.where(weekend, "cuối tuần", other))
     return pd.Series(kind, index=preds.index, name="loại ngày")
 
 
