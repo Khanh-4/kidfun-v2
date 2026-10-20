@@ -1,0 +1,119 @@
+{
+  "_note": "Đặc tả dùng chung Python (ml/tier1/rules.py) <-> Kotlin (app trẻ). Sinh từ ml/tests/test_tier1.py::CASES.",
+  "baseline": {
+    "profileId": 1,
+    "validUntil": "2026-10-21T00:00:00+07:00",
+    "nightWindow": [
+      "22:00",
+      "06:00"
+    ],
+    "baseline": [
+      {
+        "dayType": "school",
+        "hour": 20,
+        "cat": "game",
+        "mean": 10.0,
+        "std": 3.0
+      },
+      {
+        "dayType": "school",
+        "hour": 22,
+        "cat": "video",
+        "mean": 25.0,
+        "std": 5.0
+      },
+      {
+        "dayType": "weekend",
+        "hour": 20,
+        "cat": "game",
+        "mean": 30.0,
+        "std": 8.0
+      }
+    ],
+    "rules": {
+      "nightMinMinutes": 10,
+      "nightUsualMaxMinutes": 3.0,
+      "spikeRatio": 3.0,
+      "spikeMinMinutes": 20
+    }
+  },
+  "cases": [
+    {
+      "name": "2h sáng, thường ngủ",
+      "minutes": {
+        "game": 25
+      },
+      "hour": 2,
+      "dayType": "school",
+      "expected": [
+        [
+          "night",
+          "game"
+        ],
+        [
+          "spike",
+          "game"
+        ]
+      ]
+    },
+    {
+      "name": "22h, bé quen xem video giờ này",
+      "minutes": {
+        "video": 30
+      },
+      "hour": 22,
+      "dayType": "school",
+      "expected": []
+    },
+    {
+      "name": "tối ngày học gấp 3,5 lần",
+      "minutes": {
+        "game": 35
+      },
+      "hour": 20,
+      "dayType": "school",
+      "expected": [
+        [
+          "spike",
+          "game"
+        ]
+      ]
+    },
+    {
+      "name": "tối ngày học chưa tới 3 lần",
+      "minutes": {
+        "game": 25
+      },
+      "hour": 20,
+      "dayType": "school",
+      "expected": []
+    },
+    {
+      "name": "cuối tuần quen chơi 30 phút",
+      "minutes": {
+        "game": 35
+      },
+      "hour": 20,
+      "dayType": "weekend",
+      "expected": []
+    },
+    {
+      "name": "chưa tới 20 phút",
+      "minutes": {
+        "study": 15
+      },
+      "hour": 15,
+      "dayType": "school",
+      "expected": []
+    },
+    {
+      "name": "khuya nhưng chưa tới 10 phút",
+      "minutes": {
+        "social": 8
+      },
+      "hour": 1,
+      "dayType": "off",
+      "expected": []
+    }
+  ]
+}

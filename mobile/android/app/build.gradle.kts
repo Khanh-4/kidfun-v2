@@ -75,4 +75,6 @@ dependencies {
     // Đồ án chuyên ngành: gửi thời gian dùng app theo giờ theo đợt, chạy nền nhẹ pin
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     testImplementation("junit:junit:4.13.2")
+    // org.json của Android chỉ là stub khi chạy unit test trên JVM -> dùng bản thật cho test Tier1Rules
+    testImplementation("org.json:json:20231013")
 }

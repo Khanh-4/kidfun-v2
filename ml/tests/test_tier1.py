@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from features import Calendar
 from tier1.rules import DEFAULT_RULES, MAX_RELAX, build_baseline, check_hour, relax
 
 VECTORS = Path(__file__).resolve().parents[1] / "tier1" / "test_vectors.json"
@@ -68,8 +69,13 @@ def test_build_baseline_json():
             for h in range(24)
         ]
     )
-    b = build_baseline(hours, 7, pd.Timestamp("2026-09-29"))
+    b = build_baseline(hours, 7, pd.Timestamp("2026-09-29"), calendar=Calendar.load(),
+                       categories={"com.google.android.youtube": "video"})
     assert b["profileId"] == 7 and b["validUntil"] == "2026-09-30T00:00:00+07:00"
+    assert b["categories"] == {"com.google.android.youtube": "video"}
+    assert b["dayTypes"] == {"2026-09-28": "school", "2026-09-29": "school", "2026-09-30": "school"}
+    off = build_baseline(hours, 7, pd.Timestamp("2026-04-30"), calendar=Calendar.load())["dayTypes"]
+    assert off == {"2026-04-29": "school", "2026-04-30": "off", "2026-05-01": "off"}  # 30/4, 1/5
     assert b["baseline"] == [{"dayType": "school", "hour": 21, "cat": "video", "mean": 20.0, "std": 0.0}]
     assert len(json.dumps(b)) < 20_000
 
@@ -90,3 +96,9 @@ def test_feedback_policy_reduces_alerts():
     without = run_policy(hours, None)
     with_feedback = run_policy(hours, 0.0)
     assert with_feedback["cảnh báo"].sum() < without["cảnh báo"].sum()
+
+
+def test_kotlin_copy_of_vectors_is_identical():
+    """App trẻ test luật tầng 1 bằng bản sao này — sửa ca kiểm thử thì phải copy lại."""
+    kotlin = VECTORS.parents[2] / "mobile/android/app/src/test/resources/tier1_test_vectors.json"
+    assert kotlin.read_text(encoding="utf-8") == VECTORS.read_text(encoding="utf-8")

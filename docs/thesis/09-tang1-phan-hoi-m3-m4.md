@@ -82,3 +82,22 @@ Tính trên 28 ngày trước 15/05/2026: **49/100 trẻ** có ít nhất một 
     nửa đêm.
 - Hạn chế: mốc WHO chỉ dành cho trẻ 2–4 tuổi, nên áp gần đúng cho nhóm 3–5. Với các nhóm tuổi khác, gợi ý dựa trên
   thói quen của chính trẻ, không đưa ra con số chuẩn bên ngoài chưa kiểm chứng.
+
+## 5. Triển khai tầng 1 trên hệ thống (PR #313 backend, PR C app trẻ)
+
+- **App trẻ (Kotlin):**
+  - `usage/Tier1Rules.kt` là bản Kotlin của `ml/tier1/rules.py`. Hai bản chạy chung bộ ca kiểm thử
+    `tier1_test_vectors.json` (test Python kiểm tra bản sao bên Android luôn giống hệt bản gốc).
+  - `usage/Tier1Client.kt`:
+    - tải mức thường ngày, làm mới mỗi 6 giờ, lưu lại để dùng khi mất mạng;
+    - kiểm tra giờ hiện tại và 2 giờ trước, chống gửi trùng (giữ dấu 48 giờ);
+    - gửi `POST /api/child/behavior-alerts`.
+  - Chạy ngay sau mỗi lần `HourlyUsageWorker` thu thập (30 phút/lần), không thêm worker mới, nên không thêm lần đánh
+    thức máy nào. Độ trễ cảnh báo tối đa khoảng 30 phút (đo thật ở tuần 8, RQ4).
+- **Server:** dựng câu tiếng Việt (cùng mẫu với `ml/models/explain.py`) và đẩy FCM cho phụ huynh. Phụ huynh phản hồi
+  qua `POST /api/behavior-alerts/:id/feedback`; nút bấm trong app phụ huynh làm ở tuần 7.
+- **JSON mức thường ngày** có thêm `categories` (bảng nhóm app) và `dayTypes` (loại ngày theo lịch VN cho hôm qua,
+  hôm nay, ngày mai). Thiếu ngày nào thì máy tự suy: thứ Bảy, Chủ nhật là cuối tuần.
+- **Khi server chưa có mức thường ngày** (trước khi có tác vụ ban đêm ở tuần 7, hoặc trẻ mới): chỉ dùng luật khuya và
+  chỉ trong 0h–6h sáng. Không dùng luật đột biến, vì so với mức 0 thì giờ nào ≥ 20 phút cũng sẽ bị báo. Cũng không báo
+  lúc 22–23h, để tránh lặp lại 92% báo nhầm ở mục 1.
