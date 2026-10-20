@@ -133,4 +133,8 @@ const activityHistoryController = require('../controllers/activityHistoryControl
 // GET /api/profiles/:id/activity-history?date=YYYY-MM-DD
 router.get('/:id/activity-history', activityHistoryController.getActivityHistory);
 
+const behaviorAlertController = require('../controllers/behaviorAlertController');
+// GET /api/profiles/:id/behavior-alerts?limit=50 - Cảnh báo hành vi bất thường (đồ án chuyên ngành)
+router.get('/:id/behavior-alerts', behaviorAlertController.listAlerts);
+
 module.exports = router;

@@ -91,4 +91,10 @@ const sosController = require('../controllers/sosController');
 // POST /api/child/sos - Child gửi SOS với audio (multipart/form-data, no auth)
 router.post('/sos', uploadAudio, sosController.createSOS);
 
+const behaviorAlertController = require('../controllers/behaviorAlertController');
+// GET /api/child/behavior-baseline?deviceCode=XXX - Mức thường ngày cho luật tầng 1 (đồ án chuyên ngành)
+router.get('/behavior-baseline', behaviorAlertController.getBaseline);
+// POST /api/child/behavior-alerts - Luật tầng 1 trên máy trẻ phát hiện bất thường -> lưu + FCM cho phụ huynh
+router.post('/behavior-alerts', behaviorAlertController.createAlerts);
+
 module.exports = router;
