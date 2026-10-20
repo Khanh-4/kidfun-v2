@@ -30,7 +30,8 @@ def walk_forward(daily: pd.DataFrame, models, test_start: pd.Timestamp, test_end
     """Trả về bảng dự đoán: một dòng / dòng kiểm tra, một cột / mô hình."""
     mask = evaluable(daily)
     preds, timing = [], {m.name: 0.0 for m in models}
-    for fold_start in pd.date_range(test_start, test_end, freq=f"{FOLD_DAYS}D"):
+    fitted = {}
+    for i, fold_start in enumerate(pd.date_range(test_start, test_end, freq=f"{FOLD_DAYS}D")):
         fold_end = fold_start + pd.Timedelta(days=FOLD_DAYS)
         train = daily[daily["y_next"].notna() & (daily["target_date"] < fold_start)]
         test = daily[mask & (daily["target_date"] >= fold_start) & (daily["target_date"] < fold_end)]
@@ -39,7 +40,12 @@ def walk_forward(daily: pd.DataFrame, models, test_start: pd.Timestamp, test_end
         fold = test[["profileId", "ageGroup", "target_date", "y_next", "is_school_day", "is_weekend"]].copy()
         for model_cls in models:
             t0 = time.time()
-            fold[model_cls.name] = model_cls().fit(train).predict(test)
+            if model_cls.name not in fitted or i % getattr(model_cls, "REFIT_FOLDS", 1) == 0:
+                model = model_cls()
+                if hasattr(model, "attach"):  # mô hình cần lịch sử của cả bảng (vd LSTM dựng chuỗi)
+                    model.attach(daily)
+                fitted[model_cls.name] = model.fit(train)
+            fold[model_cls.name] = fitted[model_cls.name].predict(test)
             timing[model_cls.name] += time.time() - t0
         preds.append(fold)
     out = pd.concat(preds, ignore_index=True)

@@ -74,9 +74,10 @@ class XGBAbsolute:
     """Mô hình chung cho mọi trẻ, dự đoán thẳng số phút."""
 
     name = "xgb_abs"
+    DROP: frozenset = frozenset()  # dùng cho phân tích loại bỏ nhóm đặc trưng
 
     def fit(self, train):
-        self.cols = feature_columns(train)
+        self.cols = [c for c in feature_columns(train) if c not in self.DROP]
         self.model = xgb.XGBRegressor(**XGB_PARAMS).fit(_matrix(train, self.cols), train["y_next"])
         return self
 
