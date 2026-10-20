@@ -50,6 +50,17 @@ Xuất `data/sim/*.csv` (cùng cột bảng Prisma) + `anomalies.csv` (nhãn: `n
 phút/ngày học): 3–5 tuổi 88 (mục tiêu 82), 11–14 tuổi 316 (284), 15–17 tuổi 431 (442); cuối tuần/ngày nghỉ ≈ 1,5×.
 Trên đặc trưng M2: `hour_z` trung vị của giờ bị cài bất thường là 5,0 so với 0,0 ở giờ bình thường.
 
+## M1 — dự đoán tổng thời gian ngày mai (`models/m1/`)
+
+```bash
+cd ml
+.venv/bin/python -m models.m1.evaluate --sim data/sim --lsapp data/lsapp.tsv.gz --out reports
+```
+
+Walk-forward theo tuần (huấn luyện trên mọi ngày trước tuần kiểm tra), chỉ chấm dòng có >= 7 ngày lịch sử.
+Mô hình: naive, seasonal naive, MA7, XGBoost (tuyệt đối / tỷ lệ so với MA7), Prophet mỗi trẻ một mô hình.
+Kết quả: `reports/m1_round1.md`.
+
 ## Test
 
 ```bash

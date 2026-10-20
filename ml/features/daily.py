@@ -99,6 +99,7 @@ def _history(total: pd.Series, until: pd.Series) -> pd.DataFrame:
         {
             "y_lag1": past,
             "y_lag7": total.shift(7),
+            "y_same_dow_last_week": total.shift(6),  # cùng thứ với ngày t+1 (seasonal naive)
             "mean7": mean7,
             "std7": past.rolling(7, min_periods=3).std(),
             "mean14": mean14,
