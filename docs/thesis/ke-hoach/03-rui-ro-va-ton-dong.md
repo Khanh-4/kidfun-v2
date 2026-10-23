@@ -20,7 +20,7 @@
 | Phản hồi thật của phụ huynh quá ít | Cao | Đánh giá RQ5 chủ yếu bằng "phụ huynh mô phỏng"; phản hồi thật dùng minh hoạ | Đã có kết quả mô phỏng |
 | Migration lên nhầm DB production | Cao | Lệnh Prisma ghi đè cả `DATABASE_URL` lẫn `DIRECT_URL`; hỏi trước khi push nhánh có migration | Quy tắc đã áp dụng |
 | Quyền riêng tư của trẻ | Trung bình | Chỉ dùng dữ liệu có đồng ý; ẩn danh khi phân tích; dữ liệu không rời hệ thống | Cần nhắc lại trong báo cáo |
-| Tác vụ ban đêm cần đọc DB production từ GitHub Actions | Trung bình | Chọn ở T7.1.1: đọc qua API có `CRON_SECRET` hay chuỗi kết nối chỉ đọc | Chưa chốt |
+| Tác vụ ban đêm cần đọc DB production từ GitHub Actions | Trung bình | Đọc qua API có `CRON_SECRET`, chỉ trả cột cần, không nối thẳng DB | Đã chốt 23/10 (T7.1.1) |
 
 ## Tồn đọng kỹ thuật (đã biết, chưa làm)
 
