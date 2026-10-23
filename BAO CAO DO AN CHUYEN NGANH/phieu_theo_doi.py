@@ -42,6 +42,23 @@ WEEKS = {
             "Tồn đọng: chờ test máy thật, số đo pin.",
         ],
     ),
+    2: (
+        "19/10/2026\n–\n25/10/2026",
+        [
+            "Cài đặt bộ đặc trưng M1 (9 nhóm A–I, lịch học VN) và M2 (theo giờ); "
+            "bộ mô phỏng dữ liệu 100 trẻ × 26 tuần.",
+            "M1: so sánh baseline, XGBoost, Prophet, LSTM (walk-forward); XGBoost tốt nhất "
+            "trên dữ liệu trẻ (MAE 33,5 so với MA7 52,3); xác suất vượt giới hạn hiệu chỉnh "
+            "isotonic (ECE 0,006).",
+            "M2 tầng 2: Isolation Forest, DBSCAN, Autoencoder, z-score; DBSCAN tốt nhất mức "
+            "ngày (PR-AUC 0,70), z-score tốt nhất mức giờ (0,61); câu giải thích lý do cảnh báo.",
+            "M2 tầng 1: luật cảnh báo chạy trên máy trẻ (Kotlin), cùng bộ test với Python.",
+            "M3/M4: phụ huynh xác nhận đúng/sai, điều chỉnh ngưỡng theo phản hồi.",
+            "Backend: API lưu baseline và cảnh báo hành vi, gửi thông báo FCM.",
+            "Viết kịch bản test cho người test (docs/flowtest).",
+            "Tồn đọng: chờ test máy thật, đo pin 2×24h.",
+        ],
+    ),
 }
 
 CONTENT_PT = 11
