@@ -105,6 +105,9 @@ exports.sendSOSPushNotification = async (user, profile, sos) => {
         latitude: String(sos.latitude),
         longitude: String(sos.longitude),
       },
+      // Tag theo từng SOS để app phụ huynh gỡ đúng thông báo khỏi khay sau khi
+      // bấm "Đã nhận" (NotificationService.cancelSOSNotification).
+      { androidTag: `sos_${sos.id}` },
     );
 
     // Log riêng để dễ debug SOS

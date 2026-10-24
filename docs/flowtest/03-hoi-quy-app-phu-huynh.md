@@ -44,6 +44,23 @@ Từ danh sách hồ sơ → chọn "Bé Test" → mở từng mục:
 | 6 | Cảnh báo AI (nếu có): mở 1 cảnh báo → **đánh dấu đã đọc** | hết chấm "chưa đọc" | [ ] |
 | 7 | Máy trẻ **xin thêm giờ** → phụ huynh **duyệt** (một lần) và **từ chối** (một lần khác) | máy trẻ nhận đúng kết quả | [ ] |
 
+## Bước 3 — Test lại 2 lỗi đã sửa (báo cáo Task 3, 2026-10-24)
+
+Cần **build lại app phụ huynh từ nhánh mới** — bản cũ vẫn còn lỗi. Phần backend tự lên Vercel khi PR được merge
+(trước đó thông báo SOS có thể chưa tự biến mất ở mục 3.3 khi app chạy nền — ghi chú lại nếu gặp).
+
+| # | Thao tác | Mong đợi | Đạt |
+|---|---|---|---|
+| 3.1 | Máy trẻ bấm **SOS**, máy phụ huynh **đang mở app** → pop-up SOS hiện → bấm **Đã nhận được** ngay trên pop-up | pop-up đóng, hiện "Đã xác nhận SOS"; vào **Lịch sử SOS** thấy trạng thái "Đã nhận" | [ ] |
+| 3.2 | Sau 3.1: thoát app ra màn hình chính rồi mở lại app 2–3 lần | pop-up SOS **không** hiện lại | [ ] |
+| 3.3 | Sau 3.1: kéo thanh thông báo của điện thoại xuống | **không còn** thông báo SOS vừa xử lý | [ ] |
+| 3.4 | SOS mới → trên pop-up bấm **Xem chi tiết** | màn hình SOS có nút **Đã nhận được SOS**; bấm → đổi thành nút **Đã giải quyết xong**; bấm tiếp → báo "Đã giải quyết SOS"; thông báo trên thanh trạng thái biến mất | [ ] |
+| 3.5 | SOS mới khi app phụ huynh **chạy nền / đã tắt** → bấm vào thông báo đẩy | mở màn hình SOS **có** nút Đã nhận / Đã giải quyết, bấm được | [ ] |
+| 3.6 | Bản đồ vị trí → **chạm vào bên trong** 1 vùng an toàn đã tạo | hiện pop-up có tên vùng, nút **Sửa** và **Xoá** | [ ] |
+| 3.7 | Chọn **Sửa** → đổi tên + kéo bán kính → **Lưu** | vòng tròn trên bản đồ đổi kích thước; chạm lại thấy tên/bán kính mới | [ ] |
+| 3.8 | Chạm vùng → **Xoá** → hộp xác nhận → **Xóa** | vùng biến mất khỏi bản đồ | [ ] |
+| 3.9 | Đang ở chế độ **thêm vùng** (nút ➕ góc trên) → chạm vào vùng cũ | **không** hiện pop-up Sửa/Xoá, chỉ đặt tâm vùng mới như trước | [ ] |
+
 ## Ghi chép
 
 | Mục | Giá trị |

@@ -50,6 +50,18 @@ class LocationRepository {
     return response.data['data']['geofence'];
   }
 
+  Future<dynamic> updateGeofence({
+    required int geofenceId,
+    required String name,
+    required double radius,
+  }) async {
+    final response = await _dio.put(
+      '/api/geofences/$geofenceId',
+      data: {'name': name, 'radius': radius},
+    );
+    return response.data['data']['geofence'];
+  }
+
   Future<void> deleteGeofence(int profileId, int geofenceId) async {
     await _dio.delete('/api/geofences/$geofenceId');
   }

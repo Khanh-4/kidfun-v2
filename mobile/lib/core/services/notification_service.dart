@@ -36,6 +36,9 @@ class NotificationService {
   // Bắt cả thông báo cũ đẩy từ trước khi backend gắn tag: tiêu đề server dựng
   // theo mẫu "⏳ <tên bé> xin thêm giờ" (extensionController.js).
   static const String _extensionTitleMarker = 'xin thêm giờ';
+  // Backend gắn tag 'sos_<id>' cho từng SOS (fcmService.sendSOSPushNotification).
+  static const String _sosFcmTagPrefix = 'sos_';
+  static const String _sosTitleMarker = 'SOS KHẨN CẤP';
 
   // ── Init ───────────────────────────────────────────────────────────────────
 
@@ -282,6 +285,40 @@ class NotificationService {
       // Không chặn luồng duyệt/từ chối chỉ vì không gỡ được thông báo —
       // getActiveNotifications cần API 23+ và có thể ném trên máy cũ.
       print('❌ [NOTIFICATION] Không gỡ được thông báo xin thêm giờ: $e');
+    }
+  }
+
+  /// Gỡ thông báo SOS khỏi khay sau khi phụ huynh bấm "Đã nhận"/"Đã giải
+  /// quyết". Cùng 3 nguồn như [cancelTimeExtensionNotification]:
+  ///   1. App tự hiện lúc đang mở → id [sosNotificationId].
+  ///   2. FCM SDK hiện lúc chạy nền → (id 0, tag 'sos_<sosId>').
+  ///   3. Thông báo từ backend cũ chưa có tag → đối chiếu tiêu đề. Thông báo
+  ///      có tag của SOS KHÁC được giữ lại để không làm mất cảnh báo bé khác.
+  Future<void> cancelSOSNotification(int? sosId) async {
+    try {
+      await _plugin.cancel(sosNotificationId);
+      if (sosId != null) {
+        await _plugin.cancel(_fcmTaggedNotificationId, tag: '$_sosFcmTagPrefix$sosId');
+      }
+
+      if (!Platform.isAndroid) return;
+
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final active = await android?.getActiveNotifications() ?? [];
+      for (final n in active) {
+        final id = n.id;
+        if (id == null) continue;
+        final tag = n.tag ?? '';
+        final isThisSos = sosId != null && tag == '$_sosFcmTagPrefix$sosId';
+        final isLegacySos = !tag.startsWith(_sosFcmTagPrefix) &&
+            (n.title?.contains(_sosTitleMarker) ?? false);
+        if (!isThisSos && !isLegacySos) continue;
+        await _plugin.cancel(id, tag: n.tag);
+        print('🧹 [NOTIFICATION] Đã gỡ thông báo SOS (id=$id, tag=${n.tag})');
+      }
+    } catch (e) {
+      print('❌ [NOTIFICATION] Không gỡ được thông báo SOS: $e');
     }
   }
 }
