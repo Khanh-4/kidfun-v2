@@ -36,6 +36,12 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   // (initState, mỗi signal Realtime, mỗi lần connectionRestored, mỗi lần app
   // resume, mỗi FCM push) nên lần về muộn có thể mang dữ liệu đã cũ.
   bool _isCheckingPendingRequests = false;
+  // Mỗi SOS chỉ bật dialog MỘT lần trong phiên app. Trước đây SOS còn ACTIVE
+  // thì mỗi lần resume/reconnect/signal _checkActiveSOS() lại bật dialog mới
+  // (báo cáo test Task 3, Lỗi A) — nút "Đã nhận được" cũ chỉ đóng dialog mà
+  // không gọi API nên trạng thái không bao giờ rời ACTIVE.
+  final Set<int> _shownSosIds = {};
+  bool _isCheckingSOS = false;
   // Dedup cho geofence/AI alert: refetch-on-signal (notify-then-refetch) có thể
   // gọi lại nhiều lần (initState, mỗi signal, mỗi reconnect) nên cần chặn hiện
   // trùng dialog.
@@ -171,6 +177,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
   Future<void> _checkActiveSOS() async {
     // Guard 1: Parent-only — child devices must not show SOS dialogs
     if (RealtimeService.instance.currentRole != 'parent') return;
+    if (_isCheckingSOS) return;
+    _isCheckingSOS = true;
 
     try {
       final profilesResponse = await DioClient.instance.get('/api/profiles');
@@ -192,6 +200,10 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
         final createdAt = DateTime.tryParse(latest['createdAt']?.toString() ?? '');
         if (createdAt == null || !createdAt.isAfter(cutoff)) continue;
 
+        final sosId = (latest['id'] as num?)?.toInt();
+        if (sosId == null || _shownSosIds.contains(sosId)) continue;
+        _shownSosIds.add(sosId);
+
         print('🆘 [REST] Found active SOS for profile $profileName — showing alert dialog');
         if (!mounted) return;
 
@@ -212,6 +224,7 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
             context: ctx,
             barrierDismissible: false,
             builder: (_) => _SOSAlertDialog(
+              sosId: sosId,
               profileName: profileName,
               lat: (latest['latitude'] as num?)?.toDouble() ?? 0.0,
               lng: (latest['longitude'] as num?)?.toDouble() ?? 0.0,
@@ -225,6 +238,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
       }
     } catch (e) {
       print('❌ [REST] Error checking active SOS: $e');
+    } finally {
+      _isCheckingSOS = false;
     }
   }
 
@@ -487,7 +502,8 @@ class _TimeExtensionListenerState extends ConsumerState<TimeExtensionListener> {
 // Benefit: shows immediately without needing a Navigator route transition,
 // works even when app is idle with no pending frames.
 // ─────────────────────────────────────────────────────────────────────────────
-class _SOSAlertDialog extends StatelessWidget {
+class _SOSAlertDialog extends StatefulWidget {
+  final int sosId;
   final String profileName;
   final double lat;
   final double lng;
@@ -496,6 +512,7 @@ class _SOSAlertDialog extends StatelessWidget {
   final GlobalKey<NavigatorState>? navigatorKey;
 
   const _SOSAlertDialog({
+    required this.sosId,
     required this.profileName,
     required this.lat,
     required this.lng,
@@ -505,10 +522,47 @@ class _SOSAlertDialog extends StatelessWidget {
   });
 
   @override
+  State<_SOSAlertDialog> createState() => _SOSAlertDialogState();
+}
+
+class _SOSAlertDialogState extends State<_SOSAlertDialog> {
+  bool _isAcknowledging = false;
+
+  // Gọi đúng API như nút "Đã nhận được SOS" trên SOSAlertScreen — trước đây
+  // nút này chỉ Navigator.pop nên SOS mãi ở trạng thái ACTIVE.
+  Future<void> _acknowledge() async {
+    if (_isAcknowledging) return;
+    setState(() => _isAcknowledging = true);
+    try {
+      await DioClient.instance.put('/api/sos/${widget.sosId}/acknowledge');
+      await NotificationService.instance.cancelSOSNotification(widget.sosId);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.pop(context);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Đã xác nhận SOS'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      print('❌ [SOS] Acknowledge failed: $e');
+      if (!mounted) return;
+      setState(() => _isAcknowledging = false);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('Không cập nhật được trạng thái SOS, vui lòng thử lại'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     String formattedTime = 'Vừa xảy ra';
-    if (sosTime != null) {
-      final dt = DateTime.tryParse(sosTime!);
+    if (widget.sosTime != null) {
+      final dt = DateTime.tryParse(widget.sosTime!);
       if (dt != null) {
         final local = dt.toLocal();
         formattedTime =
@@ -533,7 +587,7 @@ class _SOSAlertDialog extends StatelessWidget {
                         color: Colors.red,
                         fontWeight: FontWeight.bold,
                         fontSize: 18)),
-                Text(profileName,
+                Text(widget.profileName,
                     style: TextStyle(
                         color: Colors.red.shade700, fontSize: 14)),
               ],
@@ -548,10 +602,10 @@ class _SOSAlertDialog extends StatelessWidget {
           Text('⏰ $formattedTime',
               style: const TextStyle(fontSize: 14, color: Colors.black54)),
           const SizedBox(height: 8),
-          if (lat != 0.0 || lng != 0.0)
-            Text('📌 Vị trí: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+          if (widget.lat != 0.0 || widget.lng != 0.0)
+            Text('📌 Vị trí: ${widget.lat.toStringAsFixed(5)}, ${widget.lng.toStringAsFixed(5)}',
                 style: const TextStyle(fontSize: 13, color: Colors.black54)),
-          if (audioUrl != null) ...[
+          if (widget.audioUrl != null) ...[
             const SizedBox(height: 8),
             const Text('🎤 Có file ghi âm',
                 style: TextStyle(
@@ -566,18 +620,23 @@ class _SOSAlertDialog extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              final ctx = navigatorKey?.currentContext ?? context;
-              ctx.push('/sos-alert', extra: {
-                'profileName': profileName,
-                'latitude': lat,
-                'longitude': lng,
-                'audioUrl': audioUrl,
-                'phone': null,
-                'sosTime': sosTime,
-              });
-            },
+            onPressed: _isAcknowledging
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    final ctx = widget.navigatorKey?.currentContext ?? context;
+                    ctx.push('/sos-alert', extra: {
+                      'profileName': widget.profileName,
+                      'latitude': widget.lat,
+                      'longitude': widget.lng,
+                      'audioUrl': widget.audioUrl,
+                      'phone': null,
+                      'sosTime': widget.sosTime,
+                      // Thiếu 2 field này thì SOSAlertScreen ẩn nút Đã nhận/Đã xử lý.
+                      'sosId': widget.sosId,
+                      'status': 'ACTIVE',
+                    });
+                  },
             icon: const Icon(Icons.map_outlined),
             label: const Text('Xem chi tiết'),
             style: ElevatedButton.styleFrom(
@@ -592,14 +651,19 @@ class _SOSAlertDialog extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _isAcknowledging ? null : _acknowledge,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.red,
               side: const BorderSide(color: Colors.red),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Đã nhận được'),
+            child: _isAcknowledging
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
+                : const Text('Đã nhận được'),
           ),
         ),
       ],

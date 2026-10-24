@@ -10,6 +10,7 @@ import 'core/network/realtime_service.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'core/services/native_service.dart';
+import 'core/services/location_request_handler.dart';
 import 'core/services/notification_service.dart';
 import 'app.dart';
 
@@ -19,6 +20,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('[FCM] Received background message: ${message.messageId}');
 
   final type = message.data['type'];
+
+  // Phụ huynh bấm "Yêu cầu cập nhật vị trí ngay" khi app máy trẻ đang chạy nền/đã tắt.
+  if (type == 'location_request') {
+    await respondToLocationRequest();
+    return;
+  }
 
   // Handle blocked apps update from parent — works even when Flutter is in background
   if (type == 'blocked_apps_update') {
@@ -84,12 +91,15 @@ void navigateToSOSFromFCM(RemoteMessage message) {
   print('[FCM] 🆘 Navigating to SOS alert screen. lat=$lat, lng=$lng, time=$sosTime');
 
   safelyNavigate('/sos-alert', {
-    'profileName': 'Bé', // FCM payload doesn't carry profileName — show generic label
+    'profileName': message.data['profileName'] ?? 'Bé',
     'latitude': lat,
     'longitude': lng,
     'audioUrl': message.data['audioUrl'],
     'phone': null,
     'sosTime': sosTime, // TC-14: show timestamp on SOS alert screen
+    // Không có sosId thì SOSAlertScreen ẩn nút Đã nhận/Đã xử lý.
+    'sosId': int.tryParse(message.data['sosId'] ?? ''),
+    'status': 'ACTIVE',
   });
 }
 
@@ -143,7 +153,9 @@ void main() async {
      onNotificationTap: (payload) {
        if (payload == null) return;
        
-       if (payload == 'SOS_ALERT') {
+       // Payload dạng 'SOS_ALERT:<sosId>' (bản cũ chỉ có 'SOS_ALERT').
+       if (payload.startsWith('SOS_ALERT')) {
+         final sosId = int.tryParse(payload.split(':').last);
          // Navigate to SOS alert with minimal data — full data loaded via REST
          safelyNavigate('/sos-alert', {
            'profileName': 'Bé',
@@ -152,6 +164,8 @@ void main() async {
            'audioUrl': null,
            'phone': null,
            'sosTime': DateTime.now().toIso8601String(),
+           'sosId': sosId,
+           'status': 'ACTIVE',
          });
        }
 
@@ -169,6 +183,10 @@ void main() async {
      print('[FCM] Received foreground message: ${message.notification?.title}');
      
      final type = message.data['type'];
+
+     if (type == 'location_request') {
+       respondToLocationRequest();
+     }
 
      // Blocked apps update
      if (type == 'blocked_apps_update') {
@@ -192,7 +210,7 @@ void main() async {
        final profileName = message.data['profileName'] ?? message.notification?.title ?? 'Bé';
        NotificationService.instance.showSOSNotification(
          profileName: profileName,
-         payload: 'SOS_ALERT',
+         payload: 'SOS_ALERT:${message.data['sosId'] ?? ''}',
        );
      }
 

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 import 'package:intl/intl.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/services/notification_service.dart';
 
 class SOSAlertScreen extends StatefulWidget {
   final String profileName;
@@ -74,6 +75,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
     setState(() => _isUpdating = true);
     try {
       await DioClient.instance.put('/api/sos/${widget.sosId}/$action');
+      await NotificationService.instance.cancelSOSNotification(widget.sosId);
       final newStatus = action == 'acknowledge' ? 'ACKNOWLEDGED' : 'RESOLVED';
       setState(() => _currentStatus = newStatus);
       if (mounted) {

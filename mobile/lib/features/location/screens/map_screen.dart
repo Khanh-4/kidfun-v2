@@ -1,20 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
-import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/location_repository.dart';
-
-class _MyPolygonClickListener extends mapbox.OnPolygonAnnotationClickListener {
-  final Function(mapbox.PolygonAnnotation) onClick;
-  _MyPolygonClickListener(this.onClick);
-  @override
-  void onPolygonAnnotationClick(mapbox.PolygonAnnotation annotation) {
-    onClick(annotation);
-  }
-}
 
 class MapScreen extends StatefulWidget {
   final int profileId;
@@ -36,7 +27,6 @@ class _MapScreenState extends State<MapScreen> {
   final _locationRepo = LocationRepository(DioClient.instance);
 
   List<dynamic> _geofences = [];
-  final Map<String, int> _annotationGeofenceMap = {};
   bool _isAddingMode = false;
   double _newRadius = 500.0;
   mapbox.CircleAnnotation? _tempCenterMarker;
@@ -45,6 +35,11 @@ class _MapScreenState extends State<MapScreen> {
   double? _tempLng;
   
   final _nameController = TextEditingController();
+  bool _isRequestingLocation = false;
+  // Tải lại dự phòng sau khi yêu cầu vị trí, phòng khi tín hiệu Realtime
+  // LocationLog INSERT bị lỡ (máy trẻ cần vài giây để bắt GPS rồi gửi lên).
+  final List<Timer> _locationRefreshTimers = [];
+  static const _locationRefreshDelays = [Duration(seconds: 8), Duration(seconds: 20)];
 
   @override
   void initState() {
@@ -82,6 +77,36 @@ class _MapScreenState extends State<MapScreen> {
           backgroundColor: Colors.red,
         ));
       }
+    }
+  }
+
+  // Thay event Socket.IO 'requestLocation' (không chạy trên Vercel): server đẩy
+  // FCM data-only tới máy trẻ, máy trẻ gửi GPS lên → Realtime báo về đây.
+  Future<void> _requestLocationNow() async {
+    setState(() => _isRequestingLocation = true);
+    try {
+      await _locationRepo.requestLocation(widget.profileId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Đã gửi yêu cầu, đang chờ máy của bé gửi vị trí..."),
+        duration: Duration(seconds: 3),
+      ));
+      for (final t in _locationRefreshTimers) {
+        t.cancel();
+      }
+      _locationRefreshTimers
+        ..clear()
+        ..addAll(_locationRefreshDelays.map((d) => Timer(d, () {
+              if (mounted) _fetchCurrentLocation();
+            })));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: Colors.red,
+      ));
+    } finally {
+      if (mounted) setState(() => _isRequestingLocation = false);
     }
   }
 
@@ -157,7 +182,6 @@ class _MapScreenState extends State<MapScreen> {
     if (_polygonManager == null) return;
     await _polygonManager!.deleteAll();
     _tempGeofencePolygon = null;
-    _annotationGeofenceMap.clear();
 
     for (final gf in _geofences) {
       final lat = gf['latitude'] as double;
@@ -165,12 +189,11 @@ class _MapScreenState extends State<MapScreen> {
       final rad = gf['radius'] is int ? (gf['radius'] as int).toDouble() : gf['radius'] as double;
 
       final coords = _createCirclePolygon(lat, lng, rad);
-      final polygon = await _polygonManager!.create(mapbox.PolygonAnnotationOptions(
+      await _polygonManager!.create(mapbox.PolygonAnnotationOptions(
         geometry: mapbox.Polygon(coordinates: [coords]),
         fillColor: Colors.blue.withOpacity(0.3).value,
         fillOutlineColor: Colors.blue.value,
       ));
-      _annotationGeofenceMap[polygon.id] = gf['id'] as int;
     }
 
     if (_isAddingMode && _tempLat != null && _tempLng != null) {
@@ -208,8 +231,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _onMapTap(mapbox.MapContentGestureContext context) async {
-    if (!_isAddingMode) return;
     final pos = context.point.coordinates;
+    if (!_isAddingMode) {
+      final gf = _findGeofenceAt(pos.lat.toDouble(), pos.lng.toDouble());
+      if (gf != null) _showGeofenceOptionsDialog(gf);
+      return;
+    }
     setState(() {
       _tempLat = pos.lat.toDouble();
       _tempLng = pos.lng.toDouble();
@@ -321,12 +348,184 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  void _showDeleteGeofenceDialog(mapbox.PolygonAnnotation annotation) {
-    final geofenceId = _annotationGeofenceMap[annotation.id];
-    if (geofenceId == null) return;
+  // Tự tính vùng nào chứa điểm chạm thay vì dựa vào polygon click listener của
+  // Mapbox — listener đó không bắn trên máy test (báo cáo test Task 3, Lỗi B).
+  // Vùng chồng nhau thì chọn vùng nhỏ nhất (thường là vùng phụ huynh nhắm tới).
+  Map<String, dynamic>? _findGeofenceAt(double lat, double lng) {
+    Map<String, dynamic>? hit;
+    double? hitRadius;
+    for (final gf in _geofences) {
+      final gLat = (gf['latitude'] as num).toDouble();
+      final gLng = (gf['longitude'] as num).toDouble();
+      final radius = (gf['radius'] as num).toDouble();
+      if (_distanceMeters(lat, lng, gLat, gLng) > radius) continue;
+      if (hitRadius == null || radius < hitRadius) {
+        hit = Map<String, dynamic>.from(gf as Map);
+        hitRadius = radius;
+      }
+    }
+    return hit;
+  }
 
-    final gf = _geofences.firstWhere((g) => g['id'] == geofenceId, orElse: () => null);
-    if (gf == null) return;
+  double _distanceMeters(double lat1, double lng1, double lat2, double lng2) {
+    const earthRadius = 6371000.0;
+    final dLat = (lat2 - lat1) * math.pi / 180.0;
+    final dLng = (lng2 - lng1) * math.pi / 180.0;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180.0) *
+            math.cos(lat2 * math.pi / 180.0) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  void _showGeofenceOptionsDialog(Map<String, dynamic> gf) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(gf['name']?.toString() ?? 'Vùng an toàn',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+        content: Text('Bán kính: ${(gf['radius'] as num).toInt()} mét\n'
+            'Bạn muốn sửa hay xoá vùng an toàn này?'),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showDeleteGeofenceDialog(gf);
+                  },
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text("Xoá"),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showEditGeofenceDialog(gf);
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text("Sửa"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditGeofenceDialog(Map<String, dynamic> gf) {
+    final geofenceId = gf['id'] as int;
+    final nameController = TextEditingController(text: gf['name']?.toString() ?? '');
+    // Cùng khoảng với slider lúc tạo vùng (100–2000m).
+    double radius = (gf['radius'] as num).toDouble().clamp(100.0, 2000.0);
+    String? nameError;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text("Sửa Vùng an toàn",
+              style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Tên vùng',
+                  border: const OutlineInputBorder(),
+                  errorText: nameError,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text("Bán kính: ${radius.toInt()} mét",
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
+              Slider(
+                value: radius,
+                min: 100, max: 2000, divisions: 19,
+                onChanged: (v) => setStateDialog(() => radius = v),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text("Hủy"),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) {
+                        setStateDialog(() => nameError = "Bắt buộc thêm tên vùng an toàn");
+                        return;
+                      }
+                      Navigator.pop(ctx);
+                      try {
+                        await _locationRepo.updateGeofence(
+                          geofenceId: geofenceId,
+                          name: name,
+                          radius: radius,
+                        );
+                        _fetchGeofences();
+                      } catch (e) {
+                        print('Lỗi sửa vùng an toàn: $e');
+                        _showGeofenceError("Sửa vùng an toàn thất bại. Vui lòng thử lại.");
+                      }
+                    },
+                    child: const Text("Lưu"),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ).whenComplete(nameController.dispose);
+  }
+
+  void _showGeofenceError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showDeleteGeofenceDialog(Map<String, dynamic> gf) {
+    final geofenceId = gf['id'] as int;
 
     showDialog(
       context: context,
@@ -365,6 +564,7 @@ class _MapScreenState extends State<MapScreen> {
                       _fetchGeofences();
                     } catch (e) {
                       print('Lỗi xóa vùng an toàn: $e');
+                      _showGeofenceError("Xoá vùng an toàn thất bại. Vui lòng thử lại.");
                     }
                   },
                   child: const Text("Xóa", style: TextStyle(color: Colors.white)),
@@ -380,6 +580,9 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     RealtimeService.instance.removeLocationUpdatedListener(_onRealtimeLocationUpdated);
+    for (final t in _locationRefreshTimers) {
+      t.cancel();
+    }
     _nameController.dispose();
     super.dispose();
   }
@@ -434,11 +637,6 @@ class _MapScreenState extends State<MapScreen> {
               _circleManager = await mapboxMap.annotations.createCircleAnnotationManager();
               _polygonManager = await mapboxMap.annotations.createPolygonAnnotationManager();
               
-              _polygonManager!.addOnPolygonAnnotationClickListener(_MyPolygonClickListener((annotation) {
-                if (_isAddingMode) return;
-                _showDeleteGeofenceDialog(annotation);
-              }));
-              
               if (_lastLat != null && _lastLng != null) {
                  _updateChildMarker(_lastLat!, _lastLng!);
               }
@@ -484,18 +682,13 @@ class _MapScreenState extends State<MapScreen> {
                bottom: 20, right: 20,
                child: FloatingActionButton(
                  tooltip: 'Yêu cầu cập nhật vị trí ngay',
-                 onPressed: () {
-                   SocketService.instance.socket
-                       .emit('requestLocation', {'profileId': widget.profileId});
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(
-                       content: Text("Đã gửi yêu cầu cập nhật vị trí"),
-                       duration: Duration(seconds: 2),
-                     ),
-                   );
-                   _fetchCurrentLocation();
-                 },
-                 child: const Icon(Icons.my_location),
+                 onPressed: _isRequestingLocation ? null : _requestLocationNow,
+                 child: _isRequestingLocation
+                     ? const SizedBox(
+                         width: 22,
+                         height: 22,
+                         child: CircularProgressIndicator(strokeWidth: 2.5))
+                     : const Icon(Icons.my_location),
                ),
              ),
         ],

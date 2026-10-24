@@ -204,9 +204,47 @@ async function sendPushToUser(userId, { title, body, data = {}, androidTag }) {
   }
 }
 
+/**
+ * Gửi lệnh data-only (KHÔNG hiện thông báo) — dùng cho lệnh máy-tới-máy như
+ * "gửi vị trí ngay". priority high để Android vẫn giao khi máy trẻ đang Doze
+ * và gọi onBackgroundMessage của app.
+ * @param {string} token - FCM token
+ * @param {object} data - Data payload (key-value strings)
+ */
+async function sendDataMessage(token, data = {}) {
+  if (!firebaseInitialized) {
+    console.warn('Firebase not initialized, skipping data message');
+    return null;
+  }
+
+  const message = {
+    token,
+    data: Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, String(v)])
+    ),
+    android: { priority: 'high' },
+    apns: {
+      headers: { 'apns-priority': '5', 'apns-push-type': 'background' },
+      payload: { aps: { 'content-available': 1 } },
+    },
+  };
+
+  try {
+    return await withTimeout(
+      admin.messaging().send(message), FCM_TIMEOUT_MS, 'FCM data send');
+  } catch (error) {
+    if (error.code === 'messaging/invalid-registration-token' ||
+        error.code === 'messaging/registration-token-not-registered') {
+      return { error: 'INVALID_TOKEN', token };
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   initFirebase,
   sendPushNotification,
   sendToMultipleTokens,
-  sendPushToUser
+  sendPushToUser,
+  sendDataMessage
 };
