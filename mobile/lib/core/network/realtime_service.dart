@@ -17,8 +17,8 @@ typedef RealtimeCallback = void Function(Map<String, dynamic> data);
 /// payload trong file này, tránh rủi ro map sai/thiếu field mà flutter
 /// analyze không bắt được (lỗi runtime, không phải lỗi type).
 ///
-/// CHƯA xử lý: locationRequested (lệnh tức thời, không gắn DB row — cần
-/// Realtime Broadcast riêng, để lại cho bước sau).
+/// locationRequested KHÔNG đi qua đây: lệnh tức thời không gắn DB row nên
+/// dùng FCM data-only 'location_request' (core/services/location_request_handler.dart).
 class RealtimeService {
   static RealtimeService? _instance;
   static RealtimeService get instance {

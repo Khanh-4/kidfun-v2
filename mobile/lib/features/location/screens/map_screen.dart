@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
-import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/location_repository.dart';
@@ -35,6 +35,11 @@ class _MapScreenState extends State<MapScreen> {
   double? _tempLng;
   
   final _nameController = TextEditingController();
+  bool _isRequestingLocation = false;
+  // Tải lại dự phòng sau khi yêu cầu vị trí, phòng khi tín hiệu Realtime
+  // LocationLog INSERT bị lỡ (máy trẻ cần vài giây để bắt GPS rồi gửi lên).
+  final List<Timer> _locationRefreshTimers = [];
+  static const _locationRefreshDelays = [Duration(seconds: 8), Duration(seconds: 20)];
 
   @override
   void initState() {
@@ -72,6 +77,36 @@ class _MapScreenState extends State<MapScreen> {
           backgroundColor: Colors.red,
         ));
       }
+    }
+  }
+
+  // Thay event Socket.IO 'requestLocation' (không chạy trên Vercel): server đẩy
+  // FCM data-only tới máy trẻ, máy trẻ gửi GPS lên → Realtime báo về đây.
+  Future<void> _requestLocationNow() async {
+    setState(() => _isRequestingLocation = true);
+    try {
+      await _locationRepo.requestLocation(widget.profileId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Đã gửi yêu cầu, đang chờ máy của bé gửi vị trí..."),
+        duration: Duration(seconds: 3),
+      ));
+      for (final t in _locationRefreshTimers) {
+        t.cancel();
+      }
+      _locationRefreshTimers
+        ..clear()
+        ..addAll(_locationRefreshDelays.map((d) => Timer(d, () {
+              if (mounted) _fetchCurrentLocation();
+            })));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: Colors.red,
+      ));
+    } finally {
+      if (mounted) setState(() => _isRequestingLocation = false);
     }
   }
 
@@ -545,6 +580,9 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     RealtimeService.instance.removeLocationUpdatedListener(_onRealtimeLocationUpdated);
+    for (final t in _locationRefreshTimers) {
+      t.cancel();
+    }
     _nameController.dispose();
     super.dispose();
   }
@@ -644,18 +682,13 @@ class _MapScreenState extends State<MapScreen> {
                bottom: 20, right: 20,
                child: FloatingActionButton(
                  tooltip: 'Yêu cầu cập nhật vị trí ngay',
-                 onPressed: () {
-                   SocketService.instance.socket
-                       .emit('requestLocation', {'profileId': widget.profileId});
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(
-                       content: Text("Đã gửi yêu cầu cập nhật vị trí"),
-                       duration: Duration(seconds: 2),
-                     ),
-                   );
-                   _fetchCurrentLocation();
-                 },
-                 child: const Icon(Icons.my_location),
+                 onPressed: _isRequestingLocation ? null : _requestLocationNow,
+                 child: _isRequestingLocation
+                     ? const SizedBox(
+                         width: 22,
+                         height: 22,
+                         child: CircularProgressIndicator(strokeWidth: 2.5))
+                     : const Icon(Icons.my_location),
                ),
              ),
         ],

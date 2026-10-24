@@ -1072,8 +1072,6 @@ _startHeartbeat();
   }
 
   void _setupSocketListeners() {
-    final socket = SocketService.instance.socket;
-
     // Always call off()/remove before on()/add to ensure idempotent listener
     // registration. Without this, every _onAppResumed → _initializeDashboard →
     // _setupSocketListeners cycle stacks an additional listener, causing N
@@ -1109,27 +1107,9 @@ _startHeartbeat();
     RealtimeService.instance.removeDevicePingListener(_onRealtimeDevicePing);
     RealtimeService.instance.addDevicePingListener(_onRealtimeDevicePing);
 
-    // locationRequested: lệnh tức thời, không gắn DB row — CHƯA cutover, vẫn
-    // qua Socket.IO (cần Realtime Broadcast channel riêng, xem RealtimeService).
-    socket.off('locationRequested');
-    socket.on('locationRequested', (data) async {
-      print('📍 [SOCKET] locationRequested from parent — sending location now');
-      if (_deviceCode == null) return;
-      try {
-        final position = await LocationService.instance.getCurrentLocation();
-        if (position != null) {
-          await _locationRepo.syncLocation(
-            deviceCode: _deviceCode!,
-            latitude: position.latitude,
-            longitude: position.longitude,
-            accuracy: position.accuracy,
-          );
-          print('✅ [SOCKET] Location sent on request');
-        }
-      } catch (e) {
-        print('❌ [SOCKET] locationRequested handler error: $e');
-      }
-    });
+    // locationRequested: đã chuyển sang FCM data-only 'location_request'
+    // (xem core/services/location_request_handler.dart, gọi từ main.dart) —
+    // Socket.IO không chạy trên Vercel nên listener cũ ở đây không bao giờ bắn.
 
     // Sprint 10: deviceError — thiết bị chưa được liên kết trong DB
     SocketService.instance.addDeviceErrorListener(_onDeviceError);

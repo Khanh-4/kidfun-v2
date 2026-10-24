@@ -25,6 +25,17 @@ class LocationRepository {
     return response.data['data']['location'];
   }
 
+  /// Phụ huynh yêu cầu máy trẻ gửi vị trí ngay (server đẩy FCM data-only).
+  /// Ném Exception mang thông điệp server (VD "máy chưa đăng ký nhận lệnh").
+  Future<void> requestLocation(int profileId) async {
+    try {
+      await _dio.post('/api/profiles/$profileId/location/request');
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      throw Exception(message ?? 'Không gửi được yêu cầu, vui lòng thử lại');
+    }
+  }
+
   // Geofence endpoints
   Future<List<dynamic>> getGeofences(int profileId) async {
     final response = await _dio.get('/api/profiles/$profileId/geofences');

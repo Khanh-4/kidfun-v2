@@ -10,6 +10,7 @@ import 'core/network/realtime_service.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'core/services/native_service.dart';
+import 'core/services/location_request_handler.dart';
 import 'core/services/notification_service.dart';
 import 'app.dart';
 
@@ -19,6 +20,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('[FCM] Received background message: ${message.messageId}');
 
   final type = message.data['type'];
+
+  // Phụ huynh bấm "Yêu cầu cập nhật vị trí ngay" khi app máy trẻ đang chạy nền/đã tắt.
+  if (type == 'location_request') {
+    await respondToLocationRequest();
+    return;
+  }
 
   // Handle blocked apps update from parent — works even when Flutter is in background
   if (type == 'blocked_apps_update') {
@@ -176,6 +183,10 @@ void main() async {
      print('[FCM] Received foreground message: ${message.notification?.title}');
      
      final type = message.data['type'];
+
+     if (type == 'location_request') {
+       respondToLocationRequest();
+     }
 
      // Blocked apps update
      if (type == 'blocked_apps_update') {

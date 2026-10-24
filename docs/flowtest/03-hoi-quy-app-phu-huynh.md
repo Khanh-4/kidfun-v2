@@ -60,6 +60,13 @@ Cần **build lại app phụ huynh từ nhánh mới** — bản cũ vẫn còn
 | 3.7 | Chọn **Sửa** → đổi tên + kéo bán kính → **Lưu** | vòng tròn trên bản đồ đổi kích thước; chạm lại thấy tên/bán kính mới | [ ] |
 | 3.8 | Chạm vùng → **Xoá** → hộp xác nhận → **Xóa** | vùng biến mất khỏi bản đồ | [ ] |
 | 3.9 | Đang ở chế độ **thêm vùng** (nút ➕ góc trên) → chạm vào vùng cũ | **không** hiện pop-up Sửa/Xoá, chỉ đặt tâm vùng mới như trước | [ ] |
+| 3.10 | Máy trẻ **mở app** KidFun. Máy phụ huynh: bản đồ vị trí → bấm nút **🎯 góc dưới phải** | nút xoay ngắn, hiện "Đã gửi yêu cầu, đang chờ máy của bé gửi vị trí..."; trong ~20 giây chấm vị trí của bé **nhảy tới vị trí mới** | [ ] |
+| 3.11 | Như 3.10 nhưng máy trẻ **đang ở màn hình chính / tắt màn hình** (app chạy nền) | vị trí vẫn cập nhật trong ~20 giây; máy trẻ **không** hiện thông báo nào | [ ] |
+| 3.12 | Như 3.10 nhưng trên emulator đổi vị trí giả (Extended controls → Location) trước khi bấm | chấm vị trí nhảy đúng tới tọa độ vừa đặt | [ ] |
+| 3.13 | Hồ sơ **chưa liên kết máy** nào → bấm nút 🎯 | báo đỏ "Chưa có thiết bị nào liên kết với hồ sơ này" | [ ] |
+
+Mục 3.10–3.13 cần **build lại cả app máy trẻ** (máy trẻ phải có code nhận lệnh mới) và backend bản mới đã lên
+Vercel. Máy trẻ cần quyền vị trí **"Luôn cho phép"** thì 3.11 mới đạt.
 
 ## Ghi chép
 

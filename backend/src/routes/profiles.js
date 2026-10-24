@@ -74,6 +74,8 @@ const locationController = require('../controllers/locationController');
 router.get('/:id/location/current', locationController.getCurrentLocation);
 // GET /api/profiles/:id/location/history?date=YYYY-MM-DD — lịch sử GPS theo ngày
 router.get('/:id/location/history', locationController.getLocationHistory);
+// POST /api/profiles/:id/location/request — yêu cầu máy trẻ gửi vị trí ngay (FCM data-only)
+router.post('/:id/location/request', locationController.requestLocation);
 
 const geofenceController = require('../controllers/geofenceController');
 // GET  /api/profiles/:id/geofences — danh sách geofences
