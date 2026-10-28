@@ -716,3 +716,7 @@ Hãy biến codebase hiện tại thành một project:
 > "Đủ sạch để tiếp tục phát triển, đủ tốt để bảo trì, đủ rõ ràng để sinh viên có thể hiểu và trình bày."
 
 </details>
+
+---
+
+**Sự cố đã gặp:** xem [`docs/incidents/`](incidents/README.md) — triệu chứng, nguyên nhân, cách sửa và cách kiểm tra lại của từng lỗi đã xử lý.
