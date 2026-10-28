@@ -65,6 +65,10 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   int? _pausedRemainingSeconds; // NEW
   int? _sessionId;
   Timer? _countdownTimer;
+  // Mỗi lần phụ huynh lưu hạn mức sửa 7 hàng TimeLimit → 7 event Realtime.
+  // Gộp lại thành 1 lần gọi, và chỉ áp response của lần gọi mới nhất.
+  Timer? _limitRefetchDebounce;
+  int _limitFetchSeq = 0;
   Timer? _heartbeatTimer;
   bool _hasShown30m = false;
   bool _hasShown15m = false;
@@ -614,11 +618,15 @@ _startHeartbeat();
       }
     } catch (e) {
       print('❌ [RESUME] Error: $e');
-      // Fallback: just resume countdown from last known state
+      // Fallback: chạy tiếp từ trạng thái cũ. PHẢI bật lại heartbeat — trước đây
+      // thiếu dòng này nên resume lỗi một lần là server ngừng đếm luôn.
       if (mounted && _endTime != null) {
         final secs = (_endTime!.difference(DateTime.now()).inMilliseconds / 1000).round();
         setState(() => _remainingSeconds = secs > 0 ? secs : 0);
-        if (_remainingSeconds > 0) _startCountdown();
+        if (_remainingSeconds > 0) {
+          _startCountdown();
+          _startHeartbeat();
+        }
       }
     }
   }
@@ -749,8 +757,13 @@ _startHeartbeat();
 
   Future<void> _fetchAndApplyNewLimit() async {
     if (_deviceCode == null) return;
+    final seq = ++_limitFetchSeq;
     try {
       final nowLimit = await _childRepo.getTodayLimit(_deviceCode!);
+      if (seq != _limitFetchSeq) {
+        print('📊 [_fetchAndApplyNewLimit] Bỏ response cũ (#$seq < #$_limitFetchSeq)');
+        return;
+      }
       final newTotalLimitMinutes = nowLimit.limitMinutes;
       final newRemainingSeconds = nowLimit.remainingSeconds;
       final enabled = nowLimit.isLimitEnabled;
@@ -861,8 +874,9 @@ _startHeartbeat();
   // RealtimeService cho danh sách bảng Postgres tương ứng.
 
   void _onRealtimeTimeLimitUpdated(Map<String, dynamic> data) {
-    print('🔔 [Realtime] TimeLimit changed. Applying delta to countdown.');
-    _fetchAndApplyNewLimit();
+    print('🔔 [Realtime] TimeLimit changed — refetch sau 1.5s (gộp event)');
+    _limitRefetchDebounce?.cancel();
+    _limitRefetchDebounce = Timer(const Duration(milliseconds: 1500), _fetchAndApplyNewLimit);
   }
 
   void _onRealtimeBlockedAppsUpdated(Map<String, dynamic> data) {
@@ -1160,6 +1174,7 @@ _startHeartbeat();
     _pulseController.dispose();
     _connectionCheckTimer?.cancel();
     _countdownTimer?.cancel();
+    _limitRefetchDebounce?.cancel();
     _heartbeatTimer?.cancel();
     _usageSyncTimer?.cancel();
     _screenPollTimer?.cancel();

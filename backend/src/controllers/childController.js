@@ -1,14 +1,14 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const { getCached, setCache, clearCache } = require('../services/cacheService');
+const { clearCache } = require('../services/cacheService');
 const { vnDayRange } = require('../utils/vnTime');
 
-// Helper: calculate remaining minutes for a profile today, including bonus
-// Results are cached for 30s to reduce DB load from frequent heartbeat calls
+// Helper: calculate remaining minutes for a profile today, including bonus.
+// KHÔNG cache: cache in-memory trên Vercel nằm riêng từng instance, clearCache
+// lúc phụ huynh lưu hạn mức chỉ xoá được instance xử lý request đó — các instance
+// khác trả remainingSeconds cũ kèm limitMinutes mới, app trẻ hiện "Đã dùng" sai
+// (đo thật 2026-10-28: limit=245p nhưng remaining=18282s ≈ 305p).
 const calcRemaining = async (profileId, deviceId) => {
-  const cacheKey = `remaining_${profileId}_${deviceId}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
   const { startOfDay, endOfDay, dayOfWeek } = vnDayRange();
 
   const timeLimit = await prisma.timeLimit.findUnique({
@@ -94,9 +94,7 @@ const calcRemaining = async (profileId, deviceId) => {
   const remainingSeconds = Math.max(0, limitSeconds - totalSeconds);
   const remainingMinutes = Math.round(remainingSeconds / 60);
 
-  const result = { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession };
-  setCache(cacheKey, result, 30 * 1000); // Cache 30s — invalidate khi Parent thay đổi time limit
-  return result;
+  return { dailyLimitMinutes, usedMinutes, usedSeconds: totalSeconds, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession };
 };
 
 // GET /api/child/status
@@ -565,14 +563,20 @@ const resumeSession = async (req, res) => {
 
     const now = new Date();
 
-    // Ensure active session exists
+    // Không còn phiên ACTIVE thì mở phiên mới thay vì 404. Trường hợp hay gặp:
+    // phiên bắt đầu trước 00:00 giờ VN bị calcRemaining() đóng khi sang ngày mới —
+    // trước đây mọi lần resume sau đó đều 404, không UsageLog nào được mở lại và
+    // server ngừng đếm hẳn (log Vercel 2026-10-28).
     const activeSession = await prisma.session.findFirst({
       where: { deviceId: device.id, status: 'ACTIVE' },
       orderBy: { startTime: 'desc' }
     });
 
     if (!activeSession) {
-      return sendError(res, 'No active session to resume', 404, 'NO_ACTIVE_SESSION');
+      await prisma.session.create({
+        data: { profileId: device.profileId, deviceId: device.id, startTime: now, status: 'ACTIVE' }
+      });
+      console.log(`▶️ Session RESUME: không còn phiên ACTIVE, đã mở phiên mới cho deviceCode=${deviceCode}`);
     }
 
     // Create new usage log entry (startTime only) — this resumes accumulation
@@ -773,10 +777,14 @@ const getTodayLimit = async (req, res) => {
 
     // BUG FIX: dùng calcRemaining() thay vì usageSession (bảng không được ghi bởi session APIs)
     // calcRemaining đọc từ usageLog (được tạo bởi startSession + heartbeat) → chính xác
-    const { usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds } =
+    const { usedMinutes, usedSeconds, bonusMinutes } =
       await calcRemaining(device.profile.id, device.id);
 
     const limitMinutes = baseLimit + bonusMinutes;
+    // Tính remaining từ chính limitMinutes trả về (đã gồm giảm dần) để app trẻ
+    // luôn nhận một cặp số khớp nhau: limitMinutes*60 - remainingSeconds = usedSeconds.
+    const remainingSeconds = Math.max(0, limitMinutes * 60 - usedSeconds);
+    const remainingMinutes = Math.round(remainingSeconds / 60);
 
     const dbIsActive = todayLimit?.isActive ?? true;
     const isLimitEnabled = dbIsActive;

@@ -13,6 +13,7 @@ trên điện thoại thật.
 | 2 | [02-canh-bao-tang1.md](02-canh-bao-tang1.md) | Cảnh báo dùng máy bất thường ngay trên máy trẻ (PR #313, #315) | 1 đêm + 30 phút | Người test |
 | 3 | [03-hoi-quy-app-phu-huynh.md](03-hoi-quy-app-phu-huynh.md) | App phụ huynh vẫn chạy đúng sau sửa lỗi phân quyền (PR #314) | ~45 phút | Người test |
 | 4 | [04-do-pin.md](04-do-pin.md) | Đo pin 2 lần: bản cũ (mốc) và bản mới | 2 × 24 giờ | Người test |
+| 5 | [05-dong-ho-dem-nguoc.md](05-dong-ho-dem-nguoc.md) | Đồng hồ đếm ngược app trẻ: đổi hạn mức, tắt màn hình, ra khỏi app, qua 00:00 | ~1 giờ (bước 4 lúc 23:55–00:15) | Người test |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).
