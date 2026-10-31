@@ -203,6 +203,8 @@ app.get('/api/cron/daily-reports', verifyCronSecret, async (req, res) => {
 const behaviorAlertController = require('./controllers/behaviorAlertController');
 app.put('/api/cron/behavior-baselines', verifyCronSecret, express.json({ limit: '4mb' }),
   behaviorAlertController.upsertBaselines);
+// Tác vụ ML ban đêm (đồ án chuyên ngành, T7.1.1a) đọc dữ liệu đã lọc cột định danh.
+app.get('/api/cron/thesis-data', verifyCronSecret, require('./controllers/thesisDataController').getThesisData);
 app.get('/api/cron/weekly-reports', verifyCronSecret, async (req, res) => {
   try {
     await reportWorker.runWeeklyReports();

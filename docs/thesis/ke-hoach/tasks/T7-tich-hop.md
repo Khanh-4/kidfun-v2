@@ -11,10 +11,17 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   gọi được vài endpoint cron, còn lộ chuỗi kết nối DB là đọc được toàn bộ dữ liệu mọi gia đình; API chỉ trả cột cần,
   bỏ tên/email (dữ liệu tối thiểu, dùng cho chương quyền riêng tư); dùng lại `middleware/cronAuth.js`; tránh bẫy RLS
   và IPv6/pooler của Supabase khi nối từ GitHub Actions.
-- [ ] T7.1.1a `GET /api/cron/thesis-data?days=28` (bảo vệ bằng `cronAuth`): trả `AppUsageHourly`, `TimeLimit`,
+- [x] T7.1.1a `GET /api/cron/thesis-data?days=28` (bảo vệ bằng `cronAuth`): trả `AppUsageHourly`, `TimeLimit`,
   `TimeExtensionRequest` theo `profileId`, không kèm tên/email/vị trí. Nếu gần 4,5 MB (giới hạn response Vercel) thì
   chia trang theo trẻ. Test jest: sai secret → 401, không lộ cột định danh.
+  **Xong (31/10/2026):** `backend/src/controllers/thesisDataController.js`, test `tests/integration/thesisData.test.js`.
+  Tham số `days` (1–90, mặc định 28), `limit` trẻ/trang (1–50, mặc định 10), `afterProfileId` (mặc định 0).
+  Trả `{ since, profileIds, nextAfterProfileId, hourly, limits, extRequests }`; cột:
+  `hourly` = profileId, packageName, hourStart, usageSeconds, launchCount; `limits` = profileId, dayOfWeek,
+  dailyLimitMinutes, isActive, isGradual; `extRequests` = profileId, createdAt, requestMinutes, status.
+  Trang vượt 4 MB → `413 PAGE_TOO_LARGE`.
 - [ ] T7.1.2 `ml/jobs/load.py`: gọi API ở T7.1.1a, ra cùng DataFrame mà `ml/features/` đang dùng. Test với JSON giả.
+  Lặp `afterProfileId = nextAfterProfileId` tới khi `null`; gặp 413 thì giảm `limit` một nửa rồi gọi lại.
 - [ ] T7.1.3 `ml/jobs/baseline.py`: tính JSON mức thường ngày cho từng trẻ (dùng lại `ml/tier1/rules.py`), gồm
   `categories` và `dayTypes`. Test: JSON khớp schema mà `Tier1Client.kt` đọc.
 - [ ] T7.1.4 Đóng gói mô hình M1 đã huấn luyện trên mô phỏng (file `.json` của XGBoost + isotonic) để tác vụ chỉ việc
