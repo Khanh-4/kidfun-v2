@@ -18,7 +18,7 @@ import pandas as pd
 from features import Calendar, build_hourly_features, load_categories
 from features.common import VN_OFFSET
 from jobs.load import ApiError, ThesisData, http_json, load_thesis_data
-from tier1.rules import build_baseline
+from tier1.rules import DEFAULT_RULES, build_baseline, relax
 
 MIN_BASELINE_DAYS = 7  # ít ngày hơn thì mức thường ngày chưa đáng tin → bỏ qua trẻ đó
 MAX_PAYLOAD_BYTES = 64 * 1024  # = MAX_BASELINE_BYTES ở backend/src/controllers/behaviorAlertController.js
@@ -37,6 +37,23 @@ def vn_today(now: pd.Timestamp) -> pd.Timestamp:
     return (now.tz_convert("UTC").tz_localize(None) + VN_OFFSET).normalize()
 
 
+TIER1_RULES = ("night", "spike")
+OVERRIDE_KEYS = ("nightMinByDayType", "spikeRatioByKey")
+
+
+def overrides_from_feedback(feedback: pd.DataFrame) -> dict:
+    """Áp relax() lần lượt theo thời gian cho mọi lần phụ huynh bấm "được phép" của MỘT trẻ.
+
+    Tính lại từ đầu mỗi đêm (relax tối đa MAX_RELAX lần mỗi khoá) nên không cần lưu bộ đếm ở đâu cả.
+    Trả về chỉ phần ngưỡng riêng theo loại ngày / nhóm app, để build_baseline gộp với DEFAULT_RULES.
+    """
+    rules, counts = dict(DEFAULT_RULES), {}
+    usable = feedback[feedback["rule"].isin(TIER1_RULES) & feedback["dayType"].notna()]
+    for row in usable.sort_values("feedbackAt").itertuples():
+        rules, counts = relax(rules, counts, row.rule, row.dayType, row.category)
+    return {k: rules[k] for k in OVERRIDE_KEYS if k in rules}
+
+
 def build_baselines(data: ThesisData, *, now: pd.Timestamp, calendar: Calendar,
                     categories: dict[str, str]) -> tuple[list[dict], dict]:
     """Trả (danh sách {profileId, payload, validUntil} để PUT, báo cáo processed/skipped/errors)."""
@@ -52,7 +69,8 @@ def build_baselines(data: ThesisData, *, now: pd.Timestamp, calendar: Calendar,
         if mine.empty or mine["date"].nunique() < MIN_BASELINE_DAYS:
             report["skipped"].append(pid)
             continue
-        payload = build_baseline(mine, pid, as_of, calendar=calendar, categories=categories)
+        overrides = overrides_from_feedback(data.alert_feedback[data.alert_feedback["profileId"] == pid])
+        payload = build_baseline(mine, pid, as_of, overrides=overrides, calendar=calendar, categories=categories)
         size = len(json.dumps(payload))
         if size > MAX_PAYLOAD_BYTES:
             report["errors"].append({"profileId": pid, "error": f"payload {size} byte > {MAX_PAYLOAD_BYTES}"})

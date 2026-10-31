@@ -29,8 +29,9 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   `categories` và `dayTypes`. Test: JSON khớp schema mà `Tier1Client.kt` đọc.
   **Xong (31/10/2026):** `build_baselines()` + `push_baselines()` (PUT theo lô 50), test `ml/tests/test_baseline_job.py`.
   Tác vụ chạy 21:05 VN → baseline phục vụ **ngày mai** (`as_of` = mai), chỉ dùng ngày đã trọn vẹn; trẻ < 7 ngày dữ
-  liệu bị bỏ qua; payload > 64 KB báo lỗi. **Chưa làm:** `overrides` từ phản hồi "được phép" của phụ huynh (`relax()`)
-  — API thesis-data chưa trả cảnh báo + phản hồi; cần thêm khi làm T7.4.
+  liệu bị bỏ qua; payload > 64 KB báo lỗi. Nới ngưỡng theo phản hồi "được phép" của phụ huynh: `thesis-data` trả
+  `alertFeedback` (cảnh báo TIER1 có `feedback` = `ALLOWED_*`, mọi thời điểm), `overrides_from_feedback()` áp
+  `relax()` theo thứ tự thời gian, tối đa 2 lần mỗi khoá, tính lại từ đầu mỗi đêm nên không cần lưu bộ đếm.
 - [ ] T7.1.4 Đóng gói mô hình M1 đã huấn luyện trên mô phỏng (file `.json` của XGBoost + isotonic) để tác vụ chỉ việc
   tải và dự đoán, không huấn luyện lại mỗi đêm.
 - [ ] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
