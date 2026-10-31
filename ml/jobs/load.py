@@ -44,17 +44,25 @@ class ThesisData:
     ext_requests: pd.DataFrame
 
 
-def http_get_json(url: str, headers: dict) -> tuple[int, dict]:
-    req = urllib.request.Request(url, headers=headers)
+def http_json(url: str, headers: dict, *, method: str = "GET", body: dict | None = None) -> tuple[int, dict]:
+    """Gọi HTTP, trả (status, body JSON) cả khi lỗi 4xx/5xx — để nơi gọi tự quyết định xử lý."""
+    data = None if body is None else json.dumps(body).encode()
+    if data is not None:
+        headers = {**headers, "Content-Type": "application/json"}
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
             return resp.status, json.loads(resp.read())
     except urllib.error.HTTPError as err:
         try:
-            body = json.loads(err.read())
+            err_body = json.loads(err.read())
         except ValueError:
-            body = {}
-        return err.code, body
+            err_body = {}
+        return err.code, err_body
+
+
+def http_get_json(url: str, headers: dict) -> tuple[int, dict]:
+    return http_json(url, headers)
 
 
 def fetch_pages(base_url: str, secret: str, *, days: int = DEFAULT_DAYS, limit: int = DEFAULT_LIMIT,

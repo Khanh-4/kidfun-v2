@@ -25,8 +25,12 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   **Xong (31/10/2026):** `load_thesis_data(url, secret)` → `ThesisData(profile_ids, hourly, limits, ext_requests)`;
   test `ml/tests/test_load.py` (7 ca, gồm đưa thẳng kết quả vào `build_daily_features`). Chạy thử:
   `CRON_SECRET=... ml/.venv/bin/python -m jobs.load --url https://kidfun-backend.vercel.app` (từ `ml/`).
-- [ ] T7.1.3 `ml/jobs/baseline.py`: tính JSON mức thường ngày cho từng trẻ (dùng lại `ml/tier1/rules.py`), gồm
+- [x] T7.1.3 `ml/jobs/baseline.py`: tính JSON mức thường ngày cho từng trẻ (dùng lại `ml/tier1/rules.py`), gồm
   `categories` và `dayTypes`. Test: JSON khớp schema mà `Tier1Client.kt` đọc.
+  **Xong (31/10/2026):** `build_baselines()` + `push_baselines()` (PUT theo lô 50), test `ml/tests/test_baseline_job.py`.
+  Tác vụ chạy 21:05 VN → baseline phục vụ **ngày mai** (`as_of` = mai), chỉ dùng ngày đã trọn vẹn; trẻ < 7 ngày dữ
+  liệu bị bỏ qua; payload > 64 KB báo lỗi. **Chưa làm:** `overrides` từ phản hồi "được phép" của phụ huynh (`relax()`)
+  — API thesis-data chưa trả cảnh báo + phản hồi; cần thêm khi làm T7.4.
 - [ ] T7.1.4 Đóng gói mô hình M1 đã huấn luyện trên mô phỏng (file `.json` của XGBoost + isotonic) để tác vụ chỉ việc
   tải và dự đoán, không huấn luyện lại mỗi đêm.
 - [ ] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
@@ -35,7 +39,8 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 
 ## T7.2 Backend nhận kết quả
 
-- [ ] T7.2.1 `PUT /api/cron/behavior-baselines` (bảo vệ bằng `CRON_SECRET`): ghi đè `BehaviorBaseline` theo lô.
+- [x] T7.2.1 `PUT /api/cron/behavior-baselines` (bảo vệ bằng `CRON_SECRET`): ghi đè `BehaviorBaseline` theo lô.
+  (Đã có từ commit `b7f065b`, test ở `backend/tests/integration/behaviorAlert.test.js`; tick muộn 31/10.)
 - [x] T7.2.2 **Đã chốt (23/10/2026): kết hợp hai bảng.** Mọi dự đoán ghi vào bảng mới `UsagePrediction`; chỉ khi xác
   suất vượt giới hạn ≥ 0,6 mới tạo thêm `BehaviorAlert` với `source = "M1"`. Lý do: thẻ "Ngày mai" và đánh giá MAE
   (T8.3.2) cần dự đoán của **mọi** ngày; `BehaviorAlert` chỉ nên chứa cảnh báo và thiếu cột xác suất/giới hạn; cảnh

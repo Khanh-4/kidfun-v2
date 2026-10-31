@@ -97,6 +97,12 @@ bản Kotlin (sinh từ `tests/test_tier1.py::CASES`).
 cd ml && CRON_SECRET=... .venv/bin/python -m jobs.load --url https://kidfun-backend.vercel.app
 ```
 
+Mức thường ngày cho luật tầng 1 (T7.1.3) — mặc định chỉ tính và in báo cáo, thêm `--push` để ghi lên backend:
+
+```bash
+cd ml && CRON_SECRET=... .venv/bin/python -m jobs.baseline --url https://kidfun-backend.vercel.app [--push]
+```
+
 Trong code: `from jobs.load import load_thesis_data` → `hourly`, `limits`, `ext_requests` đưa thẳng vào
 `build_daily_features` / `build_hourly_features`.
 
