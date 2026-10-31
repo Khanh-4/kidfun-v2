@@ -19,7 +19,7 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 |---|---|---|
 | [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần |
 | [T1–T6](tasks/T1-T6-da-xong.md) | Thu thập theo giờ, EDA, đặc trưng, mô phỏng, M1, M2 hai tầng, phản hồi, M3/M4 | Code xong; **chờ test máy thật** |
-| [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối: tác vụ ban đêm, API kết quả, app phụ huynh | Đang làm: T7.1.1a, T7.1.2 xong (31/10), kế tiếp T7.1.3 |
+| [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối: tác vụ ban đêm, API kết quả, app phụ huynh | Đang làm: T7.1.1a–T7.1.3, T7.2.1 xong (31/10), kế tiếp T7.1.4 |
 | [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | Chưa làm (cần T7 và dữ liệu thật) |
 | [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | Chưa làm |
 
