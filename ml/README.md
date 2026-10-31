@@ -89,6 +89,17 @@ kiểm tra sau; đo cả tỷ lệ câu giải thích nói đúng loại bất t
 `tier1/rules.py` là bản tham chiếu của luật chạy trên máy trẻ; `tier1/test_vectors.json` là ca kiểm thử dùng chung với
 bản Kotlin (sinh từ `tests/test_tier1.py::CASES`).
 
+## Tải dữ liệu thật (tác vụ ban đêm, T7.1.2)
+
+Đọc qua `GET /api/cron/thesis-data` của backend (không nối thẳng DB), in số trẻ/số dòng mỗi trang:
+
+```bash
+cd ml && CRON_SECRET=... .venv/bin/python -m jobs.load --url https://kidfun-backend.vercel.app
+```
+
+Trong code: `from jobs.load import load_thesis_data` → `hourly`, `limits`, `ext_requests` đưa thẳng vào
+`build_daily_features` / `build_hourly_features`.
+
 ## Test
 
 ```bash

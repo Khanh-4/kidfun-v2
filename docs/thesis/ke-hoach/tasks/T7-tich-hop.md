@@ -20,8 +20,11 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   `hourly` = profileId, packageName, hourStart, usageSeconds, launchCount; `limits` = profileId, dayOfWeek,
   dailyLimitMinutes, isActive, isGradual; `extRequests` = profileId, createdAt, requestMinutes, status.
   Trang vượt 4 MB → `413 PAGE_TOO_LARGE`.
-- [ ] T7.1.2 `ml/jobs/load.py`: gọi API ở T7.1.1a, ra cùng DataFrame mà `ml/features/` đang dùng. Test với JSON giả.
+- [x] T7.1.2 `ml/jobs/load.py`: gọi API ở T7.1.1a, ra cùng DataFrame mà `ml/features/` đang dùng. Test với JSON giả.
   Lặp `afterProfileId = nextAfterProfileId` tới khi `null`; gặp 413 thì giảm `limit` một nửa rồi gọi lại.
+  **Xong (31/10/2026):** `load_thesis_data(url, secret)` → `ThesisData(profile_ids, hourly, limits, ext_requests)`;
+  test `ml/tests/test_load.py` (7 ca, gồm đưa thẳng kết quả vào `build_daily_features`). Chạy thử:
+  `CRON_SECRET=... ml/.venv/bin/python -m jobs.load --url https://kidfun-backend.vercel.app` (từ `ml/`).
 - [ ] T7.1.3 `ml/jobs/baseline.py`: tính JSON mức thường ngày cho từng trẻ (dùng lại `ml/tier1/rules.py`), gồm
   `categories` và `dayTypes`. Test: JSON khớp schema mà `Tier1Client.kt` đọc.
 - [ ] T7.1.4 Đóng gói mô hình M1 đã huấn luyện trên mô phỏng (file `.json` của XGBoost + isotonic) để tác vụ chỉ việc
