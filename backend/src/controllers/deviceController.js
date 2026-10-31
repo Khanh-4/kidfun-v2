@@ -425,7 +425,7 @@ const cancelPairing = async (req, res) => {
 // POST /api/devices/link
 const linkDevice = async (req, res) => {
   try {
-    let { pairingCode, deviceCode, deviceName, platform, osVersion } = req.body;
+    let { pairingCode, deviceCode, deviceName, osVersion } = req.body;
 
     if (!pairingCode) {
       return sendError(res, 'pairingCode is required', 400, 'MISSING_FIELDS');

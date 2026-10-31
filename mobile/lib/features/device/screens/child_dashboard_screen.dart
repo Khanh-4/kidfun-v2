@@ -721,10 +721,10 @@ _startHeartbeat();
   void _onTimeUp() {
     _countdownTimer?.cancel();
     _heartbeatTimer?.cancel();
-    if (_sessionId != null) {
-      _childRepo.endSession(_sessionId!, _deviceCode ?? '');
-      _sessionId = null;
+    if (_sessionId != null && _deviceCode != null) {
+      _childRepo.endSession(_sessionId!, _deviceCode!);
     }
+    _sessionId = null;
 
     // Log warning
     if (_deviceCode != null) {
@@ -1024,6 +1024,9 @@ _startHeartbeat();
     _sosTimer?.cancel();
 
     await ChildLinkService.clearLocalLink();
+    // Bỏ luôn sessionId: nếu giữ lại, dispose() sẽ gọi session/end với
+    // deviceCode rỗng → server trả 400 MISSING_DEVICE_CODE (sự cố 2026-10-28).
+    _sessionId = null;
     if (mounted) setState(() => _deviceCode = null);
 
     if (!mounted) return;
@@ -1180,8 +1183,8 @@ _startHeartbeat();
     _screenPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     
-    if (_sessionId != null) {
-      _childRepo.endSession(_sessionId!, _deviceCode ?? '');
+    if (_sessionId != null && _deviceCode != null) {
+      _childRepo.endSession(_sessionId!, _deviceCode!);
     }
     
     // Remove socket listeners

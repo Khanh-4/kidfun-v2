@@ -49,8 +49,11 @@ Ghi chú: người test hay test quanh 00:00 giờ VN (24/10, 25/10, 28/10) — 
 - Đừng để app tự tính "Đã dùng" từ hai số lấy ở hai thời điểm khác nhau.
 - Mọi nhánh lỗi dừng heartbeat/pause phải có đường bật lại.
 
-## Còn treo (chưa sửa, không do PR #321)
+## Việc treo sau sự cố — đã xử lý (nhánh `fix/session-end-cron-cache-cleanup`, 2026-10-31)
 
-- `POST /api/child/session/end` trả **400** (thấy lúc 17:27 và 18:33 UTC ngày 28/10) — có thể app gửi thiếu `sessionId` hợp lệ khi hết giờ (`_onTimeUp`). Chưa thấy ảnh hưởng vì `startSession` tự đóng phiên cũ.
-- `GET /api/cron/daily-reports` **timeout 60s** (17:53 UTC ngày 28/10) — báo cáo ngày có thể không được tạo.
-- Các `clearCache('remaining_…')` trong `profileController.js`, `extensionController.js`, `childController.js` giờ không còn tác dụng (không còn gì để xoá) — có thể dọn.
+- **`POST /api/child/session/end` trả 400** — nguyên nhân khả dĩ nhất (đọc code, chưa có log body để xác nhận): khi gỡ liên kết, app đặt `_deviceCode = null` nhưng giữ `_sessionId`, rồi `dispose()` gọi `endSession(sid, '')` → server trả `400 MISSING_DEVICE_CODE`. Đã sửa: xoá `_sessionId` khi gỡ liên kết, chỉ gọi `endSession` khi có `deviceCode`. Server giờ `console.warn` mã lỗi ở 2 nhánh 400 — nếu còn 400 thì log Vercel cho biết ngay lý do. Thêm: thiết bị khác không đóng được phiên không phải của nó (trả 404).
+- **Cron `daily-reports` timeout 60s** — chạy tuần tự từng hồ sơ, mỗi hồ sơ ~11 query nối tiếp. Đã sửa: query trong `aggregateData` chạy song song, hồ sơ xử lý theo lô 5, `maxDuration` 60 → 300s. Kèm sửa lỗi lệch ngày: cron 00:05 giờ VN lấy "hôm qua" theo ngày UTC nên báo cáo ghi vào **hôm kia**; giờ dùng `vnYesterdayKey()`.
+- **`clearCache('remaining_…')` thừa** — đã xoá hết cùng `services/cacheService.js` (không còn ai đọc/ghi cache).
+
+### Còn treo
+- Khung giờ truy vấn trong `reportService` (YouTube, vị trí, SOS…) vẫn tính theo ngày UTC (`setHours` trên server UTC) chứ không phải ngày VN — lệch 7h. `AppUsageLog.date` thì đúng. Sửa cần đổi cả khoá `periodStart` lẫn `reportController`, để PR riêng.

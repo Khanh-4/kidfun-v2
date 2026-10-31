@@ -2,7 +2,6 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 const { sendPushToUser } = require('../services/firebaseService');
-const { clearCache } = require('../services/cacheService');
 
 // GET /api/profiles/:id/extension-requests
 exports.getExtensionRequests = async (req, res) => {
@@ -167,11 +166,6 @@ exports.approveExtension = async (req, res) => {
         profile: true,
       },
     });
-
-    // calcRemaining() cache kết quả 30s. Không xoá thì app trẻ vừa gọi
-    // today-limit trước lúc duyệt sẽ đọc lại đúng bản cũ (bonus = 0) tới tận
-    // 30s sau — đúng triệu chứng "duyệt xong vẫn về giới hạn ngày".
-    clearCache(`remaining_${request.profileId}_`);
 
     // ── Step 3: Notify child device via Socket.IO AFTER DB write ────────────
     if (socketService.io) {
