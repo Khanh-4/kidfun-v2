@@ -1,6 +1,5 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const { clearCache } = require('../services/cacheService');
 const { vnDayRange } = require('../utils/vnTime');
 
 // Helper: calculate remaining minutes for a profile today, including bonus.
@@ -402,11 +401,15 @@ const endSession = async (req, res) => {
     const deviceCode = req.headers['x-device-code'];
     const { sessionId, reason } = req.body;
 
+    // Log Vercel chỉ hiện status code, không hiện body — ghi rõ mã lỗi để lần sau
+    // 400 ở đây (sự cố 2026-10-28) biết ngay do thiếu device code hay sessionId sai.
     if (!deviceCode) {
+      console.warn('[session/end] 400 MISSING_DEVICE_CODE', { sessionId });
       return sendError(res, 'Device code required', 400, 'MISSING_DEVICE_CODE');
     }
 
     if (!sessionId || !Number.isInteger(Number(sessionId))) {
+      console.warn('[session/end] 400 INVALID_SESSION_ID', { sessionId });
       return sendError(res, 'sessionId is required and must be an integer', 400, 'INVALID_SESSION_ID');
     }
 
@@ -423,7 +426,8 @@ const endSession = async (req, res) => {
       where: { id: Number(sessionId) }
     });
 
-    if (!session) {
+    // Không cho thiết bị khác đóng phiên của thiết bị này (sessionId là số tăng dần, đoán được).
+    if (!session || session.deviceId !== device.id) {
       return sendError(res, 'Session not found', 404, 'NOT_FOUND');
     }
 
@@ -644,9 +648,6 @@ const addBonus = async (req, res) => {
       where: { id: activeSession.id },
       data: { bonusMinutes: activeSession.bonusMinutes + additionalMinutes }
     });
-
-    // Invalidate cache so next calcRemaining reflects new bonus
-    clearCache(`remaining_${device.profileId}_`);
 
     // Calculate new remaining
     const { remainingMinutes } = await calcRemaining(device.profileId, device.id);

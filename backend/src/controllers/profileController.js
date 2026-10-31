@@ -1,7 +1,6 @@
 const prisma = require('../utils/prisma');
 const socketService = require('../services/socketService');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const { clearCache } = require('../services/cacheService');
 
 // GET /api/profiles
 const getAllProfiles = async (req, res) => {
@@ -207,9 +206,6 @@ const updateTimeLimits = async (req, res) => {
     const devices = await prisma.device.findMany({
       where: { profileId }
     });
-
-    // Invalidate calcRemaining cache for all devices of this profile
-    clearCache(`remaining_${profileId}_`);
 
     // TEST 7 FIX: Send HTTP response FIRST so the parent's client fully receives
     // the successful save confirmation before notifying devices via socket.

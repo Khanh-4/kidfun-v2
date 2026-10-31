@@ -53,11 +53,46 @@ exports.generateWeeklyReport = async (profileId, mondayDate) => {
 };
 
 async function aggregateData(profileId, start, end) {
-  // 1. App usage
-  const appLogs = await prisma.appUsageLog.findMany({
-    where: { profileId, date: { gte: start, lt: end } },
-  });
+  const inRange = { gte: start, lt: end };
 
+  // Các query độc lập nhau — chạy song song thay vì tuần tự (cron daily-reports
+  // từng timeout 60s vì cộng dồn round-trip tới Supabase).
+  const [
+    appLogs,
+    youtubeLogs,
+    locationLogs,
+    geofenceEvents,
+    blockedCategoriesCount,
+    customBlockedDomainsCount,
+    appTimeLimitsCount,
+    schoolSchedule,
+    sosAlerts,
+    aiAlerts,
+    timeExtensions,
+  ] = await Promise.all([
+    prisma.appUsageLog.findMany({ where: { profileId, date: inRange } }),
+    prisma.youTubeLog.findMany({ where: { profileId, watchedAt: inRange } }),
+    prisma.locationLog.findMany({
+      where: { profileId, createdAt: inRange },
+      select: { latitude: true, longitude: true, createdAt: true },
+    }),
+    prisma.geofenceEvent.findMany({
+      where: { profileId, createdAt: inRange },
+      include: { geofence: { select: { name: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.blockedCategory.count({ where: { profileId, isBlocked: true } }),
+    prisma.customBlockedDomain.count({ where: { profileId } }),
+    prisma.appTimeLimit.count({ where: { profileId, isActive: true } }),
+    prisma.schoolSchedule.findUnique({ where: { profileId } }),
+    prisma.sOSAlert.count({ where: { profileId, createdAt: inRange } }),
+    prisma.aIAlert.count({ where: { profileId, createdAt: inRange } }),
+    prisma.timeExtensionRequest.count({
+      where: { profileId, createdAt: inRange, status: 'APPROVED' },
+    }),
+  ]);
+
+  // 1. App usage
   const totalScreenSeconds = appLogs.reduce((sum, l) => sum + l.usageSeconds, 0);
 
   const appMap = {};
@@ -71,9 +106,6 @@ async function aggregateData(profileId, start, end) {
     .slice(0, 10);
 
   // 2. YouTube stats
-  const youtubeLogs = await prisma.youTubeLog.findMany({
-    where: { profileId, watchedAt: { gte: start, lt: end } },
-  });
   const youtubeStats = {
     totalVideos: youtubeLogs.length,
     totalMinutes: Math.round(youtubeLogs.reduce((s, l) => s + l.durationSeconds, 0) / 60),
@@ -85,15 +117,6 @@ async function aggregateData(profileId, start, end) {
   }
 
   // 3. Location stats
-  const locationLogs = await prisma.locationLog.findMany({
-    where: { profileId, createdAt: { gte: start, lt: end } },
-    select: { latitude: true, longitude: true, createdAt: true },
-  });
-  const geofenceEvents = await prisma.geofenceEvent.findMany({
-    where: { profileId, createdAt: { gte: start, lt: end } },
-    include: { geofence: { select: { name: true } } },
-    orderBy: { createdAt: 'asc' },
-  });
   const locationStats = {
     totalPoints: locationLogs.length,
     geofenceEvents: geofenceEvents.map(e => ({
@@ -106,37 +129,12 @@ async function aggregateData(profileId, start, end) {
   };
 
   // 4. Policy stats
-  const [blockedCategoriesCount, customBlockedDomainsCount, appTimeLimitsCount, schoolSchedule] = await Promise.all([
-    prisma.blockedCategory.count({ where: { profileId, isBlocked: true } }),
-    prisma.customBlockedDomain.count({ where: { profileId } }),
-    prisma.appTimeLimit.count({ where: { profileId, isActive: true } }),
-    prisma.schoolSchedule.findUnique({ where: { profileId } }),
-  ]);
   const policyStats = {
     activeAppLimits: appTimeLimitsCount,
     blockedWebCategories: blockedCategoriesCount,
     customBlockedDomains: customBlockedDomainsCount,
     schoolModeEnabled: schoolSchedule?.isEnabled || false,
   };
-
-  // 5. SOS alerts
-  const sosAlerts = await prisma.sOSAlert.count({
-    where: { profileId, createdAt: { gte: start, lt: end } },
-  });
-
-  // 6. AI alerts
-  const aiAlerts = await prisma.aIAlert.count({
-    where: { profileId, createdAt: { gte: start, lt: end } },
-  });
-
-  // 7. Time extensions
-  const timeExtensions = await prisma.timeExtensionRequest.count({
-    where: {
-      profileId,
-      createdAt: { gte: start, lt: end },
-      status: 'APPROVED',
-    },
-  });
 
   return {
     totalScreenSeconds,
