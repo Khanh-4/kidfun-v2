@@ -4,7 +4,7 @@ const { sendSuccess, sendError } = require('../middleware/responseHandler');
 // Đồ án chuyên ngành (T7.1.1a): tác vụ ML ban đêm trên GitHub Actions đọc dữ liệu qua đây
 // thay vì nối thẳng DB (lý do ở docs/thesis/ke-hoach/tasks/T7-tich-hop.md, T7.1.1).
 // Chỉ trả đúng các cột mà ml/features/ dùng — không tên, email, appName, lý do xin giờ,
-// deviceId hay vị trí (dữ liệu tối thiểu, dùng cho chương quyền riêng tư).
+// deviceId, vị trí hay câu thông báo cảnh báo (có tên trẻ) — dữ liệu tối thiểu, dùng cho chương quyền riêng tư.
 //
 // Chia trang theo trẻ để response không chạm giới hạn 4,5 MB của Vercel: gọi lại với
 // afterProfileId = nextAfterProfileId cho tới khi nó là null.
@@ -25,6 +25,7 @@ const parseIntParam = (raw, fallback, min, max) => {
 };
 
 // GET /api/cron/thesis-data?days=28&limit=10&afterProfileId=0
+// → { since, profileIds, nextAfterProfileId, hourly, limits, extRequests, alertFeedback }
 const getThesisData = async (req, res) => {
   try {
     const days = parseIntParam(req.query.days, DEFAULT_DAYS, 1, MAX_DAYS);
@@ -46,7 +47,7 @@ const getThesisData = async (req, res) => {
     const since = new Date(Date.now() - days * DAY_MS);
     const ofPage = { profileId: { in: profileIds } };
 
-    const [hourly, limits, extRequests] = await Promise.all([
+    const [hourly, limits, extRequests, alertFeedback] = await Promise.all([
       prisma.appUsageHourly.findMany({
         where: { ...ofPage, hourStart: { gte: since } },
         select: { profileId: true, packageName: true, hourStart: true, usageSeconds: true, launchCount: true },
@@ -62,6 +63,13 @@ const getThesisData = async (req, res) => {
         select: { profileId: true, createdAt: true, requestMinutes: true, status: true },
         orderBy: [{ profileId: 'asc' }, { createdAt: 'asc' }],
       }),
+      // Phụ huynh bấm "được phép" cho cảnh báo tầng 1 → tác vụ nới ngưỡng (tier1.rules.relax).
+      // Lấy mọi thời điểm, không giới hạn theo days: phần nới ngưỡng phải giữ mãi, không mất sau 28 ngày.
+      prisma.behaviorAlert.findMany({
+        where: { ...ofPage, source: 'TIER1', feedback: { startsWith: 'ALLOWED_' } },
+        select: { profileId: true, rule: true, category: true, dayType: true, feedback: true, feedbackAt: true },
+        orderBy: [{ profileId: 'asc' }, { feedbackAt: 'asc' }],
+      }),
     ]);
 
     const data = {
@@ -71,6 +79,7 @@ const getThesisData = async (req, res) => {
       hourly,
       limits,
       extRequests,
+      alertFeedback,
     };
     // Trang quá to thì báo để tác vụ giảm limit rồi gọi lại, thay vì để Vercel cắt ngang.
     if (Buffer.byteLength(JSON.stringify(data)) > MAX_RESPONSE_BYTES) {

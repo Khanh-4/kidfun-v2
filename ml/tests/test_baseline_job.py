@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from features import Calendar, load_categories
-from jobs.baseline import MAX_PAYLOAD_BYTES, PUT_BATCH, build_baselines, push_baselines
+from jobs.baseline import MAX_PAYLOAD_BYTES, PUT_BATCH, build_baselines, overrides_from_feedback, push_baselines
 from jobs.load import ApiError, to_frames
 
 CAL = Calendar.load()
@@ -17,8 +17,14 @@ def hour_row(pid, vn_local, minutes, pkg="com.google.android.youtube"):
     return {"profileId": pid, "packageName": pkg, "hourStart": ts, "usageSeconds": int(minutes * 60), "launchCount": 1}
 
 
-def data_for(pids, rows):
-    return to_frames([{"profileIds": pids, "nextAfterProfileId": None, "hourly": rows, "limits": [], "extRequests": []}])
+def data_for(pids, rows, feedback=()):
+    return to_frames([{"profileIds": pids, "nextAfterProfileId": None, "hourly": rows, "limits": [],
+                       "extRequests": [], "alertFeedback": list(feedback)}])
+
+
+def fb(rule, day_type, cat="game", at="2026-10-10T12:00:00.000Z", pid=1):
+    return {"profileId": pid, "rule": rule, "category": cat, "dayType": day_type,
+            "feedback": "ALLOWED_OTHER", "feedbackAt": at}
 
 
 def days_of_usage(pid, n, last="2026-10-19", minutes=40):
@@ -77,6 +83,48 @@ def test_payload_qua_64kb_thi_bao_loi_khong_gui(monkeypatch):
     assert baselines == []
     assert report["errors"] and report["errors"][0]["profileId"] == 1
     assert MAX_PAYLOAD_BYTES == 64 * 1024  # khớp MAX_BASELINE_BYTES ở backend
+
+
+def test_khong_co_phan_hoi_thi_dung_nguong_mac_dinh():
+    [b], _ = build_baselines(data_for([1], days_of_usage(1, 14)), now=NOW, calendar=CAL, categories=CATS)
+
+    assert b["payload"]["rules"] == {"nightMinMinutes": 10, "nightUsualMaxMinutes": 3.0,
+                                     "spikeRatio": 3.0, "spikeMinMinutes": 20}
+
+
+def test_phan_hoi_duoc_phep_noi_nguong_dung_loai_ngay_va_nhom_app():
+    feedback = [fb("spike", "weekend", "game"), fb("night", "school", at="2026-10-11T12:00:00.000Z")]
+    [b], _ = build_baselines(data_for([1], days_of_usage(1, 14), feedback), now=NOW, calendar=CAL, categories=CATS)
+
+    rules = b["payload"]["rules"]
+    assert rules["spikeRatioByKey"] == {"weekend:game": 3.75}  # 3.0 × 1.25
+    assert rules["nightMinByDayType"] == {"school": 15.0}      # 10 × 1.5
+    assert rules["spikeRatio"] == 3.0                            # ngưỡng chung giữ nguyên
+
+
+def test_noi_toi_da_2_lan_moi_khoa_theo_thu_tu_thoi_gian():
+    feedback = [fb("spike", "weekend", at=f"2026-10-1{d}T12:00:00.000Z") for d in (3, 1, 2)]  # cố ý xáo thứ tự
+
+    rules = overrides_from_feedback(data_for([1], [], feedback).alert_feedback)
+
+    assert rules["spikeRatioByKey"] == {"weekend:game": 3.0 * 1.25 * 1.25}
+
+
+def test_bo_qua_phan_hoi_thieu_dayType_hoac_luat_la():
+    feedback = [fb("spike", None), fb("over_limit", "school")]
+
+    assert overrides_from_feedback(data_for([1], [], feedback).alert_feedback) == {}
+
+
+def test_phan_hoi_cua_tre_khac_khong_anh_huong():
+    feedback = [fb("spike", "weekend", pid=2)]
+    data = data_for([1, 2], days_of_usage(1, 14) + days_of_usage(2, 14), feedback)
+
+    baselines, _ = build_baselines(data, now=NOW, calendar=CAL, categories=CATS)
+
+    by_pid = {b["profileId"]: b["payload"]["rules"] for b in baselines}
+    assert "spikeRatioByKey" not in by_pid[1]
+    assert by_pid[2]["spikeRatioByKey"] == {"weekend:game": 3.75}
 
 
 class FakePut:

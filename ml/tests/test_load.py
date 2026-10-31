@@ -89,6 +89,19 @@ def test_to_frames_dung_kieu_cot_ml_features_can():
     assert data.limits["isActive"].dtype == bool
 
 
+def test_to_frames_doc_alertFeedback_va_chiu_duoc_backend_cu_chua_tra():
+    fb = {"profileId": 1, "rule": "spike", "category": "game", "dayType": "weekend",
+          "feedback": "ALLOWED_WEEKEND", "feedbackAt": "2026-10-05T12:00:00.000Z"}
+    with_fb = {**page([1], None)["data"], "alertFeedback": [fb]}
+
+    data = to_frames([with_fb])
+    assert data.alert_feedback.iloc[0]["rule"] == "spike"
+    assert data.alert_feedback["feedbackAt"].dt.tz is not None
+
+    old_backend = page([1], None)["data"]  # chưa có khoá alertFeedback
+    assert to_frames([old_backend]).alert_feedback.empty
+
+
 def test_khong_co_du_lieu_van_tra_frame_rong_du_cot():
     data = to_frames([page([], None)["data"]])
 

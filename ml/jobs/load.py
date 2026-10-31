@@ -27,6 +27,8 @@ HOURLY_COLS = {"profileId": "int64", "packageName": "object", "hourStart": "date
 LIMIT_COLS = {"profileId": "int64", "dayOfWeek": "int64", "dailyLimitMinutes": "int64",
               "isActive": "bool", "isGradual": "bool"}
 EXT_COLS = {"profileId": "int64", "createdAt": "datetime", "requestMinutes": "int64", "status": "object"}
+FEEDBACK_COLS = {"profileId": "int64", "rule": "object", "category": "object", "dayType": "object",
+                 "feedback": "object", "feedbackAt": "datetime"}
 
 # (url, headers) -> (HTTP status, body JSON). Truyền vào được để test không cần mạng.
 GetJson = Callable[[str, dict], tuple[int, dict]]
@@ -42,6 +44,7 @@ class ThesisData:
     hourly: pd.DataFrame
     limits: pd.DataFrame
     ext_requests: pd.DataFrame
+    alert_feedback: pd.DataFrame  # phụ huynh bấm "được phép" cho cảnh báo tầng 1 → nới ngưỡng
 
 
 def http_json(url: str, headers: dict, *, method: str = "GET", body: dict | None = None) -> tuple[int, dict]:
@@ -96,13 +99,15 @@ def _frame(rows: list[dict], cols: dict[str, str]) -> pd.DataFrame:
 
 def to_frames(pages: list[dict]) -> ThesisData:
     def rows(key):
-        return [r for p in pages for r in p[key]]
+        # .get: backend cũ chưa trả alertFeedback vẫn đọc được
+        return [r for p in pages for r in p.get(key, [])]
 
     return ThesisData(
         profile_ids=[pid for p in pages for pid in p["profileIds"]],
         hourly=_frame(rows("hourly"), HOURLY_COLS),
         limits=_frame(rows("limits"), LIMIT_COLS),
         ext_requests=_frame(rows("extRequests"), EXT_COLS),
+        alert_feedback=_frame(rows("alertFeedback"), FEEDBACK_COLS),
     )
 
 

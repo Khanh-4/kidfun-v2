@@ -8,7 +8,7 @@ const prisma = require('../../src/utils/prisma');
 
 const STAMP = Date.now();
 const SECRET = 'test-cron-secret';
-const IDENTIFYING = ['email', 'fullName', 'profileName', 'appName', 'reason', 'deviceId', 'latitude', 'longitude'];
+const IDENTIFYING = ['email', 'fullName', 'profileName', 'appName', 'reason', 'deviceId', 'latitude', 'longitude', 'message'];
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
@@ -55,6 +55,21 @@ describe('GET /api/cron/thesis-data', () => {
     await prisma.timeExtensionRequest.create({
       data: { profileId: p1.id, deviceId: device.id, requestMinutes: 15, reason: 'Con làm bài tập', status: 'APPROVED' },
     });
+    const alert = (over) => ({
+      profileId: p1.id, deviceId: device.id, source: 'TIER1', rule: 'spike', category: 'game', dayType: 'weekend',
+      message: 'Bé Một chơi game nhiều bất thường', ...over,
+    });
+    await prisma.behaviorAlert.createMany({
+      data: [
+        alert({ slotStart: new Date(now - 3 * DAY), feedback: 'ALLOWED_WEEKEND', feedbackAt: new Date(now - 3 * DAY + HOUR) }),
+        // phản hồi "đúng là bất thường" không nới ngưỡng → không trả
+        alert({ slotStart: new Date(now - 2 * DAY), feedback: 'CONFIRMED', feedbackAt: new Date(now - 2 * DAY + HOUR) }),
+        // chưa phản hồi → không trả
+        alert({ slotStart: new Date(now - DAY) }),
+        // M1 không dùng ngưỡng tầng 1 → không trả
+        alert({ source: 'M1', rule: 'over_limit', slotStart: new Date(now - DAY), feedback: 'ALLOWED_OTHER', feedbackAt: new Date(now) }),
+      ],
+    });
   });
 
   afterAll(async () => {
@@ -97,6 +112,15 @@ describe('GET /api/cron/thesis-data', () => {
     ]);
   });
 
+  it('trả phản hồi "được phép" của cảnh báo tầng 1 để tác vụ nới ngưỡng', async () => {
+    const res = await get('?days=28&limit=50');
+
+    expect(mine(res.body.data.alertFeedback)).toEqual([
+      { profileId: profiles[0].id, rule: 'spike', category: 'game', dayType: 'weekend',
+        feedback: 'ALLOWED_WEEKEND', feedbackAt: expect.any(String) },
+    ]);
+  });
+
   it('không lộ cột định danh (tên, email, appName, lý do, vị trí)', async () => {
     const res = await get('?days=28&limit=50');
     const body = JSON.stringify(res.body);
@@ -105,6 +129,7 @@ describe('GET /api/cron/thesis-data', () => {
     expect(body).not.toContain('Phụ Huynh');
     expect(body).not.toContain('Bé Một');
     expect(body).not.toContain('Con làm bài tập');
+    expect(body).not.toContain('chơi game nhiều bất thường'); // message cảnh báo có tên trẻ
   });
 
   // Jest chạy song song nhiều worker: test khác có thể tạo hồ sơ có id nằm giữa
