@@ -5,6 +5,7 @@
 | Việc | Chờ ai | Ảnh hưởng tới |
 |---|---|---|
 | Kết quả chạy `docs/flowtest/00–03` trên máy thật | Người test | Mọi task sau; lỗi thì sửa trước khi làm T7 |
+| Kết quả flowtest 06: DB production 0 dòng `AppUsageHourly`/`AppUsageLog` (kiểm 31/10) | Người test | Tác vụ ban đêm không có dữ liệu thật để tính; T8 |
 | Số đo pin mốc 24h (build commit `5b0a0b0`) và bản mới | Người test | RQ4 (T8.2) |
 | `CRON_SECRET` để thử luật tăng đột biến trên máy thật | Khánh | Flowtest 02 |
 | Hình thức báo cáo cuối (có phải viết dạng bài báo không) | GVHD | T9 |

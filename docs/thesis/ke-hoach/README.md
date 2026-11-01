@@ -13,7 +13,7 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 | [04-huong-phat-trien.md](04-huong-phat-trien.md) | Việc mở rộng nếu dư thời gian và hướng phát triển sau đồ án |
 | [tasks/](tasks/) | Danh sách task lớn, mỗi task chia thành các subtask có tiêu chí "xong" |
 
-## Trạng thái nhanh (cập nhật 23/10/2026)
+## Trạng thái nhanh (cập nhật 01/11/2026)
 
 | Task | Nội dung | Trạng thái |
 |---|---|---|
@@ -23,7 +23,7 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 | [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | Chưa làm (cần T7 và dữ liệu thật) |
 | [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | Chưa làm |
 
-Việc tiếp theo: **đọc kết quả test của người test** (`docs/flowtest/`). Có lỗi thì sửa trước, ổn thì bắt đầu T7.
+Việc tiếp theo: **đọc kết quả flowtest 06** (vì sao DB production chưa có dữ liệu dùng app), rồi T7.1.4.
 
 ## Quy ước
 
