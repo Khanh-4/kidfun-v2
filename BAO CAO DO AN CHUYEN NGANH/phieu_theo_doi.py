@@ -59,6 +59,23 @@ WEEKS = {
             "Tồn đọng: chờ test máy thật, đo pin 2×24h.",
         ],
     ),
+    3: (
+        "26/10/2026\n–\n01/11/2026",
+        [
+            "Sửa lỗi hệ thống KidFun: đồng hồ đếm ngược app trẻ lệch và ngừng đếm sau 00:00 "
+            "(người test xác nhận đã sửa); kết thúc phiên khi gỡ liên kết; tác vụ báo cáo ngày "
+            "quá thời gian.",
+            "Tác vụ ban đêm: API backend cung cấp dữ liệu cho ML, bảo vệ bằng khoá bí mật, chỉ "
+            "trả cột cần thiết (không tên, email, vị trí), chia trang theo trẻ.",
+            "Module Python tải dữ liệu thật qua API, ra cùng định dạng với pipeline đặc trưng.",
+            "Tính mức thường ngày của từng trẻ cho luật tầng 1 và gửi lên server; nới ngưỡng "
+            "theo phản hồi \"được phép\" của phụ huynh.",
+            "Thay khoá bí mật mới, kiểm tra API chạy được trên production.",
+            "Phát hiện DB production chưa có dữ liệu dùng app; viết kịch bản chẩn đoán "
+            "(flowtest 06) cho người test.",
+            "Tồn đọng: chờ kết quả test flowtest 06, đo pin 2×24h; đóng gói mô hình M1.",
+        ],
+    ),
 }
 
 CONTENT_PT = 11
