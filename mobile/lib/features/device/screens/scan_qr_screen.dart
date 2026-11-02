@@ -10,6 +10,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
+import '../../../core/permissions/child_permission_guard.dart';
 
 enum _LinkState { input, waiting, success }
 
@@ -21,7 +22,7 @@ class ScanQrScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   _LinkState _linkState = _LinkState.input;
   bool _isProcessing = false;
   bool _isScanning = false;
@@ -36,6 +37,11 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
 
+  // Màn này là nơi máy trẻ dừng lại khi chưa liên kết (kể cả sau khi cập
+  // nhật/cài lại app) — trước đây không kiểm tra quyền nên thiếu Accessibility
+  // mà không có pop-up. Cho "Để sau" để không chặn việc ghép nối.
+  final _permissionGuard = ChildPermissionGuard(allowDismiss: true);
+
   // ── Lifecycle ────────────────────────────────────────────────────────────
 
   @override
@@ -48,10 +54,23 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
     _pulseAnim = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
     );
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _permissionGuard.check(context);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Quay lại từ màn Cài đặt → kiểm tra lại (quyền vừa cấp, hoặc vẫn thiếu).
+    if (state == AppLifecycleState.resumed && mounted) {
+      _permissionGuard.check(context);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseCtrl.dispose();
     _controller.dispose();
     for (final c in _codeControllers) {
