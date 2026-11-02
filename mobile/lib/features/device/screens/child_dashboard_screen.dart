@@ -21,10 +21,9 @@ import '../../../core/services/youtube_service.dart';
 import '../../location/data/location_repository.dart';
 import '../data/child_repository.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:geolocator/geolocator.dart';
+import '../../../core/permissions/child_permission_guard.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'child_locked_widget.dart';
 
 class ChildDashboardScreen extends ConsumerStatefulWidget {
@@ -88,6 +87,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   int _sosCountdown = 15;
   Timer? _sosTimer;
   final _audioRecorder = AudioRecorder();
+
+  late final _permissionGuard =
+      ChildPermissionGuard(onLocationGranted: _startLocationTracking);
 
   @override
   void initState() {
@@ -370,124 +372,9 @@ _startHeartbeat();
     }
   }
 
-  Future<void> _checkAndRequestPermissions() async {
-    if (!mounted) return;
-
-    final hasUsage = await NativeService.hasUsageStatsPermission();
-    if (!hasUsage && mounted) {
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.bar_chart, color: Color(0xFF6366f1)),
-              const SizedBox(width: 8),
-              Flexible(child: Text('Cần quyền theo dõi app', style: GoogleFonts.nunito(fontWeight: FontWeight.bold))),
-            ],
-          ),
-          content: Text(
-            'KidFun cần quyền "Đọc dữ liệu sử dụng ứng dụng" để phụ huynh có thể xem và quản lý các app con đang dùng.',
-            style: GoogleFonts.nunito(fontSize: 15),
-          ),
-          actions: [
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                NativeService.requestUsageStatsPermission();
-              },
-              icon: const Icon(Icons.settings),
-              label: Text('Mở Cài đặt', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
-      return; // Chờ user cấp quyền, sẽ re-check khi resume
-    }
-
-    final hasAccessibility = await NativeService.isAccessibilityEnabled();
-    if (!hasAccessibility && mounted) {
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.accessibility, color: Color(0xFF6366f1)),
-              const SizedBox(width: 8),
-              Flexible(child: Text('Cần quyền Accessibility', style: GoogleFonts.nunito(fontWeight: FontWeight.bold))),
-            ],
-          ),
-          content: Text(
-            'KidFun cần quyền Accessibility để có thể chặn các ứng dụng khi phụ huynh yêu cầu.',
-            style: GoogleFonts.nunito(fontSize: 15),
-          ),
-          actions: [
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                NativeService.requestAccessibilityPermission();
-              },
-              icon: const Icon(Icons.settings),
-              label: Text('Mở Cài đặt', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
-      return; // Re-check sẽ được gọi khi app resume sau khi user bật trong Settings
-    }
-
-    // Android 13+: request POST_NOTIFICATIONS permission tại runtime
-    // Nếu không có permission này, tất cả notification từ BlockNotificationHelper sẽ silently fail
-    final notifStatus = await Permission.notification.status;
-    if (notifStatus.isDenied) {
-      await Permission.notification.request();
-    }
-
-    // Ask for location permission
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled && mounted) {
-       print('Location service disabled');
-    } else {
-       LocationPermission permission = await Geolocator.checkPermission();
-       if (permission == LocationPermission.denied && mounted) {
-         await showDialog(
-           context: context,
-           barrierDismissible: false,
-           builder: (ctx) => AlertDialog(
-             title: Row(
-               children: [
-                 const Icon(Icons.location_on, color: Color(0xFF6366f1)),
-                 const SizedBox(width: 8),
-                 Flexible(child: Text('Cần quyền Vị trí', style: GoogleFonts.nunito(fontWeight: FontWeight.bold))),
-               ],
-             ),
-             content: Text(
-               'KidFun cần quyền Vị trí để gửi vị trí hiện tại cho phụ huynh, giúp phụ huynh biết trẻ đang ở đâu.',
-               style: GoogleFonts.nunito(fontSize: 15),
-             ),
-             actions: [
-               ElevatedButton.icon(
-                 onPressed: () async {
-                   Navigator.pop(ctx);
-                   await Geolocator.requestPermission();
-                   if (Platform.isAndroid) {
-                     final status = await Permission.locationAlways.request();
-                     if (status.isGranted) {
-                       print('✅ Background location granted');
-                     }
-                   }
-                   _startLocationTracking();
-                 },
-                 icon: const Icon(Icons.check),
-                 label: Text('Cấp quyền', style: GoogleFonts.nunito(fontWeight: FontWeight.bold)),
-               ),
-             ],
-           ),
-         );
-       }
-    }
-  }
+  // Rà soát quyền THẬT mỗi lần mở màn hình và mỗi lần resume — một pop-up
+  // liệt kê mọi quyền thiếu (xem ChildPermissionGuard).
+  Future<void> _checkAndRequestPermissions() => _permissionGuard.check(context);
 
   Future<void> _syncInstalledApps() async {
     if (_deviceCode == null) return;
