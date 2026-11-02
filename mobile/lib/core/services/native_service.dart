@@ -153,9 +153,10 @@ class NativeService {
     );
   }
 
-  /// Xóa pending logs sau khi upload thành công
-  static Future<void> clearPendingYouTubeLogs() async {
-    await _channel.invokeMethod('clearPendingYouTubeLogs');
+  /// Xóa [count] pending logs đầu danh sách sau khi upload thành công
+  /// (bỏ trống [count] = xoá hết).
+  static Future<void> clearPendingYouTubeLogs({int? count}) async {
+    await _channel.invokeMethod('clearPendingYouTubeLogs', {'count': count});
   }
 
   /// Cập nhật danh sách video bị chặn xuống native YouTubeTracker

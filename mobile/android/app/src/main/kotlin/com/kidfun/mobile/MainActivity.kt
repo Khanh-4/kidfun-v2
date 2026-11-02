@@ -224,7 +224,16 @@ class MainActivity : FlutterActivity() {
                     }
 
                     "clearPendingYouTubeLogs" -> {
-                        YouTubeTracker.pendingLogs.clear()
+                        // Chỉ xoá đúng số log vừa upload — log mới phát sinh trong lúc
+                        // request đang bay nằm ở cuối danh sách và phải được giữ lại.
+                        val count = call.argument<Int>("count")
+                        if (count == null) {
+                            YouTubeTracker.pendingLogs.clear()
+                        } else {
+                            repeat(minOf(count, YouTubeTracker.pendingLogs.size)) {
+                                YouTubeTracker.pendingLogs.removeAt(0)
+                            }
+                        }
                         result.success(null)
                     }
 

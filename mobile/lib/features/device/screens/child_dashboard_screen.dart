@@ -125,6 +125,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       // Bắt trường hợp phụ huynh xoá thiết bị lúc app trẻ đang chạy nền (không
       // nhận được signal Realtime nào) — kiểm tra lại ngay khi quay lại.
       _verifyLinkStillValid();
+      // Đẩy ngay log YouTube vừa xem (trẻ thường thoát YouTube rồi mở lại app).
+      if (_deviceCode != null) YouTubeService.instance.flushPending(_deviceCode!);
       // Huỷ lịch khoá native — Flutter timer tiếp quản
       NativeService.cancelScheduledLock().catchError(
         (e) => print('❌ [LOCK] cancelScheduledLock error: $e'),

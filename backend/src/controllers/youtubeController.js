@@ -1,6 +1,12 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { ownedBy } = require('../utils/ownership');
+const { vnDayRange, VN_OFFSET_MS } = require('../utils/vnTime');
+
+const DATE_PARAM_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+// Ngày (YYYY-MM-DD) theo giờ VN của một thời điểm — server chạy UTC.
+const vnDateKey = (date) => new Date(date.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
 
 // POST /api/child/youtube-logs — Child batch upload
 exports.batchUploadLogs = async (req, res) => {
@@ -39,7 +45,8 @@ exports.batchUploadLogs = async (req, res) => {
         });
         created.push(yt.id);
       } catch (err) {
-        // Skip duplicates or invalid records silently
+        // Bỏ qua bản ghi lỗi để không mất cả lô, nhưng phải để lại dấu vết trong log.
+        console.error(`❌ [YOUTUBE] Skip log "${log.videoTitle}" for profile ${device.profile.id}: ${err.message}`);
       }
     }
 
@@ -154,7 +161,7 @@ exports.getDashboard = async (req, res) => {
     });
     const dailyMap = {};
     for (const log of dailyLogs) {
-      const day = log.watchedAt.toISOString().slice(0, 10);
+      const day = vnDateKey(log.watchedAt);
       dailyMap[day] = (dailyMap[day] || 0) + 1;
     }
 
@@ -182,11 +189,13 @@ exports.getLogs = async (req, res) => {
 
     const where = { profileId };
     if (date) {
-      const start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 1);
-      where.watchedAt = { gte: start, lt: end };
+      // `date` là ngày theo giờ VN (app gửi YYYY-MM-DD) — không dùng setHours vì server chạy UTC.
+      const at = DATE_PARAM_REGEX.test(date) ? new Date(`${date}T12:00:00+07:00`) : null;
+      if (!at || Number.isNaN(at.getTime())) {
+        return sendError(res, 'Invalid date: expected YYYY-MM-DD', 400);
+      }
+      const { startOfDay, endOfDay } = vnDayRange(at);
+      where.watchedAt = { gte: startOfDay, lte: endOfDay };
     }
     if (minDanger) where.dangerLevel = { gte: parseInt(minDanger) };
     if (channel) where.channelName = channel;
