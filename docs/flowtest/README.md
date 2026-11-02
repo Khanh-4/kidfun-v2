@@ -16,6 +16,7 @@ trên điện thoại thật.
 | 5 | [05-dong-ho-dem-nguoc.md](05-dong-ho-dem-nguoc.md) | Đồng hồ đếm ngược app trẻ: đổi hạn mức, tắt màn hình, ra khỏi app, qua 00:00 | ~1 giờ (bước 4 lúc 23:55–00:15) | Người test |
 | 6 | [06-chan-doan-du-lieu-dung-app.md](06-chan-doan-du-lieu-dung-app.md) | **Làm trước luồng 1 & 2** — chẩn đoán vì sao server không nhận dữ liệu dùng app (máy ảo được) | ~20 phút, báo Khanh trong 1 giờ | Người test |
 | 7 | [07-kiem-tra-quyen-app-tre.md](07-kiem-tra-quyen-app-tre.md) | App trẻ tự rà soát quyền thiếu ở màn ghép nối & màn hình trẻ, pop-up tổng hợp (sửa lỗi báo cáo 02/11) | ~30 phút | Người test |
+| 8 | [08-youtube-activity.md](08-youtube-activity.md) | YouTube Activity: log lên app phụ huynh sau khi rời YouTube; thu thập cây giao diện YouTube để sửa tên kênh (sửa lỗi báo cáo 02/11) | ~20 phút | Người test |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).
