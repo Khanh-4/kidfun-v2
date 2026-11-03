@@ -1,5 +1,5 @@
 const prisma = require('../utils/prisma');
-const { vnDayRange } = require('../utils/vnTime');
+const { vnQuotaDayRange } = require('../utils/vnTime');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 exports.startSession = async (req, res) => {
@@ -57,7 +57,7 @@ exports.heartbeat = async (req, res) => {
     });
 
     // Tính remaining time
-    const { startOfDay, endOfDay, dayOfWeek: today } = vnDayRange();
+    const { startOfDay, endOfDay, dayOfWeek: today } = vnQuotaDayRange();
     const todayLimit = session.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
     // Cùng bộ lọc với calcRemaining() — xem chú thích ở đó: lọc theo lúc DUYỆT,

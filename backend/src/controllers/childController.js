@@ -1,6 +1,6 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const { vnDayRange } = require('../utils/vnTime');
+const { vnQuotaDayRange } = require('../utils/vnTime');
 
 // Helper: calculate remaining minutes for a profile today, including bonus.
 // KHÔNG cache: cache in-memory trên Vercel nằm riêng từng instance, clearCache
@@ -8,7 +8,7 @@ const { vnDayRange } = require('../utils/vnTime');
 // khác trả remainingSeconds cũ kèm limitMinutes mới, app trẻ hiện "Đã dùng" sai
 // (đo thật 2026-10-28: limit=245p nhưng remaining=18282s ≈ 305p).
 const calcRemaining = async (profileId, deviceId) => {
-  const { startOfDay, endOfDay, dayOfWeek } = vnDayRange();
+  const { startOfDay, endOfDay, dayOfWeek } = vnQuotaDayRange();
 
   const timeLimit = await prisma.timeLimit.findUnique({
     where: {
@@ -170,7 +170,7 @@ const getStatus = async (req, res) => {
     const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
 
-    const { dayOfWeek } = vnDayRange();
+    const { dayOfWeek } = vnQuotaDayRange();
 
     sendSuccess(res, {
       device: {
@@ -750,7 +750,7 @@ const getTodayLimit = async (req, res) => {
       return sendError(res, 'Device not found or not linked to profile', 404);
     }
 
-    const { dayOfWeek: today } = vnDayRange(); // 0 = Sunday, theo giờ VN
+    const { dayOfWeek: today } = vnQuotaDayRange(); // 0 = Sunday, theo giờ VN
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
     // fallback to limitMinutes if dailyLimitMinutes is null

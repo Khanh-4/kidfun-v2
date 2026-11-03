@@ -83,3 +83,27 @@ describe('vnDayRange', () => {
     expect(fromNy.dayOfWeek).toBe(fromVn.dayOfWeek);
   });
 });
+
+describe('vnQuotaDayRange — ngày hạn mức bắt đầu 06:00 giờ VN', () => {
+  const { vnQuotaDayRange } = require('../../src/utils/vnTime');
+  // 2026-11-03 là thứ Ba (dayOfWeek 2)
+
+  it('05:59 VN thứ Ba vẫn thuộc ngày hạn mức thứ Hai', () => {
+    const r = vnQuotaDayRange(new Date('2026-11-02T22:59:00Z')); // 05:59 VN 03/11
+    expect(r.startOfDay.toISOString()).toBe('2026-11-01T23:00:00.000Z'); // 06:00 VN 02/11
+    expect(r.endOfDay.toISOString()).toBe('2026-11-02T22:59:59.999Z');
+    expect(r.dayOfWeek).toBe(1);
+  });
+
+  it('06:00 VN thứ Ba sang ngày hạn mức mới', () => {
+    const r = vnQuotaDayRange(new Date('2026-11-02T23:00:00Z')); // 06:00 VN 03/11
+    expect(r.startOfDay.toISOString()).toBe('2026-11-02T23:00:00.000Z');
+    expect(r.dayOfWeek).toBe(2);
+  });
+
+  it('00:30 VN thứ Tư vẫn là ngày hạn mức thứ Ba', () => {
+    const r = vnQuotaDayRange(new Date('2026-11-03T17:30:00Z')); // 00:30 VN 04/11
+    expect(r.startOfDay.toISOString()).toBe('2026-11-02T23:00:00.000Z');
+    expect(r.dayOfWeek).toBe(2);
+  });
+});

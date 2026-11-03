@@ -34,4 +34,24 @@ function vnDayRange(at = new Date()) {
   };
 }
 
-module.exports = { vnDayRange, VN_OFFSET_MS };
+// Ngày HẠN MỨC (giới hạn thời gian, giờ được cộng thêm) bắt đầu lúc 06:00 giờ VN
+// — khớp màn khoá app trẻ ("06:00 sáng ngày mai"). Trẻ bị khoá tối hôm trước
+// KHÔNG được hạn mức mới lúc nửa đêm. Thống kê theo lịch (YouTube, báo cáo)
+// vẫn dùng vnDayRange (00:00).
+const QUOTA_DAY_START_HOUR = 6;
+const QUOTA_SHIFT_MS = QUOTA_DAY_START_HOUR * 60 * 60 * 1000;
+
+/**
+ * Khoảng [06:00 VN, 05:59:59.999 VN hôm sau] chứa `at`; `dayOfWeek` là thứ
+ * của ngày bắt đầu (01:00 thứ Ba vẫn tra TimeLimit thứ Hai).
+ */
+function vnQuotaDayRange(at = new Date()) {
+  const r = vnDayRange(new Date(at.getTime() - QUOTA_SHIFT_MS));
+  return {
+    startOfDay: new Date(r.startOfDay.getTime() + QUOTA_SHIFT_MS),
+    endOfDay: new Date(r.endOfDay.getTime() + QUOTA_SHIFT_MS),
+    dayOfWeek: r.dayOfWeek,
+  };
+}
+
+module.exports = { vnDayRange, vnQuotaDayRange, VN_OFFSET_MS, QUOTA_DAY_START_HOUR };
