@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'core/services/policy_service.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -15,6 +17,18 @@ import 'core/services/notification_service.dart';
 import 'app.dart';
 
 @pragma('vm:entry-point')
+Future<void> _syncPolicyFromPush() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final deviceCode = prefs.getString('device_code');
+    if (deviceCode == null) return; // máy phụ huynh — bỏ qua
+    await PolicyService.instance.syncAll(deviceCode);
+    print('[FCM] 🌐 Policy synced after policy_update');
+  } catch (e) {
+    print('[FCM] ❌ policy_update sync failed: $e');
+  }
+}
+
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('[FCM] Received background message: ${message.messageId}');
@@ -24,6 +38,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Phụ huynh bấm "Yêu cầu cập nhật vị trí ngay" khi app máy trẻ đang chạy nền/đã tắt.
   if (type == 'location_request') {
     await respondToLocationRequest();
+    return;
+  }
+
+  // Phụ huynh đổi lọc web (danh mục / tên miền) → lấy lại chính sách.
+  if (type == 'policy_update') {
+    await _syncPolicyFromPush();
     return;
   }
 
@@ -186,6 +206,10 @@ void main() async {
 
      if (type == 'location_request') {
        respondToLocationRequest();
+     }
+
+     if (type == 'policy_update') {
+       _syncPolicyFromPush();
      }
 
      // Blocked apps update

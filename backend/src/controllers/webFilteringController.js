@@ -1,15 +1,27 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const socketService = require('../services/socketService');
+const { sendDataMessage } = require('../services/firebaseService');
 
-// Helper: notify child devices that blocked domains changed
+// Helper: báo máy trẻ chính sách lọc web đổi → máy trẻ gọi lại /api/child/policy.
+// Trước đây chỉ emit Socket.IO — trên Vercel `io` luôn null nên không gửi gì,
+// danh mục/tên miền mới chỉ áp dụng khi app trẻ khởi động lại.
 const notifyChildDomainsUpdated = async (profileId) => {
-  const io = socketService.io;
-  if (!io) return;
-
-  const devices = await prisma.device.findMany({ where: { profileId } });
-  for (const d of devices) {
-    io.to(`device_${d.deviceCode}`).emit('blockedDomainsUpdated', { profileId });
+  try {
+    const tokens = await prisma.fCMToken.findMany({
+      where: { device: { profileId } },
+      select: { token: true },
+    });
+    const results = await Promise.allSettled(
+      tokens.map((t) => sendDataMessage(t.token, { type: 'policy_update', profileId: String(profileId) })),
+    );
+    const invalid = results
+      .filter((r) => r.status === 'fulfilled' && r.value?.error === 'INVALID_TOKEN')
+      .map((r) => r.value.token);
+    if (invalid.length > 0) await prisma.fCMToken.deleteMany({ where: { token: { in: invalid } } });
+    console.log(`🌐 [WEBFILTER] policy_update gửi ${results.length - invalid.length}/${tokens.length} token, profile ${profileId}`);
+  } catch (err) {
+    // Không làm hỏng thao tác của phụ huynh — dữ liệu đã lưu, máy trẻ sẽ lấy khi khởi động lại.
+    console.error('❌ [WEBFILTER] notify failed:', err.message);
   }
 };
 
