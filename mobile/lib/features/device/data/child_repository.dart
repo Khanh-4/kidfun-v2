@@ -13,6 +13,17 @@ class ChildRepository {
     return TodayLimitModel.fromJson(data);
   }
 
+  /// Đăng ký FCM token của máy trẻ gắn với deviceId trên server. Không có
+  /// bước này, lệnh FCM theo deviceId (yêu cầu vị trí, cập nhật app bị chặn)
+  /// không tới được máy trẻ và phụ huynh nhận 409 NO_FCM_TOKEN.
+  Future<void> registerFcmToken(String deviceCode, String token) async {
+    await _dio.post(
+      '/api/child/fcm-token',
+      data: {'token': token},
+      options: Options(headers: {'X-Device-Code': deviceCode}),
+    );
+  }
+
   Future<int> startSession(String deviceCode) async {
     final response = await _dio.post(
       '/api/child/session/start',

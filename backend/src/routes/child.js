@@ -17,6 +17,9 @@ router.get('/status', childController.getStatus);
 // POST /api/child/realtime-token - Mint JWT riêng cho Supabase Realtime
 router.post('/realtime-token', childController.getRealtimeToken);
 
+// POST /api/child/fcm-token - Máy trẻ đăng ký FCM token gắn deviceId
+router.post('/fcm-token', require('../controllers/fcmController').registerChildToken);
+
 // GET /api/child/today-limit - Lấy time limit hôm nay
 router.get('/today-limit', childController.getTodayLimit);
 

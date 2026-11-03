@@ -1,6 +1,38 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
+// POST /api/child/fcm-token — máy trẻ (không đăng nhập, định danh bằng
+// X-Device-Code) đăng ký FCM token gắn deviceId. Lệnh FCM theo deviceId
+// (location_request, blocked_apps_update) chỉ tới được máy trẻ nhờ route này.
+// userId = chủ máy (FCMToken.userId bắt buộc); token trùng → gắn lại sang máy trẻ.
+const registerChildToken = async (req, res) => {
+  try {
+    const deviceCode = req.headers['x-device-code'];
+    const { token } = req.body || {};
+    if (!deviceCode) {
+      return sendError(res, 'Device code required in X-Device-Code header', 400, 'MISSING_DEVICE_CODE');
+    }
+    if (!token || typeof token !== 'string') {
+      return sendError(res, 'token is required', 400, 'INVALID_INPUT');
+    }
+
+    const device = await prisma.device.findUnique({ where: { deviceCode }, select: { id: true, userId: true } });
+    if (!device) {
+      return sendError(res, 'Invalid device code', 404, 'INVALID_DEVICE_CODE');
+    }
+
+    await prisma.fCMToken.upsert({
+      where: { token },
+      update: { userId: device.userId, deviceId: device.id, platform: 'ANDROID' },
+      create: { userId: device.userId, deviceId: device.id, token, platform: 'ANDROID' },
+    });
+    sendSuccess(res, { message: 'Token registered' });
+  } catch (error) {
+    console.error('Register child FCM token error:', error);
+    sendError(res, 'Failed to register token', 500, 'INTERNAL_ERROR');
+  }
+};
+
 // POST /api/fcm-tokens/register
 const registerToken = async (req, res) => {
   try {
@@ -29,9 +61,11 @@ const registerToken = async (req, res) => {
     // Upsert: nếu token đã tồn tại → update userId/deviceId
     await prisma.fCMToken.upsert({
       where: { token },
+      // Không gửi deviceId thì giữ nguyên deviceId cũ — tránh việc app phụ
+      // huynh trên cùng máy xoá liên kết token↔máy trẻ (lệnh FCM sẽ mất người nhận).
       update: {
         userId,
-        deviceId: parsedDeviceId,
+        ...(parsedDeviceId !== null && { deviceId: parsedDeviceId }),
         platform: platformUpper
       },
       create: {
@@ -73,4 +107,4 @@ const unregisterToken = async (req, res) => {
   }
 };
 
-module.exports = { registerToken, unregisterToken };
+module.exports = { registerToken, registerChildToken, unregisterToken };
