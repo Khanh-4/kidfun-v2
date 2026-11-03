@@ -1,14 +1,17 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const { vnDayRange } = require('../utils/vnTime');
+const { vnQuotaDayRange } = require('../utils/vnTime');
 
 // Helper: calculate remaining minutes for a profile today, including bonus.
 // KHÔNG cache: cache in-memory trên Vercel nằm riêng từng instance, clearCache
 // lúc phụ huynh lưu hạn mức chỉ xoá được instance xử lý request đó — các instance
 // khác trả remainingSeconds cũ kèm limitMinutes mới, app trẻ hiện "Đã dùng" sai
 // (đo thật 2026-10-28: limit=245p nhưng remaining=18282s ≈ 305p).
+// Heartbeat 60s; im lặng quá 3 phút coi như máy đã tắt/app chết.
+const STALE_DEVICE_MS = 3 * 60 * 1000;
+
 const calcRemaining = async (profileId, deviceId) => {
-  const { startOfDay, endOfDay, dayOfWeek } = vnDayRange();
+  const { startOfDay, endOfDay, dayOfWeek } = vnQuotaDayRange();
 
   const timeLimit = await prisma.timeLimit.findUnique({
     where: {
@@ -50,12 +53,16 @@ const calcRemaining = async (profileId, deviceId) => {
   });
 
   const now = new Date();
-  // BUG FIX: open logs (endTime=null, durationSeconds=null) were counted as 0.
-  // Calculate elapsed seconds for open logs so the countdown is accurate on restart.
+  // Log mở của phiên đã chết (máy tắt / khởi động lại): app gọi today-limit
+  // TRƯỚC session/start, nên nếu đếm tới `now` thì thời gian tắt máy bị tính là
+  // đã dùng. Máy im lặng quá STALE_DEVICE_MS → cắt ở lastSeen (như startSession).
+  const device = await prisma.device.findUnique({ where: { id: deviceId }, select: { lastSeen: true } });
+  const lastSeen = device?.lastSeen ? new Date(device.lastSeen) : null;
+  const openLogEnd = lastSeen && now - lastSeen > STALE_DEVICE_MS ? lastSeen : now;
   const totalSeconds = usageLogs.reduce((sum, log) => {
     if (log.durationSeconds !== null) return sum + log.durationSeconds;
     // Open log — count elapsed time since startTime, capped at end-of-day
-    const effectiveEnd = now < endOfDay ? now : endOfDay;
+    const effectiveEnd = openLogEnd < endOfDay ? openLogEnd : endOfDay;
     return sum + Math.max(0, Math.floor((effectiveEnd - new Date(log.startTime)) / 1000));
   }, 0);
   const usedMinutes = Math.round(totalSeconds / 60);
@@ -170,7 +177,7 @@ const getStatus = async (req, res) => {
     const { dailyLimitMinutes, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds, timeLimit, activeSession } =
       await calcRemaining(device.profileId, device.id);
 
-    const { dayOfWeek } = vnDayRange();
+    const { dayOfWeek } = vnQuotaDayRange();
 
     sendSuccess(res, {
       device: {
@@ -750,7 +757,7 @@ const getTodayLimit = async (req, res) => {
       return sendError(res, 'Device not found or not linked to profile', 404);
     }
 
-    const { dayOfWeek: today } = vnDayRange(); // 0 = Sunday, theo giờ VN
+    const { dayOfWeek: today } = vnQuotaDayRange(); // 0 = Sunday, theo giờ VN
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
     // fallback to limitMinutes if dailyLimitMinutes is null

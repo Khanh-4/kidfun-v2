@@ -1,4 +1,6 @@
 const prisma = require('../utils/prisma');
+const { quotaLogDate, quotaAppUsageSeconds } = require('../utils/appQuotaUsage');
+const { vnQuotaDayRange, VN_OFFSET_MS } = require('../utils/vnTime');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 
 // GET /api/child/policy?deviceCode=XXX — tất cả policy trong 1 request
@@ -40,16 +42,26 @@ const getChildPolicy = async (req, res) => {
     const profile = device.profile;
 
     // ── 1. Per-app Time Limits ──────────────────────────────────────────────
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const todayUsage = await prisma.appUsageLog.findMany({
-      where: { profileId: profile.id, date: today },
-    });
+    // Ngày hạn mức bắt đầu 06:00 giờ VN, tính riêng từng app (xem utils/appQuotaUsage).
+    // Trước đây `setHours(0)` trên server UTC lệch ngày trong khung 00:00–06:59 VN.
+    const d0 = quotaLogDate();
+    const d1 = new Date(d0.getTime() + 24 * 60 * 60 * 1000);
+    const d0StartUtc = new Date(d0.getTime() - VN_OFFSET_MS); // 00:00 VN của D0
+    const { startOfDay: quotaStart } = vnQuotaDayRange();     // 06:00 VN của D0
+    const [usageLogs, earlyHourly] = await Promise.all([
+      prisma.appUsageLog.findMany({
+        where: { profileId: profile.id, date: { in: [d0, d1] } },
+        select: { packageName: true, date: true, usageSeconds: true },
+      }),
+      prisma.appUsageHourly.findMany({
+        where: { profileId: profile.id, hourStart: { gte: d0StartUtc, lt: quotaStart } },
+        select: { packageName: true, usageSeconds: true },
+      }),
+    ]);
+    const usedByPackage = quotaAppUsageSeconds(usageLogs, earlyHourly, d0);
 
     const appTimeLimits = profile.appTimeLimits.map((limit) => {
-      const usage = todayUsage.find((u) => u.packageName === limit.packageName);
-      const usedSeconds = usage?.usageSeconds || 0;
+      const usedSeconds = usedByPackage.get(limit.packageName) || 0;
       const remainingSeconds = Math.max(0, limit.dailyLimitMinutes * 60 - usedSeconds);
       return {
         packageName: limit.packageName,

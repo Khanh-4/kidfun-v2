@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
@@ -64,6 +65,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
   int? _pausedRemainingSeconds; // NEW
   int? _sessionId;
   Timer? _countdownTimer;
+  StreamSubscription<String>? _fcmRefreshSub;
+  Timer? _lockedRecheckTimer;
+  static const _lockedRecheckInterval = Duration(minutes: 5);
   // Mỗi lần phụ huynh lưu hạn mức sửa 7 hàng TimeLimit → 7 event Realtime.
   // Gộp lại thành 1 lần gọi, và chỉ áp response của lần gọi mới nhất.
   Timer? _limitRefetchDebounce;
@@ -133,6 +137,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       );
       // Re-check permissions after user returns from Settings
       if (!_isTimeUpDialogShowing) _checkAndRequestPermissions();
+      // Đang khoá mà trẻ mở lại app (vd. sáng hôm sau) → hỏi server ngay
+      if (_isTimeUpDialogShowing) {
+        _fetchAndApplyNewLimit();
+        return;
+      }
       if (!_isLimitEnabled) return;
       // If screen is paused, don't resume countdown — wait for _resumeFromScreenOn
       if (_isScreenPaused) return;
@@ -222,6 +231,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
 
     // Sprint 5: Sync blocked apps from server
     _syncBlockedApps();
+
+    // Gắn FCM token với máy trẻ để nhận lệnh vị trí / cập nhật app bị chặn
+    _registerChildFcmToken();
 
     // Sprint 8: Sync all policies (web filtering, per-app limits, school mode)
     if (_deviceCode != null) {
@@ -322,6 +334,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         } else {
           chosenEndTime = serverEndTime;
         }
+        // Server là nguồn sự thật: savedEndTime chỉ được dư tối đa 120s (bù độ
+        // trễ heartbeat). Trước đây chỉ _remainingSeconds bị kẹp, còn _endTime
+        // giữ nguyên savedEndTime cũ → từ tick sau bộ đếm chạy theo mốc cũ (dư giờ).
+        final maxEndTime = serverEndTime.add(const Duration(seconds: 120));
+        if (chosenEndTime.isAfter(maxEndTime)) chosenEndTime = maxEndTime;
 
         setState(() {
           _isLimitEnabled = todayLimit.isLimitEnabled;
@@ -339,8 +356,19 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         await prefs.setInt('end_time_epoch_ms_$_deviceCode', chosenEndTime.millisecondsSinceEpoch);
       }
 
-      // 2. Check if native service was in locked state (e.g. after reboot)
-      final wasLocked = await NativeService.isInLockedState();
+      // 2. Check if native service was in locked state (e.g. after reboot).
+      // Cờ native không kèm ngày: khoá từ hôm qua vẫn còn `true` sáng nay.
+      // Server là nguồn sự thật — còn thời gian (hoặc tắt giới hạn) thì gỡ cờ.
+      var wasLocked = await NativeService.isInLockedState();
+      final serverHasTime = !_isLimitEnabled ||
+          (_remainingSeconds > 0 && _currentTotalLimitMinutes > 0);
+      if (wasLocked && serverHasTime) {
+        print('🔓 [BOOT] Cờ khoá cũ nhưng server còn ${_remainingSeconds}s — gỡ khoá');
+        wasLocked = false;
+        await NativeService.exitLockedState().catchError(
+          (e) => print('❌ [LOCK] exitLockedState error: $e'),
+        );
+      }
 
       // 3. Start session
       final sid = await _childRepo.startSession(_deviceCode!);
@@ -406,6 +434,25 @@ _startHeartbeat();
       } catch (e) {
         print('❌ [USAGE] Sync error: $e');
       }
+    });
+  }
+
+  Future<void> _registerChildFcmToken() async {
+    final deviceCode = _deviceCode;
+    if (deviceCode == null) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) await _childRepo.registerFcmToken(deviceCode, token);
+      print('🔔 [FCM] Child token registered for $deviceCode');
+    } catch (e) {
+      print('❌ [FCM] Child token register failed: $e');
+    }
+    _fcmRefreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      final code = _deviceCode;
+      if (code == null) return;
+      _childRepo.registerFcmToken(code, newToken).catchError(
+        (e) => print('❌ [FCM] Child token refresh register failed: $e'),
+      );
     });
   }
 
@@ -631,6 +678,21 @@ _startHeartbeat();
 
     // Hiện màn hình khóa fullscreen thay thế toàn bộ dashboard
     setState(() => _isTimeUpDialogShowing = true);
+    _startLockedRecheck();
+  }
+
+  /// Khi đang khoá, mọi poll khác đều dừng — trước đây chỉ sự kiện duyệt thêm
+  /// giờ mới mở được máy. Hỏi lại server định kỳ để tự mở khi sang ngày mới
+  /// hoặc khi lỡ mất sự kiện Realtime (_fetchAndApplyNewLimit tự gỡ khoá).
+  void _startLockedRecheck() {
+    _lockedRecheckTimer?.cancel();
+    _lockedRecheckTimer = Timer.periodic(_lockedRecheckInterval, (t) {
+      if (!mounted || !_isTimeUpDialogShowing) {
+        t.cancel();
+        return;
+      }
+      _fetchAndApplyNewLimit();
+    });
   }
 
   // Persist _endTime to SharedPreferences so it survives force-close.
@@ -1070,6 +1132,8 @@ _startHeartbeat();
     _heartbeatTimer?.cancel();
     _usageSyncTimer?.cancel();
     _screenPollTimer?.cancel();
+    _fcmRefreshSub?.cancel();
+    _lockedRecheckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     
     if (_sessionId != null && _deviceCode != null) {

@@ -14,6 +14,7 @@ data class AppLimitInfo(
 
 class AppLimitChecker(private val context: Context) {
     companion object {
+        private const val QUOTA_DAY_START_HOUR = 6 // khớp backend QUOTA_DAY_START_HOUR
         // Server-synced limits
         var limits: MutableMap<String, AppLimitInfo> = mutableMapOf()
 
@@ -87,25 +88,49 @@ class AppLimitChecker(private val context: Context) {
         return limits[packageName]?.appName ?: packageName
     }
 
+    /**
+     * Giây foreground của app trong NGÀY HẠN MỨC (06:00 → 05:59 hôm sau, giờ VN),
+     * khớp backend (vnQuotaDayRange). Dùng sự kiện RESUMED/PAUSED thay cho bucket
+     * INTERVAL_DAILY — bucket luôn tính từ nửa đêm nên không cắt được ở 06:00.
+     */
     private fun getTodayUsageSeconds(packageName: String): Int {
         return try {
             val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-
-            val stats = usm.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                cal.timeInMillis,
-                System.currentTimeMillis()
-            )
-            val stat = stats.firstOrNull { it.packageName == packageName } ?: return 0
-            (stat.totalTimeInForeground / 1000).toInt()
+            val now = System.currentTimeMillis()
+            val events = usm.queryEvents(quotaDayStartMillis(now), now)
+            val event = android.app.usage.UsageEvents.Event()
+            var startedAt = -1L
+            var totalMs = 0L
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.packageName != packageName) continue
+                when (event.eventType) {
+                    android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED ->
+                        if (startedAt < 0) startedAt = event.timeStamp
+                    android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
+                    android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED -> if (startedAt >= 0) {
+                        totalMs += event.timeStamp - startedAt
+                        startedAt = -1L
+                    }
+                }
+            }
+            // Phiên đang mở được getRealTimeOffset cộng riêng — không cộng ở đây.
+            (totalMs / 1000).toInt()
         } catch (e: Exception) {
-            android.util.Log.e("AppLimitChecker", "Error querying usage stats: ${e.message}")
+            android.util.Log.e("AppLimitChecker", "Error querying usage events: ${e.message}")
             0
         }
+    }
+
+    private fun quotaDayStartMillis(now: Long): Long {
+        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"))
+        cal.timeInMillis = now
+        if (cal.get(Calendar.HOUR_OF_DAY) < QUOTA_DAY_START_HOUR) cal.add(Calendar.DAY_OF_MONTH, -1)
+        cal.set(Calendar.HOUR_OF_DAY, QUOTA_DAY_START_HOUR)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
     }
 
     private fun getRealTimeOffset(packageName: String): Int {
@@ -115,4 +140,5 @@ class AppLimitChecker(private val context: Context) {
         }
         return 0
     }
+
 }

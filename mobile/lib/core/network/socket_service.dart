@@ -227,13 +227,8 @@ class SocketService {
     _currentRole = 'parent';
     _lastDeviceCode = null;
     _hasJoinedFamily = false;
-
-    socket.connect();
-
-    if (socket.connected) {
-      _emitJoinFamily(userId);
-    }
-    // If not connected yet, onConnect will call _emitJoinFamily
+    // Không còn kết nối: backend trên Vercel không có Socket.IO (mỗi lần thử
+    // là một request 404). Chỉ giữ role cho currentRole (chặn UI phụ huynh).
   }
 
   void _emitJoinFamily(int userId) {
@@ -251,12 +246,7 @@ class SocketService {
     _currentRole = 'child';
     _lastUserId = null;
     _hasJoinedDevice = false;
-
-    socket.connect();
-
-    if (socket.connected) {
-      _emitJoinDevice(deviceCode);
-    }
+    // Không kết nối — xem joinFamily. Lệnh tới máy trẻ đi qua FCM + Realtime.
   }
 
   void _emitJoinDevice(String deviceCode) {
@@ -281,19 +271,12 @@ class SocketService {
 
   void onAppResumed() {
     print('▶️ [SOCKET] App Resumed. Checking connection for $_currentRole');
-    if (_currentRole == 'child' && _lastDeviceCode != null) {
-      joinDevice(_lastDeviceCode!);
-    } else if (_currentRole == 'parent' && _lastUserId != null) {
-      if (!socket.connected) {
-        joinFamily(_lastUserId!);
-      }
-    }
+    // Không còn kết nối Socket.IO — xem joinFamily.
   }
 
   void reconnect() {
     print('🔄 [SOCKET] Manually triggering reconnect...');
-    socket.disconnect();
-    socket.connect();
+    // No-op: Socket.IO đã ngừng dùng — xem joinFamily.
   }
 
   void disconnect() {
