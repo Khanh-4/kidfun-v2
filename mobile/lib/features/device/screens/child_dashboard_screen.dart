@@ -334,6 +334,11 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         } else {
           chosenEndTime = serverEndTime;
         }
+        // Server là nguồn sự thật: savedEndTime chỉ được dư tối đa 120s (bù độ
+        // trễ heartbeat). Trước đây chỉ _remainingSeconds bị kẹp, còn _endTime
+        // giữ nguyên savedEndTime cũ → từ tick sau bộ đếm chạy theo mốc cũ (dư giờ).
+        final maxEndTime = serverEndTime.add(const Duration(seconds: 120));
+        if (chosenEndTime.isAfter(maxEndTime)) chosenEndTime = maxEndTime;
 
         setState(() {
           _isLimitEnabled = todayLimit.isLimitEnabled;
