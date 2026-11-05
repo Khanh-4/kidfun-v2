@@ -32,8 +32,13 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   liệu bị bỏ qua; payload > 64 KB báo lỗi. Nới ngưỡng theo phản hồi "được phép" của phụ huynh: `thesis-data` trả
   `alertFeedback` (cảnh báo TIER1 có `feedback` = `ALLOWED_*`, mọi thời điểm), `overrides_from_feedback()` áp
   `relax()` theo thứ tự thời gian, tối đa 2 lần mỗi khoá, tính lại từ đầu mỗi đêm nên không cần lưu bộ đếm.
-- [ ] T7.1.4 Đóng gói mô hình M1 đã huấn luyện trên mô phỏng (file `.json` của XGBoost + isotonic) để tác vụ chỉ việc
+- [x] T7.1.4 Đóng gói mô hình M1 đã huấn luyện trên mô phỏng (file `.json` của XGBoost + isotonic) để tác vụ chỉ việc
   tải và dự đoán, không huấn luyện lại mỗi đêm.
+  **Xong (05/11/2026):** `ml/models/m1/bundle.py` (`train` / `save` / `load` → `predict_minutes`, `predict_over_limit`),
+  gói ở `ml/models/m1/artifacts/` (~4 MB, chỉ JSON, không pickle): `xgb_rel` + `xgb_clf_iso` theo báo cáo tuần 4,
+  isotonic lưu dạng mốc (x, y) và nội suy. Huấn luyện lại: `python -m models.m1.bundle --sim data/sim` (~15 giây).
+  Test `ml/tests/test_m1_bundle.py`. **Tồn đọng cho T7.3.1:** `thesis-data` chưa trả `ageGroup` → gói vẫn chạy
+  (coi tuổi là thiếu) nhưng kém chính xác hơn; nên thêm `ageGroup` vào API.
 - [ ] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
   tác vụ, chạy được bằng tay (`workflow_dispatch`). Xong khi: một lần chạy thật thành công trên GitHub.
 - [ ] T7.1.6 Log rõ số trẻ đã xử lý / bỏ qua (thiếu dữ liệu) / lỗi; tác vụ thất bại thì GitHub báo email.
