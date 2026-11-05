@@ -18,7 +18,7 @@ trên điện thoại thật.
 | 7 | [07-kiem-tra-quyen-app-tre.md](07-kiem-tra-quyen-app-tre.md) | App trẻ tự rà soát quyền thiếu ở màn ghép nối & màn hình trẻ, pop-up tổng hợp (sửa lỗi báo cáo 02/11) | ~30 phút | Người test |
 | 8 | [08-youtube-activity.md](08-youtube-activity.md) | YouTube Activity: log lên app phụ huynh sau khi rời YouTube; thu thập cây giao diện YouTube để sửa tên kênh (sửa lỗi báo cáo 02/11) | ~20 phút | Người test |
 | 9 | [09-sua-loi-test-03-11.md](09-sua-loi-test-03-11.md) | Kiểm tra lại 5 lỗi báo cáo 03/11: vị trí, chặn app, lọc web, khởi động lại, khoá qua đêm & giới hạn app reset **06:00** (PR #333) | ~40 phút + sáng hôm sau | Người test |
-| 10 | [10-chan-app-web-khi-chay-nen.md](10-chan-app-web-khi-chay-nen.md) | Chặn app / lọc web khi app trẻ chạy nền — sửa push FCM nền văng lỗi (báo cáo 05/11) | ~20 phút | Người test |
+| 10 | [10-chan-app-web-khi-chay-nen.md](10-chan-app-web-khi-chay-nen.md) | Chặn app / lọc web khi app trẻ chạy nền — sửa push FCM nền văng lỗi (báo cáo 05/11, PR #334); tốc độ API sau khi chuyển syd1 (#335); để máy trẻ thu dữ liệu 7–14 ngày cho đồ án | ~25 phút + nhiều ngày | Người test |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).

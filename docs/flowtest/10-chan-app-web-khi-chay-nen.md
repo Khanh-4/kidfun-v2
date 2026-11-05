@@ -15,8 +15,12 @@ lọc web không có tác dụng, trẻ vẫn dùng app/web bình thường.
 **Đã sửa:** annotation đặt lại đúng chỗ, có test chặn tái phát. Thêm lưới an toàn: app trẻ tự lấy lại
 danh sách chặn mỗi lần quay lại app và mỗi 5 phút, nên dù lỡ push thì chậm nhất ~5 phút vẫn chặn được.
 
-Nhánh: `fix/fcm-background-handler-entrypoint`. **Build lại APK**, cài lại trên máy trẻ.
-Bật đủ quyền: Accessibility (KidFun), Usage Access, Thông báo. Thời gian: ~20 phút.
+Nhánh: **`develop`** (pull mới nhất — đã gồm PR #334 sửa lỗi này và #335 tăng tốc backend). **Build lại APK**,
+cài lại trên máy trẻ. Bật đủ quyền: Accessibility (KidFun), Usage Access, Thông báo. Thời gian: ~25 phút + để máy
+chạy nhiều ngày (Bước 6).
+
+> **Trước khi bắt đầu:** nhắn Khánh "bắt đầu test luồng 10" kèm giờ bắt đầu. Server chỉ giữ log 1 giờ — Khánh cần
+> đọc log trong lúc bạn test để đo tốc độ API (Bước 5).
 
 ## Bước 1 — Push nền không còn văng lỗi
 
@@ -49,9 +53,27 @@ Bật đủ quyền: Accessibility (KidFun), Usage Access, Thông báo. Thời g
    - [ ] Log có `Synced 1 blocked apps` (hoặc số tương ứng) ngay sau `App resumed`
    - [ ] Mở app đó thì bị đẩy về màn hình chính
 
+## Bước 5 — Tốc độ phản hồi (backend đã chuyển sang máy chủ Sydney, PR #335)
+
+Không cần làm gì thêm ngoài dùng app bình thường trong lúc test Bước 1–4; Khánh đo trên log server.
+Ghi lại cảm nhận:
+1. Máy trẻ: mở KidFun → màn đồng hồ đếm ngược hiện số phút còn lại sau khoảng bao lâu?
+   - [ ] Dưới ~2 giây   - [ ] 2–5 giây   - [ ] Trên 5 giây (ghi số giây: ___)
+2. Máy phụ huynh: mở trang chi tiết của bé → dữ liệu hiện sau khoảng bao lâu? (ghi số giây: ___)
+
+## Bước 6 — Để máy trẻ thu dữ liệu cho đồ án (7–14 ngày)
+
+Tác vụ ban đêm của đồ án (21:05 mỗi tối) chỉ tính mức thường ngày và dự đoán cho trẻ có **≥ 7 ngày** dữ liệu
+(phát hiện bất thường tầng 2 cần **≥ 14 ngày**). Hiện chưa trẻ nào đủ.
+1. Giữ app KidFun trên máy trẻ **đã liên kết, đã cấp Usage Access**, không gỡ cài đặt, không xoá dữ liệu app.
+2. Tắt tối ưu pin cho KidFun (Cài đặt → Pin → KidFun → Không hạn chế) để app không bị hệ thống tắt.
+3. Dùng máy như bình thường (YouTube, game, học…) mỗi ngày.
+   - [ ] Đã để máy chạy liên tục, ghi ngày bắt đầu: ___
+   - [ ] Báo Khánh nếu phải gỡ app / đổi máy / reset (dữ liệu sẽ bắt đầu lại từ đầu)
+
 ## Gửi lại
 
-- Tick từng ô ở trên. Ô nào fail thì gửi kèm **toàn bộ** Logcat (lọc `flutter` + `AppBlocker`)
+- Tick từng ô ở trên (Bước 6 báo ngày bắt đầu là đủ, không cần chờ hết 14 ngày). Ô nào fail thì gửi kèm **toàn bộ** Logcat (lọc `flutter` + `AppBlocker`)
   từ lúc phụ huynh bấm chặn đến lúc mở app/web.
 - Nếu vẫn thấy "thông báo nhưng không chặn": chụp màn hình thông báo đó, ghi rõ tiêu đề và
   máy nào hiện (máy trẻ hay máy phụ huynh).

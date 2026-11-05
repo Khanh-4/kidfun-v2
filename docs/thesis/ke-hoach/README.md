@@ -13,17 +13,26 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 | [04-huong-phat-trien.md](04-huong-phat-trien.md) | Việc mở rộng nếu dư thời gian và hướng phát triển sau đồ án |
 | [tasks/](tasks/) | Danh sách task lớn, mỗi task chia thành các subtask có tiêu chí "xong" |
 
-## Trạng thái nhanh (cập nhật 01/11/2026)
+## Trạng thái nhanh (cập nhật 05/11/2026)
 
 | Task | Nội dung | Trạng thái |
 |---|---|---|
 | [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần |
 | [T1–T6](tasks/T1-T6-da-xong.md) | Thu thập theo giờ, EDA, đặc trưng, mô phỏng, M1, M2 hai tầng, phản hồi, M3/M4 | Code xong; **chờ test máy thật** |
-| [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối: tác vụ ban đêm, API kết quả, app phụ huynh | Đang làm: T7.1 xong hết, T7.2.1 xong (05/11), T7.2, T7.3.1, T7.3.3 xong (05/11), kế tiếp T7.3.2 (M2 tầng 2) hoặc T7.3.4 (kiểm thử đầu cuối) |
+| [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối: tác vụ ban đêm, API kết quả, app phụ huynh | Đang làm: **T7.1, T7.2 xong hết; T7.3.1, T7.3.3 xong** (05/11, #336–#340). Còn T7.3.2, T7.3.4, T7.4, T7.5 |
 | [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | Chưa làm (cần T7 và dữ liệu thật) |
 | [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | Chưa làm |
 
-Việc tiếp theo: **đọc kết quả flowtest 06** (vì sao DB production chưa có dữ liệu dùng app), rồi T7.1.4.
+Việc tiếp theo (theo thứ tự):
+1. **Đọc kết quả flowtest 10** (chặn app/web + tốc độ API) khi người test gửi; lỗi thì sửa trước.
+2. **T7.3.4** kiểm thử đầu cuối trên DB test (mô phỏng 3 trẻ): tác vụ → `behavior-results` → `UsagePrediction` /
+   `BehaviorAlert`. Nên làm trước T7.4 để chắc luồng dữ liệu đúng.
+3. **T7.3.2** M2 tầng 2 vào tác vụ ban đêm (trẻ ≥ 14 ngày dữ liệu).
+4. **T7.4** app phụ huynh: thông báo M1/M2 + nút đúng/sai; **T7.5** tab AI Insights (thẻ "Ngày mai" dùng
+   `GET /api/profiles/:id/predictions`).
+
+Dữ liệu thật: production có 9 trẻ / 32 dòng theo giờ (05/11), chưa trẻ nào đủ 7 ngày → tác vụ ban đêm chạy nhưng
+chưa tính gì. Flowtest 10 Bước 6 nhờ người test để máy trẻ chạy 7–14 ngày.
 
 ## Quy ước
 

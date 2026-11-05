@@ -14,7 +14,7 @@ việc mở rộng ở [04-huong-phat-trien.md](04-huong-phat-trien.md).
 | 4 | M1: LSTM, xác suất vượt giới hạn, hiệu chỉnh | Xong | #310 |
 | 5 | M2 tầng 2 + câu giải thích | Xong | #311 |
 | 6 | M2 tầng 1, vòng phản hồi, M3/M4 gọn | Xong (chờ test máy thật) | #312–#316 |
-| 7 | Tích hợp đầu cuối, tab AI Insights | Đang làm: T7.1.1a–T7.1.3 xong → [T7](tasks/T7-tich-hop.md) | #324–#327 |
+| 7 | Tích hợp đầu cuối, tab AI Insights | Đang làm: T7.1, T7.2 xong; T7.3.1, T7.3.3 xong; còn T7.3.2, T7.3.4, T7.4, T7.5 → [T7](tasks/T7-tich-hop.md) | #324–#327, #336–#340 |
 | 8 | Kiểm thử máy thật, pin, đánh giá cuối | Chưa làm → [T8](tasks/T8-kiem-thu-danh-gia.md) | |
 | 9 | Báo cáo, slide, demo | Chưa làm → [T9](tasks/T9-bao-cao-demo.md) | |
 
@@ -41,3 +41,4 @@ Mỗi tuần thêm một dòng (cũng là nội dung cho phiếu theo dõi).
 | 1 | 12/10 – 18/10 | Chốt đề tài, cập nhật theo 4 góp ý GVHD, bộ thu thập theo giờ (đã triển khai), EDA LSApp + StudentLife, đặc tả đặc trưng |
 | 2 | 19/10 – 25/10 | Đặc trưng M1/M2, bộ mô phỏng, M1 hoàn chỉnh, M2 hai tầng, phản hồi, M3/M4, API backend, flowtest; tạo thư mục kế hoạch này |
 | 3 | 26/10 – 01/11 | Sửa lỗi đồng hồ đếm ngược, kết thúc phiên, cron báo cáo ngày (#321–#323); T7.1.1a API `thesis-data`, T7.1.2 `load.py`, T7.1.3 `baseline.py` + nới ngưỡng theo phản hồi (#324–#327); xoay `CRON_SECRET`; DB prod chưa có dữ liệu dùng app → flowtest 06 (#328) |
+| 4 | 02/11 – 08/11 | (đang chạy) Sửa lỗi test 03/11: FCM máy trẻ, cờ khoá cũ, mốc 06:00 (#333); push FCM nền văng lỗi làm chặn app/web không chạy (#334); backend chuyển syd1 cùng region DB (#335); T7.1.4 đóng gói M1 (#336); T7.1.5–T7.1.6 workflow `thesis-nightly` 21:05 (#337–#338); T7.2 bảng `UsagePrediction` + `behavior-results` + `predictions` (#339); T7.3.1 tác vụ dự đoán M1 (#340); prod bắt đầu có dữ liệu theo giờ (9 trẻ) |
