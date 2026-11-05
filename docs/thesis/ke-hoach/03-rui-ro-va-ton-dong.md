@@ -5,7 +5,9 @@
 | Việc | Chờ ai | Ảnh hưởng tới |
 |---|---|---|
 | Kết quả chạy `docs/flowtest/00–03` trên máy thật | Người test | Mọi task sau; lỗi thì sửa trước khi làm T7 |
-| Kết quả flowtest 06: DB production 0 dòng `AppUsageHourly`/`AppUsageLog` (kiểm 31/10) | Người test | Tác vụ ban đêm không có dữ liệu thật để tính; T8 |
+| ~~Kết quả flowtest 06: DB production 0 dòng `AppUsageHourly`~~ — 05/11 đã có 9 trẻ / 32 dòng | — | Đã có dữ liệu; chờ đủ 7 ngày |
+| Kết quả flowtest 10 (chặn app/web khi chạy nền, tốc độ API sau khi chuyển syd1) | Người test | Ổn định app trước T7.4 |
+| Máy trẻ chạy liên tục 7–14 ngày có Usage Access (flowtest 10 Bước 6) | Người test | Baseline/dự đoán thật (≥ 7 ngày), M2 tầng 2 (≥ 14 ngày), T8 |
 | Số đo pin mốc 24h (build commit `5b0a0b0`) và bản mới | Người test | RQ4 (T8.2) |
 | `CRON_SECRET` để thử luật tăng đột biến trên máy thật | Khánh | Flowtest 02 |
 | Hình thức báo cáo cuối (có phải viết dạng bài báo không) | GVHD | T9 |
@@ -32,3 +34,7 @@
 - Bất thường `binge_day` có recall < 0,3 vì giới hạn chặn bớt (`docs/thesis/08`).
 - Chưa dùng bộ dữ liệu Tsinghua App Usage dù đã nêu trong PDF.
 - Câu giải thích chưa được phụ huynh thật chấm điểm dễ hiểu (thang 1–5) → T8.5.
+- `GET /api/cron/thesis-data` chưa trả `ageGroup` → gói M1 coi tuổi là thiếu, kém chính xác hơn lúc huấn luyện
+  (T7.1.4). Nên thêm (tính từ `Profile.dateOfBirth`) trước khi đánh giá trên dữ liệu thật (T8.3).
+- Trẻ không dùng máy cả ngày hôm nay (không có dòng nào) thì tác vụ không dự đoán ngày mai (`predict.py` cần dòng
+  của hôm nay). Chấp nhận được lúc này; xem lại nếu dữ liệu thật hay thiếu ngày.
