@@ -39,13 +39,16 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   isotonic lưu dạng mốc (x, y) và nội suy. Huấn luyện lại: `python -m models.m1.bundle --sim data/sim` (~15 giây).
   Test `ml/tests/test_m1_bundle.py`. **Tồn đọng cho T7.3.1:** `thesis-data` chưa trả `ageGroup` → gói vẫn chạy
   (coi tuổi là thiếu) nhưng kém chính xác hơn; nên thêm `ageGroup` vào API.
-- [ ] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
+- [x] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
   tác vụ, chạy được bằng tay (`workflow_dispatch`). Xong khi: một lần chạy thật thành công trên GitHub.
   **Đã viết (05/11/2026):** `.github/workflows/thesis-nightly.yml` chạy `jobs.baseline --push`; bấm tay có ô chọn
   chỉ tính không gửi. Cài `ml/requirements-job.txt` (pandas/numpy/sklearn/xgboost) thay vì `requirements.txt` đầy
   đủ — torch/prophet chỉ dùng so sánh mô hình, quá nặng cho Actions. Chạy thử trên máy (không gửi): 9 trẻ, 32 dòng
-  hourly, cả 9 bị bỏ qua vì < 7 ngày dữ liệu, 0 lỗi. Còn: tick sau lần chạy thật đầu tiên trên GitHub.
-- [ ] T7.1.6 Log rõ số trẻ đã xử lý / bỏ qua (thiếu dữ liệu) / lỗi; tác vụ thất bại thì GitHub báo email.
+  hourly, cả 9 bị bỏ qua vì < 7 ngày dữ liệu, 0 lỗi. **Xong (05/11/2026):** chạy tay trên GitHub (không gửi) xanh
+  trong 51 giây, cùng kết quả — run 41952090113.
+- [x] T7.1.6 Log rõ số trẻ đã xử lý / bỏ qua (thiếu dữ liệu) / lỗi; tác vụ thất bại thì GitHub báo email.
+  **Xong (05/11/2026):** `jobs.baseline` in `baseline: N trẻ đã tính | bỏ qua: … | lỗi: …` + từng lỗi theo profileId,
+  trả exit 1 khi có lỗi → workflow đỏ → GitHub gửi email cho người kích hoạt/chủ repo.
 
 ## T7.2 Backend nhận kết quả
 
