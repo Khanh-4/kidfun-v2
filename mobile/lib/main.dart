@@ -29,6 +29,11 @@ Future<void> _syncPolicyFromPush() async {
   }
 }
 
+// BẮT BUỘC đứng ngay trên hàm này: isolate nền của FCM tìm hàm qua callback
+// handle — thiếu annotation thì mọi push khi app chạy nền đều văng
+// "No top-level getter '_firebaseMessagingBackgroundHandler' declared"
+// (lỗi test 05/11: danh sách app/web bị chặn không bao giờ tới máy trẻ).
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('[FCM] Received background message: ${message.messageId}');

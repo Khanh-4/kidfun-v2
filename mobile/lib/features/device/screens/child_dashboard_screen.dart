@@ -131,6 +131,9 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _verifyLinkStillValid();
       // Đẩy ngay log YouTube vừa xem (trẻ thường thoát YouTube rồi mở lại app).
       if (_deviceCode != null) YouTubeService.instance.flushPending(_deviceCode!);
+      // Lưới an toàn: push FCM/Realtime có thể lỡ lúc chạy nền → lấy lại
+      // danh sách app/web bị chặn mỗi lần quay lại app.
+      _syncBlockingPolicies();
       // Huỷ lịch khoá native — Flutter timer tiếp quản
       NativeService.cancelScheduledLock().catchError(
         (e) => print('❌ [LOCK] cancelScheduledLock error: $e'),
@@ -423,6 +426,9 @@ _startHeartbeat();
     _usageSyncTimer?.cancel();
     _usageSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       if (_deviceCode == null) return;
+      // Lưới an toàn khi trẻ không mở lại KidFun: tối đa 5 phút sau khi phụ
+      // huynh đổi danh sách chặn, máy trẻ vẫn tự lấy về dù lỡ push.
+      _syncBlockingPolicies();
       try {
         final hasPermission = await NativeService.hasUsageStatsPermission();
         if (!hasPermission) return;
@@ -454,6 +460,13 @@ _startHeartbeat();
         (e) => print('❌ [FCM] Child token refresh register failed: $e'),
       );
     });
+  }
+
+  void _syncBlockingPolicies() {
+    final code = _deviceCode;
+    if (code == null) return;
+    _syncBlockedApps();
+    PolicyService.instance.syncAll(code);
   }
 
   Future<void> _syncBlockedApps() async {
