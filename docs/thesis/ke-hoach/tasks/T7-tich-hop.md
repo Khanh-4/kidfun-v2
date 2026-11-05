@@ -65,9 +65,14 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   **Xong (05/11/2026):** migration `20261105000001_add_usage_prediction` + model `UsagePrediction` (`date` kiểu
   `DATE` = ngày được dự đoán theo giờ VN). Chạy 2 lần trên DB test không lỗi, RLS bật, `migrate diff` DB ↔ schema
   rỗng, jest 130/130.
-- [ ] T7.2.3 `POST /api/cron/behavior-results`: nhận dự đoán M1 (upsert `UsagePrediction`) + cảnh báo M1/M2 tầng 2
+- [x] T7.2.3 `POST /api/cron/behavior-results`: nhận dự đoán M1 (upsert `UsagePrediction`) + cảnh báo M1/M2 tầng 2
   (`BehaviorAlert`, `source = M1 | TIER2`), chống trùng theo khoá unique, gửi FCM cho cảnh báo mới (ngưỡng 0,6 ở
   `docs/thesis/07`).
+  **Xong (05/11/2026):** `behaviorResultsController.saveResults`. Body `{ modelVersion, predictions[], alerts? }`;
+  ngưỡng `M1_ALERT_THRESHOLD = 0.6` đặt ở server — tác vụ chỉ gửi dự đoán, server tự tạo cảnh báo M1
+  (`rule = over_limit`, `slotStart` = 00:00 giờ VN của ngày dự đoán, câu tiếng Việt dựng ở server). `alerts` = tầng 2,
+  cùng dạng ô giờ với tầng 1. Test `backend/tests/integration/behaviorResults.test.js` (11 ca, gồm 401/400/ghi đè/
+  chống trùng/FCM một lần) — phần lớn T7.2.5 cho endpoint này.
 - [ ] T7.2.4 `GET /api/profiles/:id/predictions?days=14` cho app phụ huynh, có kiểm tra quyền sở hữu (như PR #314).
 - [ ] T7.2.5 Test jest cho từng endpoint: sai secret → 401, sai chủ → 403/404, dữ liệu hợp lệ → ghi đúng.
 
