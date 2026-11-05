@@ -73,8 +73,14 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   (`rule = over_limit`, `slotStart` = 00:00 giờ VN của ngày dự đoán, câu tiếng Việt dựng ở server). `alerts` = tầng 2,
   cùng dạng ô giờ với tầng 1. Test `backend/tests/integration/behaviorResults.test.js` (11 ca, gồm 401/400/ghi đè/
   chống trùng/FCM một lần) — phần lớn T7.2.5 cho endpoint này.
-- [ ] T7.2.4 `GET /api/profiles/:id/predictions?days=14` cho app phụ huynh, có kiểm tra quyền sở hữu (như PR #314).
-- [ ] T7.2.5 Test jest cho từng endpoint: sai secret → 401, sai chủ → 403/404, dữ liệu hợp lệ → ghi đúng.
+- [x] T7.2.4 `GET /api/profiles/:id/predictions?days=14` cho app phụ huynh, có kiểm tra quyền sở hữu (như PR #314).
+  **Xong (05/11/2026):** `behaviorResultsController.listPredictions`. Trả từ (hôm nay giờ VN − days + 1) trở đi,
+  gồm cả ngày mai, mới nhất trước; `days` mặc định 14, kẹp 1..60; hồ sơ không thuộc phụ huynh → 404 như `listAlerts`.
+  Chưa trả số phút thực tế — T8.3 tính từ `AppUsageHourly` khi cần.
+- [x] T7.2.5 Test jest cho từng endpoint: sai secret → 401, sai chủ → 403/404, dữ liệu hợp lệ → ghi đúng.
+  **Xong (05/11/2026):** `backend/tests/integration/behaviorResults.test.js` 15 ca cho `behavior-results` (401, 400 ×5,
+  ghi đè, ngưỡng 0,6, chống trùng + FCM một lần, profile lạ, TIER2) và `predictions` (401, người lạ 404, cửa sổ ngày,
+  kẹp `days`). `behavior-baselines` đã có test từ trước. jest 145/145.
 
 ## T7.3 M1 và M2 tầng 2 chạy theo lịch
 

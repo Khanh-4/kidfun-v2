@@ -153,5 +153,7 @@ router.get('/:id/activity-history', activityHistoryController.getActivityHistory
 const behaviorAlertController = require('../controllers/behaviorAlertController');
 // GET /api/profiles/:id/behavior-alerts?limit=50 - Cảnh báo hành vi bất thường (đồ án chuyên ngành)
 router.get('/:id/behavior-alerts', behaviorAlertController.listAlerts);
+// GET /api/profiles/:id/predictions?days=14 - Dự đoán M1 (thẻ "Ngày mai", đồ án chuyên ngành T7.2.4)
+router.get('/:id/predictions', require('../controllers/behaviorResultsController').listPredictions);
 
 module.exports = router;

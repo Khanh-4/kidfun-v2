@@ -1,4 +1,5 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 
 // T7.2.3 — tác vụ ML ban đêm gửi dự đoán M1 (+ cảnh báo tầng 2) lên server.
 process.env.CRON_SECRET = process.env.CRON_SECRET || 'test-cron-secret';
@@ -114,5 +115,55 @@ describe('POST /api/cron/behavior-results (đồ án chuyên ngành, T7.2.3)', (
     expect(alerts[0]).toMatchObject({ source: 'TIER2', rule: 'spike' });
     expect(alerts[0].message).toMatch(/chơi game/);
     expect(sendBehaviorAlertPush).toHaveBeenCalledTimes(1);
+  });
+
+  describe('GET /api/profiles/:id/predictions (T7.2.4)', () => {
+    const DAY_MS = 24 * HOUR_MS;
+    const vnDate = (offsetDays) => new Date(Date.now() + 7 * HOUR_MS + offsetDays * DAY_MS).toISOString().slice(0, 10);
+    const tokenOf = (user) => jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET);
+    const get = (id, user, query = {}) =>
+      request(app).get(`/api/profiles/${id}/predictions`).query(query).set('Authorization', `Bearer ${tokenOf(user)}`);
+    let stranger;
+
+    beforeAll(async () => {
+      stranger = await prisma.user.create({ data: { email: `${TAG}_x@kidfun.test`, fullName: 'Stranger' } });
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany({ where: { id: stranger.id } });
+    });
+
+    beforeEach(async () => {
+      await post({
+        modelVersion: 'v',
+        predictions: [1, 0, -3, -20].map((d) => prediction({ date: vnDate(d), predictedMinutes: 100 + d })),
+      });
+    });
+
+    it('chưa đăng nhập → 401', async () => {
+      const res = await request(app).get(`/api/profiles/${profileId}/predictions`);
+      expect(res.status).toBe(401);
+    });
+
+    it('hồ sơ của người khác → 404 (không lộ là có tồn tại)', async () => {
+      const res = await get(profileId, stranger);
+      expect(res.status).toBe(404);
+    });
+
+    it('trả dự đoán trong N ngày gần nhất + ngày mai, mới nhất trước', async () => {
+      const res = await get(profileId, parent, { days: 14 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.predictions.map((p) => p.date)).toEqual([vnDate(1), vnDate(0), vnDate(-3)]);
+      expect(res.body.data.predictions[0]).toMatchObject({ predictedMinutes: 101, pOverLimit: 0.3, limitMinutes: 120 });
+    });
+
+    it('days ngoài khoảng bị kẹp lại (mặc định 14, tối đa 60)', async () => {
+      const def = await get(profileId, parent);
+      const wide = await get(profileId, parent, { days: 9999 });
+
+      expect(def.body.data.predictions).toHaveLength(3);
+      expect(wide.body.data.predictions).toHaveLength(4);
+    });
   });
 });

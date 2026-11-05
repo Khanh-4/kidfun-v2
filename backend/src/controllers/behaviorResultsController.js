@@ -155,4 +155,41 @@ const saveResults = async (req, res) => {
   }
 };
 
-module.exports = { saveResults, M1_ALERT_THRESHOLD };
+const DEFAULT_DAYS = 14;
+const MAX_DAYS = 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+// GET /api/profiles/:id/predictions?days=14 (T7.2.4) — thẻ "Ngày mai" trên app phụ huynh.
+// Trả dự đoán từ (hôm nay giờ VN − days + 1) trở đi, gồm cả ngày mai; mới nhất trước.
+// Hồ sơ không thuộc phụ huynh → 404 như listAlerts (không lộ là hồ sơ có tồn tại).
+const listPredictions = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.id, 10);
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || DEFAULT_DAYS, 1), MAX_DAYS);
+
+    const profile = await prisma.profile.findFirst({ where: { id: profileId, userId: req.user.userId } });
+    if (!profile) return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
+
+    const todayVn = new Date(Date.now() + VN_OFFSET_MS).toISOString().slice(0, 10);
+    const from = new Date(Date.parse(`${todayVn}T00:00:00Z`) - (days - 1) * DAY_MS);
+    const rows = await prisma.usagePrediction.findMany({
+      where: { profileId, date: { gte: from } },
+      orderBy: { date: 'desc' },
+    });
+    const predictions = rows.map((r) => ({
+      date: r.date.toISOString().slice(0, 10),
+      predictedMinutes: r.predictedMinutes,
+      pOverLimit: r.pOverLimit,
+      limitMinutes: r.limitMinutes,
+      message: r.message,
+      modelVersion: r.modelVersion,
+    }));
+    return sendSuccess(res, { predictions });
+  } catch (err) {
+    console.error('listPredictions error:', err);
+    return sendError(res, err.message, 500, 'INTERNAL_ERROR');
+  }
+};
+
+module.exports = { saveResults, listPredictions, M1_ALERT_THRESHOLD };
