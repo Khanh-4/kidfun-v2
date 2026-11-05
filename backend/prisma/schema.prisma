@@ -63,6 +63,7 @@ model Profile {
   reportSnapshots ReportSnapshot[]
   behaviorAlerts   BehaviorAlert[]
   behaviorBaseline BehaviorBaseline?
+  usagePredictions UsagePrediction[]
 }
 
 model Device {
@@ -586,4 +587,24 @@ model BehaviorBaseline {
   updatedAt  DateTime @updatedAt
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+// Đồ án chuyên ngành (M1, T7.2.2a): dự đoán của tác vụ ban đêm cho MỌI ngày — thẻ "Ngày mai"
+// trên app phụ huynh và đánh giá MAE (T8.3.2). Cảnh báo (pOverLimit ≥ 0,6) nằm riêng ở BehaviorAlert.
+// Số phút thực tế không lưu ở đây — tính lại từ AppUsageHourly.
+model UsagePrediction {
+  id               Int      @id @default(autoincrement())
+  profileId        Int
+  date             DateTime @db.Date // ngày được dự đoán, theo giờ VN
+  predictedMinutes Float
+  pOverLimit       Float? // null khi ngày đó không có giới hạn
+  limitMinutes     Int?
+  message          String? // câu giải thích tiếng Việt cho phụ huynh
+  modelVersion     String // vd "xgb_rel+xgb_clf_iso@2026-11-05"
+  createdAt        DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  // Tác vụ chạy lại trong ngày thì ghi đè, không tạo trùng
+  @@unique([profileId, date])
 }

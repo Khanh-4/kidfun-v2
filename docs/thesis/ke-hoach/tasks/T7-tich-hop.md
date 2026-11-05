@@ -59,9 +59,12 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   (T8.3.2) cần dự đoán của **mọi** ngày; `BehaviorAlert` chỉ nên chứa cảnh báo và thiếu cột xác suất/giới hạn; cảnh
   báo M1 đi chung đường FCM + nút đúng/sai với tầng 1 nên T7.4 không phải làm riêng. Số phút thực tế không lưu,
   tính lại từ `AppUsageHourly`.
-- [ ] T7.2.2a Migration thêm bảng `UsagePrediction` (`profileId`, `date`, `predictedMinutes`, `pOverLimit`,
+- [x] T7.2.2a Migration thêm bảng `UsagePrediction` (`profileId`, `date`, `predictedMinutes`, `pOverLimit`,
   `limitMinutes`, `message`, `modelVersion`, `createdAt`; unique `(profileId, date)`; bật RLS như các bảng khác).
   Viết tay, `IF NOT EXISTS`. **Có migration → hỏi trước khi push.**
+  **Xong (05/11/2026):** migration `20261105000001_add_usage_prediction` + model `UsagePrediction` (`date` kiểu
+  `DATE` = ngày được dự đoán theo giờ VN). Chạy 2 lần trên DB test không lỗi, RLS bật, `migrate diff` DB ↔ schema
+  rỗng, jest 130/130.
 - [ ] T7.2.3 `POST /api/cron/behavior-results`: nhận dự đoán M1 (upsert `UsagePrediction`) + cảnh báo M1/M2 tầng 2
   (`BehaviorAlert`, `source = M1 | TIER2`), chống trùng theo khoá unique, gửi FCM cho cảnh báo mới (ngưỡng 0,6 ở
   `docs/thesis/07`).
