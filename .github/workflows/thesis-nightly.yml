@@ -1,5 +1,6 @@
-# Tác vụ ban đêm của đồ án chuyên ngành (T7.1.5): đọc dữ liệu qua /api/cron/thesis-data,
-# tính mức thường ngày cho luật tầng 1 và gửi lên backend. Lỗi (exit ≠ 0) → GitHub gửi email.
+# Tác vụ ban đêm của đồ án chuyên ngành (T7.1.5, T7.3.1): đọc dữ liệu qua /api/cron/thesis-data một lần,
+# tính mức thường ngày cho luật tầng 1 + dự đoán M1 cho ngày mai, gửi cả hai lên backend.
+# Lỗi (exit ≠ 0) → GitHub gửi email.
 name: thesis-nightly
 
 on:
@@ -8,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       push:
-        description: "Gửi baseline lên backend (bỏ chọn = chỉ tính và in báo cáo)"
+        description: "Gửi baseline + dự đoán lên backend (bỏ chọn = chỉ tính và in báo cáo)"
         type: boolean
         default: true
 
@@ -38,9 +39,9 @@ jobs:
       - name: Cài thư viện
         run: pip install -r requirements-job.txt
 
-      - name: Baseline tầng 1
+      - name: Baseline tầng 1 + dự đoán M1
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           THESIS_API_URL: ${{ vars.THESIS_API_URL || 'https://kidfun-backend.vercel.app' }}
           PUSH_FLAG: ${{ (github.event_name == 'schedule' || inputs.push) && '--push' || '' }}
-        run: python -m jobs.baseline $PUSH_FLAG
+        run: python -m jobs.nightly $PUSH_FLAG

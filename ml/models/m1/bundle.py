@@ -121,6 +121,12 @@ def load(src: Path = DEFAULT_DIR) -> M1Bundle:
     )
 
 
+def model_version(src: Path = DEFAULT_DIR) -> str:
+    """Chuỗi ghi vào UsagePrediction.modelVersion, vd "xgb_rel+xgb_clf_iso@2026-11-05"."""
+    meta = json.loads((src / "meta.json").read_text(encoding="utf-8"))
+    return f"{meta['regressor']['model']}+{meta['classifier']['model']}@{meta['trained_at']}"
+
+
 def main() -> None:
     from .data import sim_daily_features
 

@@ -84,9 +84,17 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 
 ## T7.3 M1 và M2 tầng 2 chạy theo lịch
 
-- [ ] T7.3.1 Nối T7.1 và T7.2: tác vụ gửi baseline + dự đoán + cảnh báo lên server trong một lần chạy.
+- [x] T7.3.1 Nối T7.1 và T7.2: tác vụ gửi baseline + dự đoán + cảnh báo lên server trong một lần chạy.
+  **Xong (05/11/2026):** `ml/jobs/nightly.py` tải `thesis-data` một lần → baseline (PUT `behavior-baselines`) + dự đoán
+  M1 (`ml/jobs/predict.py`, POST `behavior-results`); workflow `thesis-nightly` chuyển sang `jobs.nightly`. Dự đoán lấy
+  dòng HÔM NAY của `build_daily_features` (target = ngày mai); chỉ gửi `pOverLimit`/`limitMinutes` khi ngày mai có giới
+  hạn; cảnh báo do server tạo (p ≥ 0,6). `modelVersion` = `xgb_rel+xgb_clf_iso@<ngày huấn luyện>` từ `meta.json`.
+  Test `ml/tests/test_predict_job.py` (7 ca, gồm 1 ca chạy gói M1 thật trên dữ liệu dạng production). Chạy thử với
+  production (không gửi): 9 trẻ, cả 9 bị bỏ qua vì chưa đủ 7 ngày, 0 lỗi.
 - [ ] T7.3.2 Chấm M2 tầng 2 (DBSCAN mức ngày) cho ngày hôm qua; chỉ gửi khi trẻ có ≥ 14 ngày dữ liệu.
-- [ ] T7.3.3 Trẻ chưa đủ 7 ngày dữ liệu: bỏ qua M1, chỉ gửi baseline (tầng 1 vẫn chạy luật khuya 0h–6h).
+- [x] T7.3.3 Trẻ chưa đủ 7 ngày dữ liệu: bỏ qua M1, chỉ gửi baseline (tầng 1 vẫn chạy luật khuya 0h–6h).
+  **Xong (05/11/2026):** `predict.MIN_HISTORY_DAYS = 7` bỏ qua M1. Lưu ý: baseline cũng cần ≥ 7 ngày (T7.1.3) nên trẻ
+  mới không nhận gì từ tác vụ; máy trẻ vẫn chạy luật khuya 0h–6h không cần baseline.
 - [ ] T7.3.4 Kiểm thử đầu cuối trên DB test local (`.env.test`, schema `kidfun_test`) với dữ liệu mô phỏng 3 trẻ.
 
 ## T7.4 App phụ huynh: thông báo và nút đúng/sai

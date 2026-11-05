@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 import numpy as np
 import pytest
@@ -76,3 +77,7 @@ def test_wrong_format_version_is_rejected(saved, tmp_path):
     (tmp_path / "meta.json").write_text(json.dumps({**meta, "version": 999}))
     with pytest.raises(bundle.BundleError, match="version"):
         bundle.load(tmp_path)
+
+
+def test_model_version_doc_tu_meta(saved):
+    assert bundle.model_version(saved[1]) == f"xgb_rel+xgb_clf_iso@{date.today().isoformat()}"
