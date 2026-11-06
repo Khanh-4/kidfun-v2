@@ -19,6 +19,7 @@ trên điện thoại thật.
 | 8 | [08-youtube-activity.md](08-youtube-activity.md) | YouTube Activity: log lên app phụ huynh sau khi rời YouTube; thu thập cây giao diện YouTube để sửa tên kênh (sửa lỗi báo cáo 02/11) | ~20 phút | Người test |
 | 9 | [09-sua-loi-test-03-11.md](09-sua-loi-test-03-11.md) | Kiểm tra lại 5 lỗi báo cáo 03/11: vị trí, chặn app, lọc web, khởi động lại, khoá qua đêm & giới hạn app reset **06:00** (PR #333) | ~40 phút + sáng hôm sau | Người test |
 | 10 | [10-chan-app-web-khi-chay-nen.md](10-chan-app-web-khi-chay-nen.md) | Chặn app / lọc web khi app trẻ chạy nền — sửa push FCM nền văng lỗi (báo cáo 05/11, PR #334); tốc độ API sau khi chuyển syd1 (#335); để máy trẻ thu dữ liệu 7–14 ngày cho đồ án | ~25 phút + nhiều ngày | Người test |
+| 11 | [11-canh-bao-hanh-vi-phu-huynh.md](11-canh-bao-hanh-vi-phu-huynh.md) | App phụ huynh: thông báo cảnh báo hành vi kèm lý do, mở đúng cảnh báo, nút "Đúng là bất thường" / "Được phép" (đồ án T7.4) | ~20 phút | Người test + Khanh gửi cảnh báo thử |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).

@@ -102,6 +102,35 @@ void safelyNavigate(String location, Object? extra) {
   tryPush(25); // Try for up to 7.5 seconds
 }
 
+/// Đồ án chuyên ngành (T7.4): đường dẫn tới màn cảnh báo hành vi, đánh dấu cảnh báo vừa nhận.
+String behaviorAlertsLocation(int profileId, {int? alertId, String? profileName}) {
+  final query = <String, String>{
+    if (alertId != null) 'alertId': '$alertId',
+    if (profileName != null && profileName.isNotEmpty) 'name': profileName,
+  };
+  return Uri(path: '/profiles/$profileId/behavior-alerts', queryParameters: query.isEmpty ? null : query).toString();
+}
+
+/// Tên trẻ lấy từ tiêu đề "Cảnh báo sử dụng của <tên>" (fcmService.sendBehaviorAlertPush).
+String? _childNameFromTitle(String? title) {
+  const marker = 'của ';
+  final i = title?.lastIndexOf(marker) ?? -1;
+  return i < 0 ? null : title!.substring(i + marker.length).trim();
+}
+
+/// Bấm thông báo FCM `BEHAVIOR_ALERT` (app chạy nền / đã tắt) → mở danh sách cảnh báo của trẻ đó.
+void navigateToBehaviorAlertFromFCM(RemoteMessage message) {
+  if (message.data['type'] != 'BEHAVIOR_ALERT') return;
+  final profileId = int.tryParse(message.data['profileId'] ?? '');
+  if (profileId == null) return;
+  safelyNavigate(
+    behaviorAlertsLocation(profileId,
+        alertId: int.tryParse(message.data['alertId'] ?? ''),
+        profileName: _childNameFromTitle(message.notification?.title)),
+    null,
+  );
+}
+
 /// TC-13 B5 + TC-21 B4: Navigate to /sos-alert screen from an FCM RemoteMessage.
 /// Used by onMessageOpenedApp (background) and getInitialMessage (killed) handlers.
 void navigateToSOSFromFCM(RemoteMessage message) {
@@ -194,6 +223,18 @@ void main() async {
          });
        }
 
+       // Payload dạng 'BEHAVIOR_ALERT:<profileId>:<alertId>' (thông báo cục bộ lúc app đang mở).
+       if (payload.startsWith('BEHAVIOR_ALERT:')) {
+         final parts = payload.split(':');
+         final profileId = parts.length > 1 ? int.tryParse(parts[1]) : null;
+         if (profileId != null) {
+           safelyNavigate(
+             behaviorAlertsLocation(profileId, alertId: parts.length > 2 ? int.tryParse(parts[2]) : null),
+             null,
+           );
+         }
+       }
+
        if (payload == 'TIME_EXTENSION') {
           safelyNavigate('/home', null);
           // Bấm vào thông báo → refetch ngay để pop-up hiện lên sau khi về
@@ -243,6 +284,17 @@ void main() async {
        );
      }
 
+     // Đồ án chuyên ngành (T7.4): cảnh báo hành vi lúc app đang mở — tự hiện thông báo cục bộ.
+     if (type == 'BEHAVIOR_ALERT') {
+       final alertId = int.tryParse(message.data['alertId'] ?? '') ?? 0;
+       NotificationService.instance.showBehaviorAlertNotification(
+         alertId: alertId,
+         title: message.notification?.title ?? 'Cảnh báo sử dụng',
+         body: message.notification?.body ?? 'Bé vừa dùng máy khác thường. Nhấn để xem lý do.',
+         payload: 'BEHAVIOR_ALERT:${message.data['profileId'] ?? ''}:$alertId',
+       );
+     }
+
      // TC-09/10: Geofence foreground notification
      if (type == 'GEOFENCE_EVENT') {
        final profileName = message.data['profileName'] ?? 'Bé';
@@ -278,6 +330,7 @@ void main() async {
    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
      print('[FCM] 🔔 Opened from background notification: ${message.data}');
      navigateToSOSFromFCM(message);
+     navigateToBehaviorAlertFromFCM(message);
      signalTimeExtensionFromFCM(message);
    });
 
@@ -286,6 +339,7 @@ void main() async {
    if (initialMessage != null) {
      print('[FCM] 🔔 Cold start via notification: ${initialMessage.data}');
      navigateToSOSFromFCM(initialMessage);
+     navigateToBehaviorAlertFromFCM(initialMessage);
      // Cố ý KHÔNG gọi signalTimeExtensionFromFCM ở đây: đoạn này chạy TRƯỚC
      // runApp() nên chưa có listener nào đăng ký, signal sẽ rơi vào hư không.
      // Trường hợp cold-start đã được TimeExtensionListener.initState() lo bằng

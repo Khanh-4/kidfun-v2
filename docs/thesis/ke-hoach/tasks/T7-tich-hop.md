@@ -112,11 +112,16 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 
 ## T7.4 App phụ huynh: thông báo và nút đúng/sai
 
-- [ ] T7.4.1 Xử lý thông báo FCM loại `BEHAVIOR_ALERT`: hiện câu giải thích, bấm vào mở đúng cảnh báo.
-- [ ] T7.4.2 Hai nút trên thông báo / màn chi tiết: "Đúng là bất thường" và "Được phép" (cuối tuần, ngày lễ, khác) →
+- [x] T7.4.1 Xử lý thông báo FCM loại `BEHAVIOR_ALERT`: hiện câu giải thích, bấm vào mở đúng cảnh báo.
+- [x] T7.4.2 Hai nút trên thông báo / màn chi tiết: "Đúng là bất thường" và "Được phép" (cuối tuần, ngày lễ, khác) →
   `POST /api/behavior-alerts/:id/feedback`.
-- [ ] T7.4.3 Danh sách cảnh báo của từng trẻ (`GET /api/profiles/:id/behavior-alerts`), có trạng thái đã phản hồi.
-- [ ] T7.4.4 Widget test cho màn danh sách và nút phản hồi (notifier giả).
+- [x] T7.4.3 Danh sách cảnh báo của từng trẻ (`GET /api/profiles/:id/behavior-alerts`), có trạng thái đã phản hồi.
+- [x] T7.4.4 Widget test cho màn danh sách và nút phản hồi (notifier giả).
+  **Xong (07/11/2026, code; chờ test máy thật — flowtest 11):** `mobile/lib/features/behavior/` (model, repository,
+  `BehaviorAlertsScreen`), route `/profiles/:id/behavior-alerts?alertId=&name=`, nút biểu đồ cam trên danh sách hồ sơ.
+  FCM `BEHAVIOR_ALERT`: app mở → thông báo cục bộ (payload `BEHAVIOR_ALERT:<profileId>:<alertId>`); bấm thông báo lúc
+  nền / đã tắt / app mở → màn cảnh báo, cảnh báo đó có nhãn "Vừa nhận". Hai nút nằm trên màn (không đặt nút trên thông
+  báo vì cần gọi API có đăng nhập lúc app tắt). Widget test 7/7 với repository giả.
 
 ## T7.5 Tab "AI Insights" trong app phụ huynh
 

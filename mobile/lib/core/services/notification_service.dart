@@ -24,6 +24,9 @@ class NotificationService {
   static const String _geofenceChannelName = 'Geofence Events';
   static const String _extensionChannelId = 'extension_channel';
   static const String _extensionChannelName = 'Yêu cầu thời gian';
+  static const String _behaviorChannelId = 'behavior_alert_channel';
+  static const String _behaviorChannelName = 'Cảnh báo hành vi';
+  static const int _behaviorNotificationBase = 2000; // + alertId → mỗi cảnh báo một thông báo riêng
 
   // ── Notification IDs ───────────────────────────────────────────────────────
   static const int sosNotificationId = 1000;
@@ -213,6 +216,28 @@ class NotificationService {
     );
 
     print('🌍 [NOTIFICATION] Geofence notification shown: $title');
+  }
+
+  /// Cảnh báo hành vi (đồ án chuyên ngành, T7.4) khi app đang mở — Android không tự hiện thông báo FCM lúc
+  /// foreground. [payload] dạng 'BEHAVIOR_ALERT:<profileId>:<alertId>' để bấm vào mở đúng cảnh báo.
+  Future<void> showBehaviorAlertNotification({
+    required int alertId,
+    required String title,
+    required String body,
+    required String payload,
+  }) async {
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _behaviorChannelId,
+        _behaviorChannelName,
+        channelDescription: 'Cảnh báo khi bé dùng máy khác thường, kèm lý do',
+        importance: Importance.high,
+        priority: Priority.high,
+        styleInformation: BigTextStyleInformation(body),
+      ),
+      iOS: const DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true),
+    );
+    await _plugin.show(_behaviorNotificationBase + alertId % 100000, title, body, details, payload: payload);
   }
 
   /// Khung hiển thị thông báo "Xin thêm giờ"
