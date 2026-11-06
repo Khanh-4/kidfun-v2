@@ -111,3 +111,13 @@ Trong code: `from jobs.load import load_thesis_data` → `hourly`, `limits`, `ex
 ```bash
 cd ml && .venv/bin/python -m pytest -q
 ```
+
+## Kiểm thử đầu cuối tác vụ ban đêm (T7.3.4)
+
+```bash
+bash ml/e2e/run_local.sh
+```
+
+Mô phỏng 3 trẻ → seed vào DB test (`backend/.env.test`, chặn nếu trỏ Supabase) → bật backend local → `jobs.nightly
+--push` hai lần → `backend/scripts/thesis-e2e.js verify` kiểm `UsagePrediction` / `BehaviorBaseline` /
+`BehaviorAlert` → tự dọn. Chạy lại sau mỗi lần sửa tác vụ ban đêm hoặc API kết quả.
