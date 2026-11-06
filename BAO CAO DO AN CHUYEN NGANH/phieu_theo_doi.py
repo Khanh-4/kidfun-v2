@@ -76,6 +76,27 @@ WEEKS = {
             "Tồn đọng: chờ kết quả test flowtest 06, đo pin 2×24h; đóng gói mô hình M1.",
         ],
     ),
+    4: (
+        "02/11/2026\n–\n08/11/2026",
+        [
+            "Sửa lỗi KidFun theo kết quả test: app trẻ rà soát quyền còn thiếu ngay từ màn ghép "
+            "nối; nhật ký YouTube gửi sớm hơn, lọc theo ngày giờ VN.",
+            "Sửa 5 lỗi báo cáo test 03/11: máy trẻ đăng ký FCM theo thiết bị, gỡ cờ khoá cũ, ngày "
+            "hạn mức bắt đầu 06:00 giờ VN (cả giới hạn tổng và từng app), không tính giờ tắt máy; "
+            "thông báo đẩy chạy nền bị lỗi làm danh sách chặn app/web không cập nhật.",
+            "Tăng tốc API: chuyển backend về cùng vùng máy chủ với CSDL (Sydney), thời gian phản "
+            "hồi còn khoảng 0,5–0,8 giây.",
+            "Đóng gói mô hình M1 (XGBoost + hiệu chỉnh xác suất) cho tác vụ ban đêm; tác vụ dự "
+            "đoán thời gian dùng ngày mai của từng trẻ (≥ 7 ngày dữ liệu) và gửi lên server.",
+            "Tác vụ ban đêm chạy tự động 21:05 mỗi ngày trên GitHub Actions; lần chạy đầu thành "
+            "công với dữ liệu thật của 9 trẻ.",
+            "Backend: bảng lưu dự đoán, API nhận kết quả dự đoán và cảnh báo tầng 2, API cho app "
+            "phụ huynh xem dự đoán 14 ngày.",
+            "Viết kịch bản test flowtest 07–10 cho người test.",
+            "Tồn đọng: chờ kết quả flowtest 10, máy trẻ chạy liên tục 7–14 ngày để có dữ liệu "
+            "thật; M2 tầng 2 vào tác vụ ban đêm, kiểm thử đầu cuối, app phụ huynh.",
+        ],
+    ),
 }
 
 CONTENT_PT = 11

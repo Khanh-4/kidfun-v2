@@ -8,7 +8,7 @@
 - [ ] T0.1.3 Chạy `python3 phieu_theo_doi.py N` (cần Word trên Windows) → `PhieuTheoDoiTuanN.pdf`; xem PDF không vỡ bảng.
 - [ ] T0.1.4 PR riêng `docs/phieu-theo-doi-tuanN`.
 
-Đã nộp: tuần 1 (PR #307), tuần 2 (PR #317), tuần 3 (PR `docs/phieu-theo-doi-tuan3`).
+Đã nộp: tuần 1 (PR #307), tuần 2 (PR #317), tuần 3 (PR `docs/phieu-theo-doi-tuan3`), tuần 4 (PR `docs/phieu-theo-doi-tuan4`, viết 06/11).
 
 ## T0.2 Làm việc với GVHD
 
