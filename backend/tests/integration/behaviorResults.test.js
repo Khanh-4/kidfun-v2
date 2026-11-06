@@ -117,6 +117,60 @@ describe('POST /api/cron/behavior-results (đồ án chuyên ngành, T7.2.3)', (
     expect(sendBehaviorAlertPush).toHaveBeenCalledTimes(1);
   });
 
+  describe('cảnh báo tầng 2 mức ngày — DBSCAN (T7.3.2)', () => {
+    const yesterdayVn = new Date(Date.now() + 7 * HOUR_MS - 24 * HOUR_MS).toISOString().slice(0, 10);
+    const dayAlert = (overrides = {}) => ({
+      profileId,
+      rule: 'day_anomaly',
+      category: 'binge_day',
+      dayType: 'school',
+      date: yesterdayVn,
+      minutes: 300,
+      usualMinutes: 100,
+      message: 'Hôm qua bé dùng máy 5 giờ, gấp 3 lần một ngày đi học bình thường (khoảng 1 giờ 40 phút).',
+      ...overrides,
+    });
+
+    it('lưu cảnh báo cả ngày: slotStart = 00:00 giờ VN, giữ câu từ tác vụ ML, gửi FCM', async () => {
+      const res = await post({ modelVersion: 'v', predictions: [], alerts: [dayAlert()] });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ alertsCreated: 1, alertsRejected: 0 });
+      const [alert] = await prisma.behaviorAlert.findMany({ where: { profileId } });
+      expect(alert).toMatchObject({ source: 'TIER2', rule: 'day_anomaly', category: 'binge_day', minutes: 300 });
+      expect(alert.slotStart.toISOString()).toBe(new Date(`${yesterdayVn}T00:00:00+07:00`).toISOString());
+      expect(alert.message).toMatch(/^Hôm qua bé dùng máy 5 giờ/);
+      expect(sendBehaviorAlertPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('chạy lại cùng ngày → không tạo trùng', async () => {
+      await post({ modelVersion: 'v', predictions: [], alerts: [dayAlert()] });
+      const res = await post({ modelVersion: 'v', predictions: [], alerts: [dayAlert()] });
+
+      expect(res.body.data).toMatchObject({ alertsCreated: 0, alertDuplicates: 1 });
+    });
+
+    it('loại ô sai (loại lạ, thiếu câu, ngày tương lai), vẫn nhận ô đúng', async () => {
+      const future = new Date(Date.now() + 7 * HOUR_MS + 2 * 24 * HOUR_MS).toISOString().slice(0, 10);
+      const res = await post({
+        modelVersion: 'v',
+        predictions: [],
+        alerts: [dayAlert(), dayAlert({ category: 'hack' }), dayAlert({ message: '' }), dayAlert({ date: future })],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ alertsCreated: 1, alertsRejected: 3 });
+    });
+
+    it('nhận hơn 20 cảnh báo mức ngày trong một lần gửi (nhiều trẻ)', async () => {
+      const many = Array.from({ length: 25 }, () => dayAlert());
+      const res = await post({ modelVersion: 'v', predictions: [], alerts: many });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ alertsCreated: 1, alertDuplicates: 24, alertsRejected: 0 });
+    });
+  });
+
   describe('GET /api/profiles/:id/predictions (T7.2.4)', () => {
     const DAY_MS = 24 * HOUR_MS;
     const vnDate = (offsetDays) => new Date(Date.now() + 7 * HOUR_MS + offsetDays * DAY_MS).toISOString().slice(0, 10);

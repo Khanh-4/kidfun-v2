@@ -57,17 +57,61 @@ const m1Alert = (p) => ({
   message: p.message || m1Message(p),
 });
 
+// Cảnh báo tầng 2 mức NGÀY (DBSCAN, T7.3.2): `category` = loại bất thường do explain_day chọn, câu tiếng Việt
+// do tác vụ ML dựng (mỗi loại một mẫu câu, có số liệu riêng như số video nguy hiểm) nên server giữ nguyên.
+// DAY_MS, VN_OFFSET_MS khai báo ở dưới (dùng chung với listPredictions).
+const DAY_RULE = 'day_anomaly';
+const DAY_KINDS = ['danger_content', 'new_app', 'night_use', 'binge_day', 'spike'];
+const DAY_TYPES = ['school', 'weekend', 'off'];
+const MAX_DAY_ALERT_AGE_DAYS = 3;
+const MAX_MESSAGE_LENGTH = 300;
+
+const parseDayAlert = (raw) => {
+  const { category, dayType = null, date, minutes, usualMinutes = null, message } = raw;
+  if (!DAY_KINDS.includes(category) || (dayType !== null && !DAY_TYPES.includes(dayType))) return null;
+  if (typeof date !== 'string' || !DATE_RE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return null;
+  if (!isNum(minutes, 0, MAX_MINUTES) || !isOptNum(usualMinutes, 0, MAX_MINUTES)) return null;
+  if (typeof message !== 'string' || !message.trim() || message.length > MAX_MESSAGE_LENGTH) return null;
+
+  const todayVnMs = Date.parse(`${new Date(Date.now() + VN_OFFSET_MS).toISOString().slice(0, 10)}T00:00:00Z`);
+  const dayMs = Date.parse(`${date}T00:00:00Z`);
+  if (dayMs > todayVnMs || dayMs < todayVnMs - MAX_DAY_ALERT_AGE_DAYS * DAY_MS) return null;
+
+  return {
+    profileId: raw.profileId,
+    source: 'TIER2',
+    rule: DAY_RULE,
+    category,
+    dayType,
+    slotStart: new Date(`${date}T00:00:00+07:00`),
+    minutes,
+    usualMinutes,
+    message: message.trim(),
+  };
+};
+
 const parseTier2 = (alerts) => {
   if (alerts === undefined || (Array.isArray(alerts) && alerts.length === 0)) return { valid: [], rejected: 0 };
   if (!Array.isArray(alerts) || !alerts.every((a) => Number.isInteger(a?.profileId))) {
     return { error: 'alerts must be an array of objects with integer profileId' };
   }
-  const { error } = parseBehaviorAlerts(alerts);
-  if (error) return { error };
-  // parseBehaviorAlerts không giữ profileId → phân tích từng ô để ghép lại đúng trẻ
+  const dayAlerts = alerts.filter((a) => a.rule === DAY_RULE);
+  const hourAlerts = alerts.filter((a) => a.rule !== DAY_RULE);
+  if (dayAlerts.length > MAX_PREDICTIONS) return { error: `at most ${MAX_PREDICTIONS} day alerts per request` };
+  if (hourAlerts.length > 0) {
+    const { error } = parseBehaviorAlerts(hourAlerts);
+    if (error) return { error };
+  }
+
   const valid = [];
   let rejected = 0;
-  for (const raw of alerts) {
+  for (const raw of dayAlerts) {
+    const parsed = parseDayAlert(raw);
+    if (!parsed) rejected += 1;
+    else valid.push(parsed);
+  }
+  // parseBehaviorAlerts không giữ profileId → phân tích từng ô để ghép lại đúng trẻ
+  for (const raw of hourAlerts) {
     const [parsed] = parseBehaviorAlerts([raw]).valid;
     if (!parsed) rejected += 1;
     else valid.push({ ...parsed, profileId: raw.profileId, source: 'TIER2', message: buildMessage(parsed) });

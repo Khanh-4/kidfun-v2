@@ -61,6 +61,9 @@ const limitOn = (child, isoDate) => {
   return child.limits.find((l) => l.dayOfWeek === dow && l.isActive)?.dailyLimitMinutes ?? null;
 };
 
+// Hôm qua theo giờ VN, từ ngày mai 'YYYY-MM-DD'.
+const yesterdayOf = (tomorrow) => new Date(Date.parse(`${tomorrow}T00:00:00Z`) - 2 * 86400000).toISOString().slice(0, 10);
+
 function checkChild(child, profile, tomorrow, failures) {
   const fail = (msg) => failures.push(`${child.label}: ${msg}`);
   const preds = profile.usagePredictions.filter((p) => p.date.toISOString().slice(0, 10) === tomorrow);
@@ -78,9 +81,20 @@ function checkChild(child, profile, tomorrow, failures) {
   if (alerts.length !== wantAlert) fail(`cần ${wantAlert} cảnh báo M1, có ${alerts.length}`);
   if (!profile.behaviorBaseline || profile.behaviorBaseline.validUntil <= new Date()) fail('thiếu baseline còn hạn');
 
+  // M2 tầng 2 mức ngày (T7.3.2): cảnh báo nói về HÔM QUA, câu "Hôm qua …"; trẻ được cài ngày bất thường phải có.
+  const dayAlerts = profile.behaviorAlerts.filter((a) => a.source === 'TIER2' && a.rule === 'day_anomaly');
+  const yesterdaySlot = new Date(`${yesterdayOf(tomorrow)}T00:00:00+07:00`).getTime();
+  if (dayAlerts.length > 1) fail(`tối đa 1 cảnh báo ngày cho hôm qua, có ${dayAlerts.length}`);
+  for (const a of dayAlerts) {
+    if (a.slotStart.getTime() !== yesterdaySlot) fail(`cảnh báo ngày sai ngày: ${a.slotStart.toISOString()}`);
+    if (!a.message.startsWith('Hôm qua')) fail(`câu cảnh báo ngày lạ: ${a.message}`);
+  }
+  if (child.dayAnomalyInjected && dayAlerts.length !== 1) fail('ngày bất thường đã cài mà không có cảnh báo ngày');
+
   const pText = p.pOverLimit === null ? '—' : p.pOverLimit.toFixed(3);
   console.log(`${child.label.padStart(5)} | dự đoán ${p.predictedMinutes.toFixed(1)} phút | giới hạn ${expectLimit ?? '—'} `
-    + `| p vượt ${pText} | cảnh báo M1: ${alerts.length}${alerts[0] ? ` "${alerts[0].message}"` : ''}`);
+    + `| p vượt ${pText} | cảnh báo M1: ${alerts.length}${alerts[0] ? ` "${alerts[0].message}"` : ''} `
+    + `| cảnh báo ngày: ${dayAlerts.length}${dayAlerts[0] ? ` "${dayAlerts[0].message}"` : ''}`);
 }
 
 async function verify(file) {

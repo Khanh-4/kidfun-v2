@@ -91,7 +91,13 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   hạn; cảnh báo do server tạo (p ≥ 0,6). `modelVersion` = `xgb_rel+xgb_clf_iso@<ngày huấn luyện>` từ `meta.json`.
   Test `ml/tests/test_predict_job.py` (7 ca, gồm 1 ca chạy gói M1 thật trên dữ liệu dạng production). Chạy thử với
   production (không gửi): 9 trẻ, cả 9 bị bỏ qua vì chưa đủ 7 ngày, 0 lỗi.
-- [ ] T7.3.2 Chấm M2 tầng 2 (DBSCAN mức ngày) cho ngày hôm qua; chỉ gửi khi trẻ có ≥ 14 ngày dữ liệu.
+- [x] T7.3.2 Chấm M2 tầng 2 (DBSCAN mức ngày) cho ngày hôm qua; chỉ gửi khi trẻ có ≥ 14 ngày dữ liệu.
+  **Xong (07/11/2026):** gói `ml/models/m2/day_bundle.py` (DBSCAN huấn luyện trên `data/sim` 100 trẻ, chỉ JSON:
+  scaler + 14.250 điểm lõi + ngưỡng = phân vị 95% → ≈ 5% số ngày, như lúc đánh giá; nạp/chấm không cần torch) →
+  `ml/jobs/anomaly.py` chấm hôm qua cho trẻ ≥ 14 ngày, câu `explain_day` đổi "Hôm nay" → "Hôm qua" → `jobs.nightly`
+  gửi `alerts` (`rule: "day_anomaly"`, `category` = loại bất thường, `date`) qua `behavior-results`. Backend nhận cảnh
+  báo ngày riêng (slotStart = 00:00 giờ VN, giữ câu từ ML, ≤ 3 ngày tuổi, ≤ 500/lần). E2E (`ml/e2e/run_local.sh`) cài
+  một ngày bất thường cho trẻ "thap" → đúng 1 cảnh báo ngày, chạy lại không trùng.
 - [x] T7.3.3 Trẻ chưa đủ 7 ngày dữ liệu: bỏ qua M1, chỉ gửi baseline (tầng 1 vẫn chạy luật khuya 0h–6h).
   **Xong (05/11/2026):** `predict.MIN_HISTORY_DAYS = 7` bỏ qua M1. Lưu ý: baseline cũng cần ≥ 7 ngày (T7.1.3) nên trẻ
   mới không nhận gì từ tác vụ; máy trẻ vẫn chạy luật khuya 0h–6h không cần baseline.
