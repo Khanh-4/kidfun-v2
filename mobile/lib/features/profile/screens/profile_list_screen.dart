@@ -233,6 +233,17 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
               ),
             ),
             const SizedBox(width: 4),
+            // Đồ án chuyên ngành (T7.4): cảnh báo hành vi bất thường + nút phản hồi
+            IconButton(
+              icon: const Icon(Icons.insights_rounded, color: AppColors.warning, size: 22),
+              tooltip: 'Cảnh báo hành vi',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => context.push(
+                '/profiles/${profile.id}/behavior-alerts?name=${Uri.encodeComponent(profile.profileName)}',
+              ),
+            ),
+            const SizedBox(width: 4),
             // TC-20: SOS history button
             IconButton(
               icon: const Icon(Icons.sos_rounded, color: Colors.red, size: 22),
