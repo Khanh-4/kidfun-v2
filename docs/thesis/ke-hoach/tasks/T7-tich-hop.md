@@ -95,7 +95,14 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 - [x] T7.3.3 Trẻ chưa đủ 7 ngày dữ liệu: bỏ qua M1, chỉ gửi baseline (tầng 1 vẫn chạy luật khuya 0h–6h).
   **Xong (05/11/2026):** `predict.MIN_HISTORY_DAYS = 7` bỏ qua M1. Lưu ý: baseline cũng cần ≥ 7 ngày (T7.1.3) nên trẻ
   mới không nhận gì từ tác vụ; máy trẻ vẫn chạy luật khuya 0h–6h không cần baseline.
-- [ ] T7.3.4 Kiểm thử đầu cuối trên DB test local (`.env.test`, schema `kidfun_test`) với dữ liệu mô phỏng 3 trẻ.
+- [x] T7.3.4 Kiểm thử đầu cuối trên DB test local (`.env.test`, schema `kidfun_test`) với dữ liệu mô phỏng 3 trẻ.
+  **Xong (07/11/2026):** `bash ml/e2e/run_local.sh` — `ml/e2e/export_sim.py` mô phỏng 21 ngày kết thúc hôm nay, chọn 3
+  trẻ phủ 3 nhánh (có giới hạn dùng nhiều / có giới hạn dùng ít / không giới hạn) → `backend/scripts/thesis-e2e.js seed`
+  vào DB test → bật backend local (env `.env.test` nạp trước `.env`) → `jobs.nightly --push` **2 lần** → `verify` →
+  dọn. Kết quả: 3 baseline, 3 dự đoán cho ngày mai, `limitMinutes` đúng giới hạn ngày mai, trẻ không giới hạn có
+  `pOverLimit = null`, chạy lại vẫn 1 dự đoán/trẻ (ghi đè), không cảnh báo trùng. Lần chạy này không trẻ nào p ≥ 0,6
+  nên nhánh tạo cảnh báo M1 chỉ được kiểm bằng `backend/tests/integration/behaviorResults.test.js`.
+  Ghi nhận: isotonic là hàm bậc thang nên p rất thô (hai trẻ khác nhau cùng ra 0,362) → xem lại ở T8.3.
 
 ## T7.4 App phụ huynh: thông báo và nút đúng/sai
 

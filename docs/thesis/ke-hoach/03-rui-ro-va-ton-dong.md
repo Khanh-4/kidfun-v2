@@ -38,3 +38,6 @@
   (T7.1.4). Nên thêm (tính từ `Profile.dateOfBirth`) trước khi đánh giá trên dữ liệu thật (T8.3).
 - Trẻ không dùng máy cả ngày hôm nay (không có dòng nào) thì tác vụ không dự đoán ngày mai (`predict.py` cần dòng
   của hôm nay). Chấp nhận được lúc này; xem lại nếu dữ liệu thật hay thiếu ngày.
+- Xác suất vượt giới hạn của M1 rất thô vì hiệu chỉnh isotonic là hàm bậc thang (~25 bậc): trong kiểm thử đầu cuối
+  (T7.3.4) hai trẻ dùng máy khác hẳn nhau cùng ra p = 0,362. Xem xét Platt scaling hoặc isotonic trên tập hiệu chỉnh
+  lớn hơn khi đánh giá ở T8.3.
