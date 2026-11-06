@@ -5,6 +5,8 @@ các nhánh của tác vụ:
   - "cao":   có giới hạn, dùng gần/vượt giới hạn nhất  → nhiều khả năng p ≥ 0,6 (server tạo cảnh báo M1);
   - "thap":  có giới hạn, dùng ít so với giới hạn       → p thấp, không cảnh báo;
   - "khong": không đặt giới hạn                         → pOverLimit = null.
+Ngày HÔM QUA của trẻ "thap" được cài một ngày bất thường rõ rệt (dùng máy 0h–4h sáng bằng một app mới, cộng thêm
+nhiều giờ chiều tối) để M2 tầng 2 mức ngày chắc chắn đánh dấu → kiểm nhánh cảnh báo ngày tới tận DB (T7.3.2).
 
     .venv/bin/python -m e2e.export_sim /tmp/sim.json
 """
@@ -39,6 +41,21 @@ def _pick(sim: dict, today: pd.Timestamp) -> dict[str, int]:
     return {"cao": int(ratio.index[-1]), "thap": int(ratio.index[0]), "khong": int(no_limit[0])}
 
 
+ANOMALY_LABEL = "thap"
+ANOMALY_PKG, ANOMALY_APP = "com.e2e.newgame", "Game mới (e2e)"
+ANOMALY_HOURS = {**{h: 55 for h in range(0, 4)}, **{h: 50 for h in range(14, 21)}}  # giờ VN → phút
+
+
+def _inject_anomaly(hourly: list[dict], today: pd.Timestamp) -> list[dict]:
+    yesterday = today - pd.Timedelta(days=1)
+    extra = [{
+        "packageName": ANOMALY_PKG, "appName": ANOMALY_APP,
+        "hourStart": (yesterday + pd.Timedelta(hours=h - 7)).tz_localize("UTC").isoformat(),
+        "usageSeconds": minutes * 60, "launchCount": 3,
+    } for h, minutes in ANOMALY_HOURS.items()]
+    return hourly + extra
+
+
 def _records(df: pd.DataFrame, pid: int, cols: list[str]) -> list[dict]:
     rows = df.loc[df["profileId"] == pid, cols].copy()
     for col in rows.columns:
@@ -55,11 +72,13 @@ def main(out_path: str) -> None:
 
     children = []
     for label, pid in picked.items():
+        hourly = _records(sim["app_usage_hourly"], pid,
+                          ["packageName", "appName", "hourStart", "usageSeconds", "launchCount"])
         children.append({
             "label": label,
             "simProfileId": pid,
-            "hourly": _records(sim["app_usage_hourly"], pid,
-                               ["packageName", "appName", "hourStart", "usageSeconds", "launchCount"]),
+            "dayAnomalyInjected": label == ANOMALY_LABEL,
+            "hourly": _inject_anomaly(hourly, today) if label == ANOMALY_LABEL else hourly,
             "limits": _records(sim["time_limits"], pid, ["dayOfWeek", "dailyLimitMinutes", "isActive", "isGradual"]),
             "extRequests": _records(sim["time_extension_requests"], pid,
                                     ["requestMinutes", "status", "responseMinutes", "createdAt"]),

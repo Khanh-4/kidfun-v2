@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "model": "dbscan_day",
+  "trained_on": "sim:sim (100 trẻ)",
+  "trained_at": "2026-11-06",
+  "columns": [
+    "day_min",
+    "day_ratio",
+    "night_min",
+    "max_hour_min",
+    "n_active_hours",
+    "mix_l1",
+    "new_app_min",
+    "yt_danger_high",
+    "ext_req"
+  ],
+  "threshold": 0.7392586191120698,
+  "alert_rate": 0.05,
+  "n_core": 14250
+}
