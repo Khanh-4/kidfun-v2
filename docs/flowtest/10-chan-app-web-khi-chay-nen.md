@@ -78,8 +78,13 @@ như lọc web; giới hạn thời gian từng app cũng được sửa cùng l
 5. (Giới hạn từng app) Phụ huynh đặt giới hạn 1 phút cho 1 app khi app trẻ chạy nền.
    - [ ] Log có `⏰ [POLICY] Synced 1 app time limits` ngay sau `policy_update forwarded`
 
-> Lưu ý: nếu **chỉ lưu lịch** cho khung giờ trong tương lai (vd. 07:00 sáng mai) thì lúc tới giờ bắt đầu/kết thúc
-> máy trẻ có thể chậm tối đa ~5 phút — ghi lại số phút nếu thấy, đó là phần tách riêng.
+6. **Tới giờ là bật / hết giờ là tắt (cần build APK mới).** Phụ huynh tắt "bật ngay", lưu lịch học hôm nay với giờ
+   bắt đầu = **2 phút nữa**, giờ kết thúc = **5 phút nữa**. Máy trẻ mở 1 app không được phép và để yên.
+   - [ ] Tới đúng giờ bắt đầu, trong ~5 giây app bị đẩy về màn hình chính (trước đây chậm tới 5 phút)
+   - [ ] Tới giờ kết thúc, app mở lại được ngay
+   - [ ] (Chống lách) Trong giờ học, chỉnh đồng hồ máy trẻ lùi về trước giờ bắt đầu → app vẫn bị chặn
+7. Phụ huynh bấm "bật ngay" 1 phút (nếu UI cho chọn thời lượng ngắn) → hết 1 phút máy trẻ tự quay về theo lịch,
+   không cần mở lại KidFun.
 
 ## Bước 4 — Lưới an toàn (không có push)
 

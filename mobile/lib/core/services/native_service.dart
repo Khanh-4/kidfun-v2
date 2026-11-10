@@ -128,17 +128,29 @@ class NativeService {
   // ── Sprint 8: School Mode ───────────────────────────────────────────────
 
   /// Cập nhật trạng thái School Mode xuống native SchoolModeChecker
+  ///
+  /// [scheduleDate] (YYYY-MM-DD giờ VN), [overrideMode]/[overrideUntil] và
+  /// [serverTime] cho native tự bật/tắt đúng giờ bắt đầu/kết thúc thay vì chờ
+  /// lượt đồng bộ 5 phút. Server cũ không gửi → native dùng [isActive].
   static Future<void> setSchoolMode({
     required bool isActive,
     List<String> allowedApps = const [],
     String? startTime,
     String? endTime,
+    String? scheduleDate,
+    String? overrideMode,
+    DateTime? overrideUntil,
+    DateTime? serverTime,
   }) async {
     await _channel.invokeMethod('setSchoolMode', {
       'isActive': isActive,
       'allowedApps': allowedApps,
       'startTime': startTime,
       'endTime': endTime,
+      'scheduleDate': scheduleDate,
+      'overrideMode': overrideMode,
+      'overrideUntilMs': overrideUntil?.millisecondsSinceEpoch,
+      'serverTimeMs': serverTime?.millisecondsSinceEpoch,
     });
   }
 

@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { computeSchoolMode } = require('../utils/schoolMode');
 const { quotaLogDate, quotaAppUsageSeconds } = require('../utils/appQuotaUsage');
 const { vnQuotaDayRange, VN_OFFSET_MS } = require('../utils/vnTime');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
@@ -91,42 +92,8 @@ const getChildPolicy = async (req, res) => {
     const domainsArray = Array.from(blockedDomains).sort();
 
     // ── 3. School Mode ─────────────────────────────────────────────────────
-    let schoolMode = { isActive: false, allowedApps: [] };
-
-    const s = profile.schoolSchedule;
-    if (s) {
-      // Manual override còn hiệu lực
-      if (s.manualOverride && s.overrideUntil && new Date() < s.overrideUntil) {
-        schoolMode = {
-          isActive: s.manualOverride === 'FORCE_ON',
-          reason: 'MANUAL_OVERRIDE',
-          allowedApps: s.allowedApps,
-        };
-      } else if (!s.isEnabled) {
-        schoolMode = { isActive: false, allowedApps: [] };
-      } else {
-        // Tính theo lịch (timezone VN)
-        const now = new Date();
-        const vnNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-        const today = vnNow.getDay();
-        const currentTime = `${String(vnNow.getHours()).padStart(2, '0')}:${String(vnNow.getMinutes()).padStart(2, '0')}`;
-
-        const override = s.daySchedules.find((d) => d.dayOfWeek === today);
-        const start = override?.startTime || s.templateStartTime;
-        const end = override?.endTime || s.templateEndTime;
-        const enabled = override ? override.isEnabled : true;
-
-        const isActive = !!(enabled && start && end && currentTime >= start && currentTime < end);
-
-        schoolMode = {
-          isActive,
-          reason: 'SCHEDULED',
-          startTime: start,
-          endTime: end,
-          allowedApps: s.allowedApps,
-        };
-      }
-    }
+    // Kèm khung giờ hôm nay + override để native tự bật/tắt đúng giờ (xem utils/schoolMode).
+    const schoolMode = computeSchoolMode(profile.schoolSchedule);
 
     return sendSuccess(res, {
       appTimeLimits,
