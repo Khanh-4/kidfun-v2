@@ -1,17 +1,9 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const socketService = require('../services/socketService');
+const { notifyChildPolicyUpdated } = require('../services/childPolicyNotifier');
 
-// Helper: notify child devices that school schedule changed
-const notifyChildScheduleUpdated = async (profileId) => {
-  const io = socketService.io;
-  if (!io) return;
-
-  const devices = await prisma.device.findMany({ where: { profileId } });
-  for (const d of devices) {
-    io.to(`device_${d.deviceCode}`).emit('schoolScheduleUpdated', { profileId });
-  }
-};
+// Báo máy trẻ lịch học đổi qua FCM (bản Socket.IO cũ không gửi gì trên Vercel).
+const notifyChildScheduleUpdated = (profileId) => notifyChildPolicyUpdated(profileId, 'SCHOOL');
 
 // GET /api/profiles/:id/school-schedule
 const getSchedule = async (req, res) => {

@@ -1,17 +1,9 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
-const socketService = require('../services/socketService');
+const { notifyChildPolicyUpdated } = require('../services/childPolicyNotifier');
 
-// Helper: notify child devices of profile that app time limits changed
-const notifyAppTimeLimitUpdated = async (profileId) => {
-  const io = socketService.io;
-  if (!io) return;
-
-  const devices = await prisma.device.findMany({ where: { profileId } });
-  for (const d of devices) {
-    io.to(`device_${d.deviceCode}`).emit('appTimeLimitUpdated', { profileId });
-  }
-};
+// Báo máy trẻ giới hạn từng app đổi qua FCM (bản Socket.IO cũ không gửi gì trên Vercel).
+const notifyAppTimeLimitUpdated = (profileId) => notifyChildPolicyUpdated(profileId, 'APPLIMIT');
 
 // GET /api/profiles/:id/app-time-limits
 const getAppTimeLimits = async (req, res) => {
