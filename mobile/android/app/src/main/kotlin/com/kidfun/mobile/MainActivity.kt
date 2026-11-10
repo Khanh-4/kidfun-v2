@@ -203,15 +203,22 @@ class MainActivity : FlutterActivity() {
                         val startTime = call.argument<String>("startTime")
                         val endTime = call.argument<String>("endTime")
 
-                        SchoolModeChecker.isActive = isActive
-                        SchoolModeChecker.allowedPackages.clear()
-                        SchoolModeChecker.allowedPackages.addAll(allowedApps)
-                        SchoolModeChecker.startTime = startTime
-                        SchoolModeChecker.endTime = endTime
+                        // Khung giờ hôm nay + override + giờ server: native tự bật/tắt đúng giờ
+                        // (epoch ms; Dart int có thể tới dưới dạng Int hoặc Long).
+                        SchoolModeChecker.update(
+                            serverActive = isActive,
+                            allowedApps = allowedApps,
+                            startTime = startTime,
+                            endTime = endTime,
+                            scheduleDate = call.argument<String>("scheduleDate"),
+                            overrideMode = call.argument<String>("overrideMode"),
+                            overrideUntilMs = call.argument<Number>("overrideUntilMs")?.toLong() ?: 0L,
+                            serverTimeMs = call.argument<Number>("serverTimeMs")?.toLong() ?: 0L,
+                        )
 
-                        android.util.Log.d("SchoolMode", "📚 Active=$isActive, allowed=${allowedApps.size}, packages=${allowedApps.joinToString()}")
+                        android.util.Log.d("SchoolMode", "📚 Active=${SchoolModeChecker.isActive}, window=$startTime-$endTime, allowed=${allowedApps.size}, packages=${allowedApps.joinToString()}")
                         // Force-kick any non-allowed app already in foreground
-                        if (isActive) {
+                        if (SchoolModeChecker.isActive) {
                             AppBlockerService.instance?.forceCheckSchoolMode()
                         }
                         result.success(null)

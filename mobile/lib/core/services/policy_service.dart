@@ -102,6 +102,11 @@ class PolicyService {
           allowedApps: allowedApps,
           startTime: startTime,
           endTime: endTime,
+          // Native tự tính theo giờ thực từ các trường này (xem SchoolModeChecker.kt).
+          scheduleDate: schoolMode['scheduleDate']?.toString(),
+          overrideMode: schoolMode['overrideMode']?.toString(),
+          overrideUntil: DateTime.tryParse(schoolMode['overrideUntil']?.toString() ?? ''),
+          serverTime: DateTime.tryParse(schoolMode['serverTime']?.toString() ?? ''),
         );
         debugPrint('📚 [POLICY] School mode: active=$isActive, allowed=${allowedApps.length}');
       }

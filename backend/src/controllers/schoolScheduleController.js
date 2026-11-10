@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { notifyChildPolicyUpdated } = require('../services/childPolicyNotifier');
+const { computeSchoolMode } = require('../utils/schoolMode');
 
 // Báo máy trẻ lịch học đổi qua FCM (bản Socket.IO cũ không gửi gì trên Vercel).
 const notifyChildScheduleUpdated = (profileId) => notifyChildPolicyUpdated(profileId, 'SCHOOL');
@@ -140,46 +141,7 @@ const getChildSchoolMode = async (req, res) => {
       return sendError(res, 'Device not linked to any profile', 404, 'DEVICE_NOT_LINKED');
     }
 
-    const s = device.profile.schoolSchedule;
-
-    if (!s) {
-      return sendSuccess(res, { isActive: false, allowedApps: [] });
-    }
-
-    // Check manual override còn hiệu lực
-    if (s.manualOverride && s.overrideUntil && new Date() < s.overrideUntil) {
-      return sendSuccess(res, {
-        isActive: s.manualOverride === 'FORCE_ON',
-        reason: 'MANUAL_OVERRIDE',
-        allowedApps: s.allowedApps,
-      });
-    }
-
-    if (!s.isEnabled) {
-      return sendSuccess(res, { isActive: false, allowedApps: [] });
-    }
-
-    // Tính theo lịch (timezone VN)
-    const now = new Date();
-    const vnNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const today = vnNow.getDay(); // 0=Sunday, 6=Saturday
-    const currentTime = `${String(vnNow.getHours()).padStart(2, '0')}:${String(vnNow.getMinutes()).padStart(2, '0')}`;
-
-    // Ưu tiên day override, fallback template
-    const override = s.daySchedules.find((d) => d.dayOfWeek === today);
-    const start = override?.startTime || s.templateStartTime;
-    const end = override?.endTime || s.templateEndTime;
-    const enabled = override ? override.isEnabled : true;
-
-    const isActive = !!(enabled && start && end && currentTime >= start && currentTime < end);
-
-    return sendSuccess(res, {
-      isActive,
-      reason: 'SCHEDULED',
-      startTime: start,
-      endTime: end,
-      allowedApps: s.allowedApps,
-    });
+    return sendSuccess(res, computeSchoolMode(device.profile.schoolSchedule));
   } catch (err) {
     console.error('getChildSchoolMode error:', err);
     return sendError(res, err.message, 500, 'INTERNAL_ERROR');
