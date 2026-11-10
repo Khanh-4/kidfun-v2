@@ -59,6 +59,28 @@ chạy nhiều ngày (Bước 6).
 3. Máy trẻ mở **Chrome**, gõ `facebook.com`.
    - [ ] Có thông báo "🚫 Trang web bị chặn" **và** Chrome bị đẩy về màn hình chính
 
+## Bước 3b — Chế độ đi học áp dụng ngay (sửa lỗi test 10/11)
+
+Lỗi cũ: lưu lịch học / bấm bật chế độ đi học thì máy trẻ phải chờ vài phút mới áp dụng — server không gửi push
+(chỉ phát Socket.IO, trên Vercel không chạy), máy trẻ chờ lượt đồng bộ 5 phút. Giờ server gửi FCM `policy_update`
+như lọc web; giới hạn thời gian từng app cũng được sửa cùng lúc.
+
+1. App trẻ chạy nền. Phụ huynh vào Chế độ đi học → chọn 1–2 app được phép → **bật ngay** (hoặc lưu lịch học có
+   giờ hiện tại nằm trong khung giờ học).
+2. Logcat máy trẻ (trong ~5 giây):
+   - [ ] `[FCM] ↪️ policy_update forwarded to main isolate`
+   - [ ] `📚 [POLICY] School mode: active=true, allowed=<số app>`
+3. Máy trẻ mở 1 app **không** nằm trong danh sách được phép.
+   - [ ] Bị đẩy về màn hình chính ngay
+   - [ ] App được phép vẫn mở bình thường
+4. Phụ huynh tắt chế độ đi học.
+   - [ ] Trong ~5 giây log có `School mode: active=false`, app vừa bị chặn mở lại được
+5. (Giới hạn từng app) Phụ huynh đặt giới hạn 1 phút cho 1 app khi app trẻ chạy nền.
+   - [ ] Log có `⏰ [POLICY] Synced 1 app time limits` ngay sau `policy_update forwarded`
+
+> Lưu ý: nếu **chỉ lưu lịch** cho khung giờ trong tương lai (vd. 07:00 sáng mai) thì lúc tới giờ bắt đầu/kết thúc
+> máy trẻ có thể chậm tối đa ~5 phút — ghi lại số phút nếu thấy, đó là phần tách riêng.
+
 ## Bước 4 — Lưới an toàn (không có push)
 
 1. Bật chế độ máy bay trên máy trẻ. Phụ huynh chặn thêm 1 app khác.
