@@ -708,6 +708,24 @@ _startHeartbeat();
     });
   }
 
+  /// Mở lại phiên + heartbeat sau khi được gỡ khoá (duyệt thêm giờ / phụ huynh
+  /// nâng hạn mức / sang ngày mới). _onTimeUp đã kết thúc phiên và xoá
+  /// _sessionId — trước đây gỡ khoá chỉ chạy lại đồng hồ trên máy, server
+  /// không ghi nhận phút nào (log 10/11: usedMinutes đứng yên 688 suốt 4 phút
+  /// sau khi duyệt), nên mở lại app là lại còn nguyên số phút được cho.
+  Future<void> _restartSessionAfterUnlock() async {
+    if (_deviceCode == null) return;
+    if (_sessionId == null) {
+      try {
+        _sessionId = await _childRepo.startSession(_deviceCode!);
+        print('▶️ [SESSION] Mở lại phiên sau khi gỡ khoá: #$_sessionId');
+      } catch (e) {
+        print('❌ [SESSION] Không mở lại được phiên sau khi gỡ khoá: $e');
+      }
+    }
+    _startHeartbeat();
+  }
+
   // Persist _endTime to SharedPreferences so it survives force-close.
   Future<void> _saveEndTime() async {
     if (_deviceCode == null) return;
@@ -771,6 +789,7 @@ _startHeartbeat();
           NativeService.exitLockedState().catchError((e) {
             print('❌ [LOCK] exitLockedState error: $e');
           });
+          _restartSessionAfterUnlock();
         }
 
         if (enabled) {

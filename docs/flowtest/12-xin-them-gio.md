@@ -38,6 +38,8 @@ nhanh hết giờ.
 | 2.2 | Máy trẻ | Màn hình khoá biến mất, đồng hồ đếm ngược chạy lại từ **~15:00** |
 | 2.3 | Log Vercel | `Extension APPROVED: … +15min (granted …min …)` và `extension_response APPROVED gửi 1/1 token` |
 | 2.4 | Logcat máy trẻ | `[FCM] ⏳ extension_response (foreground): APPROVED` |
+| 2.5 | Logcat máy trẻ | `▶️ [SESSION] Mở lại phiên sau khi gỡ khoá` |
+| 2.6 | Log Vercel, 2–3 phút sau khi duyệt | Có `POST /api/child/session/heartbeat`, và dòng `getTodayLimit` có `usedMinutes` **tăng dần** (trước đây đứng yên → mở lại app là lại còn nguyên 15 phút) |
 
 ## Bước 3 — Từ chối
 
