@@ -15,6 +15,12 @@ lọc web không có tác dụng, trẻ vẫn dùng app/web bình thường.
 **Đã sửa:** annotation đặt lại đúng chỗ, có test chặn tái phát. Thêm lưới an toàn: app trẻ tự lấy lại
 danh sách chặn mỗi lần quay lại app và mỗi 5 phút, nên dù lỡ push thì chậm nhất ~5 phút vẫn chặn được.
 
+**Test lại 10/11 — lỗi thứ hai:** push đã tới và hàm xử lý nền đã chạy, nhưng gọi xuống native thì văng
+`MissingPluginException(No implementation found for method setBlockedApps on channel com.kidfun.native)`
+(cả `setBlockedDomains` / `setAppTimeLimits` / `setSchoolMode`). Kênh native chỉ gắn với engine của màn hình chính,
+còn push nền chạy trên engine riêng. **Đã sửa:** isolate nền chuyển push sang isolate chính (`PolicyPushBridge`),
+isolate chính mới gọi native. Log `All policies synced successfully` cũng không còn báo thành công khi có lỗi.
+
 Nhánh: **`develop`** (pull mới nhất — đã gồm PR #334 sửa lỗi này và #335 tăng tốc backend). **Build lại APK**,
 cài lại trên máy trẻ. Bật đủ quyền: Accessibility (KidFun), Usage Access, Thông báo. Thời gian: ~25 phút + để máy
 chạy nhiều ngày (Bước 6).
@@ -28,7 +34,12 @@ chạy nhiều ngày (Bước 6).
 2. Trên máy phụ huynh: chặn 1 app có trên máy trẻ (vd. Chrome hoặc Calculator).
 3. Xem Logcat máy trẻ (lọc `flutter`):
    - [ ] **KHÔNG** còn dòng `No top-level getter '_firebaseMessagingBackgroundHandler'`
-   - [ ] Có dòng `[FCM] 🚫 Updated blocked apps in background: 1 packages`
+   - [ ] **KHÔNG** còn dòng `MissingPluginException`
+   - [ ] Có dòng `[FCM] ↪️ blocked_apps_update forwarded to main isolate`
+   - [ ] Ngay sau đó có `[FCM] 🚫 Updated blocked apps (background): 1 packages`
+4. (Phụ) Vuốt tắt KidFun khỏi danh sách đa nhiệm, phụ huynh chặn thêm 1 app.
+   - [ ] Log có `[FCM] ⚠️ blocked_apps_update: main isolate not running …` — **đây là bình thường**,
+     danh sách sẽ được áp khi mở lại KidFun (Bước 4). Ghi lại nếu thấy dòng khác.
 
 ## Bước 2 — Chặn app
 
@@ -42,7 +53,9 @@ chạy nhiều ngày (Bước 6).
 
 1. App trẻ chạy nền. Phụ huynh thêm tên miền cấm (vd. `facebook.com`) hoặc bật một danh mục.
 2. Logcat máy trẻ:
-   - [ ] Có `[FCM] 🌐 Policy synced after policy_update`, không có lỗi `NoSuchMethodError`
+   - [ ] Có `[FCM] ↪️ policy_update forwarded to main isolate`
+   - [ ] Tiếp theo có `✅ [POLICY] All policies synced successfully` và `[FCM] 🌐 Policy synced after policy_update`
+   - [ ] **KHÔNG** có `MissingPluginException`, `NoSuchMethodError` hay `⚠️ [POLICY] Synced with … errors`
 3. Máy trẻ mở **Chrome**, gõ `facebook.com`.
    - [ ] Có thông báo "🚫 Trang web bị chặn" **và** Chrome bị đẩy về màn hình chính
 
