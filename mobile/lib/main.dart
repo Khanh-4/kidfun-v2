@@ -13,6 +13,7 @@ import 'core/storage/secure_storage.dart';
 import 'core/services/app_lifecycle_service.dart';
 import 'core/services/native_service.dart';
 import 'core/services/location_request_handler.dart';
+import 'core/services/policy_push_bridge.dart';
 import 'core/services/notification_service.dart';
 import 'app.dart';
 
@@ -26,6 +27,32 @@ Future<void> _syncPolicyFromPush() async {
     print('[FCM] 🌐 Policy synced after policy_update');
   } catch (e) {
     print('[FCM] ❌ policy_update sync failed: $e');
+  }
+}
+
+/// Áp push chặn app / lọc web — CHỈ chạy trong isolate chính (nơi có kênh
+/// native `com.kidfun.native`). Dùng chung cho push lúc app đang mở và push
+/// isolate nền chuyển sang qua [PolicyPushBridge].
+Future<void> _applyPolicyPush(Map<String, dynamic> data, {required String via}) async {
+  final type = data['type'];
+
+  if (type == 'policy_update') {
+    await _syncPolicyFromPush();
+    return;
+  }
+
+  if (type == 'blocked_apps_update') {
+    final packageNamesJson = data['packageNames'];
+    if (packageNamesJson == null) return;
+    try {
+      final List<dynamic> packages = jsonDecode(packageNamesJson);
+      final packageNames = packages.cast<String>();
+      await NativeService.setBlockedApps(packageNames);
+      await NativeService.checkAndBlockCurrentApp();
+      print('[FCM] 🚫 Updated blocked apps ($via): ${packageNames.length} packages');
+    } catch (e) {
+      print('[FCM] ❌ Failed to update blocked apps ($via): $e');
+    }
   }
 }
 
@@ -46,26 +73,16 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
-  // Phụ huynh đổi lọc web (danh mục / tên miền) → lấy lại chính sách.
-  if (type == 'policy_update') {
-    await _syncPolicyFromPush();
+  // Chặn app / lọc web cần gọi native, mà kênh native chỉ có trên engine của
+  // MainActivity → chuyển sang isolate chính (lỗi test 10/11: gọi thẳng ở đây
+  // văng MissingPluginException).
+  if (PolicyPushBridge.nativeTypes.contains(type)) {
+    final data = message.data.map((k, v) => MapEntry(k, '$v'));
+    final delivered = await PolicyPushBridge.forwardToMainIsolate(data);
+    print(delivered
+        ? '[FCM] ↪️ $type forwarded to main isolate'
+        : '[FCM] ⚠️ $type: main isolate not running — will apply on next app open / 5-min sync');
     return;
-  }
-
-  // Handle blocked apps update from parent — works even when Flutter is in background
-  if (type == 'blocked_apps_update') {
-    final packageNamesJson = message.data['packageNames'];
-    if (packageNamesJson != null) {
-      try {
-        final List<dynamic> packages = jsonDecode(packageNamesJson);
-        final packageNames = packages.cast<String>();
-        await NativeService.setBlockedApps(packageNames);
-        await NativeService.checkAndBlockCurrentApp();
-        print('[FCM] 🚫 Updated blocked apps in background: ${packageNames.length} packages');
-      } catch (e) {
-        print('[FCM] ❌ Failed to update blocked apps: $e');
-      }
-    }
   }
 
   // TC-21 / TC-09/10 NOTE: SOS_ALERT and GEOFENCE_EVENT notifications are intentionally
@@ -183,6 +200,8 @@ void main() async {
   
    await Firebase.initializeApp();
    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+   // Nhận push chặn app / lọc web mà isolate nền chuyển sang (xem PolicyPushBridge).
+   PolicyPushBridge.registerMainIsolate((data) => _applyPolicyPush(data, via: 'background'));
    await FirebaseMessaging.instance.requestPermission(
      alert: true,
      badge: true,
@@ -254,24 +273,8 @@ void main() async {
        respondToLocationRequest();
      }
 
-     if (type == 'policy_update') {
-       _syncPolicyFromPush();
-     }
-
-     // Blocked apps update
-     if (type == 'blocked_apps_update') {
-       final packageNamesJson = message.data['packageNames'];
-       if (packageNamesJson != null) {
-         try {
-           final List<dynamic> packages = jsonDecode(packageNamesJson);
-           final packageNames = packages.cast<String>();
-           NativeService.setBlockedApps(packageNames);
-           NativeService.checkAndBlockCurrentApp();
-           print('[FCM] 🚫 Updated blocked apps in foreground: ${packageNames.length} packages');
-         } catch (e) {
-           print('[FCM] ❌ Failed to update blocked apps: $e');
-         }
-       }
+     if (PolicyPushBridge.nativeTypes.contains(type)) {
+       _applyPolicyPush(message.data, via: 'foreground');
      }
 
      // TC-21: SOS foreground — Android suppresses FCM notification when app is open,

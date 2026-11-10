@@ -26,22 +26,25 @@ class PolicyService {
         return;
       }
 
-      // 1. Web Filtering — blocked domains
-      await _syncBlockedDomains(data);
+      // 1. Web Filtering, 2. Per-app Time Limits, 3. School Mode.
+      // Đếm phần lỗi thay vì luôn báo "thành công" (log test 10/11 in ✅ dù cả 3
+      // lệnh native đều văng MissingPluginException).
+      final results = [
+        await _syncBlockedDomains(data),
+        await _syncAppTimeLimits(data),
+        await _syncSchoolMode(data),
+      ];
+      final failed = results.where((ok) => !ok).length;
 
-      // 2. Per-app Time Limits
-      await _syncAppTimeLimits(data);
-
-      // 3. School Mode
-      await _syncSchoolMode(data);
-
-      debugPrint('✅ [POLICY] All policies synced successfully');
+      debugPrint(failed == 0
+          ? '✅ [POLICY] All policies synced successfully'
+          : '⚠️ [POLICY] Synced with $failed/${results.length} errors');
     } catch (e) {
       debugPrint('❌ [POLICY] Sync error: $e');
     }
   }
 
-  Future<void> _syncBlockedDomains(Map<String, dynamic> data) async {
+  Future<bool> _syncBlockedDomains(Map<String, dynamic> data) async {
     try {
       final blockedDomains = data['blockedDomains'];
       if (blockedDomains is List) {
@@ -52,12 +55,14 @@ class PolicyService {
         await NativeService.setBlockedDomains(domains);
         debugPrint('🌐 [POLICY] Synced ${domains.length} blocked domains');
       }
+      return true;
     } catch (e) {
       debugPrint('❌ [POLICY] Blocked domains sync error: $e');
+      return false;
     }
   }
 
-  Future<void> _syncAppTimeLimits(Map<String, dynamic> data) async {
+  Future<bool> _syncAppTimeLimits(Map<String, dynamic> data) async {
     try {
       final appLimits = data['appTimeLimits'];
       if (appLimits is List) {
@@ -73,12 +78,14 @@ class PolicyService {
         await NativeService.setAppTimeLimits(limits);
         debugPrint('⏰ [POLICY] Synced ${limits.length} app time limits');
       }
+      return true;
     } catch (e) {
       debugPrint('❌ [POLICY] App time limits sync error: $e');
+      return false;
     }
   }
 
-  Future<void> _syncSchoolMode(Map<String, dynamic> data) async {
+  Future<bool> _syncSchoolMode(Map<String, dynamic> data) async {
     try {
       final schoolMode = data['schoolMode'];
       if (schoolMode is Map) {
@@ -98,8 +105,10 @@ class PolicyService {
         );
         debugPrint('📚 [POLICY] School mode: active=$isActive, allowed=${allowedApps.length}');
       }
+      return true;
     } catch (e) {
       debugPrint('❌ [POLICY] School mode sync error: $e');
+      return false;
     }
   }
 }
