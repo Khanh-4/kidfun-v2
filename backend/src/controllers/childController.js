@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { vnQuotaDayRange } = require('../utils/vnTime');
+const { extensionMinutes } = require('../utils/extensionGrant');
 
 // Helper: calculate remaining minutes for a profile today, including bonus.
 // KHÔNG cache: cache in-memory trên Vercel nằm riêng từng instance, clearCache
@@ -92,7 +93,7 @@ const calcRemaining = async (profileId, deviceId) => {
       ]
     }
   });
-  const extensionBonus = extensions.reduce((sum, req) => sum + (req.responseMinutes || 0), 0);
+  const extensionBonus = extensions.reduce((sum, req) => sum + extensionMinutes(req), 0);
 
   const bonusMinutes = sessionBonus + extensionBonus;
 
@@ -842,6 +843,7 @@ const getRealtimeToken = async (req, res) => {
 };
 
 module.exports = {
+  calcRemaining,
   ping,
   getStatus,
   startSession,

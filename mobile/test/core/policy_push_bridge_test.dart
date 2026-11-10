@@ -8,6 +8,12 @@ import 'package:mobile/core/services/policy_push_bridge.dart';
 void main() {
   tearDown(PolicyPushBridge.resetForTest);
 
+  test('kết quả xin thêm giờ đi qua isolate chính (nơi có màn hình trẻ)', () {
+    // Lỗi test 10/11: duyệt/từ chối lúc app trẻ chạy nền phải tới được
+    // child_dashboard_screen để hiện kết quả và gỡ khoá.
+    expect(PolicyPushBridge.nativeTypes, contains('extension_response'));
+  });
+
   test('không có isolate chính → trả false ngay', () async {
     final ok = await PolicyPushBridge.forwardToMainIsolate({'type': 'policy_update'});
     expect(ok, isFalse);

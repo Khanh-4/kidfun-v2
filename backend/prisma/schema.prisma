@@ -142,6 +142,7 @@ model TimeExtensionRequest {
   reason         String?   // Lý do
   status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
   responseMinutes Int?     // Số phút Parent cho (có thể khác requestMinutes)
+  grantedMinutes Int?      // Số phút thật sự cộng vào hạn mức (gồm phần bù nếu trẻ đã vượt hạn mức lúc duyệt)
   respondedAt    DateTime?
   createdAt      DateTime  @default(now())
 

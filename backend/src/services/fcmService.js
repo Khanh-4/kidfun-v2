@@ -1,5 +1,5 @@
 const prisma = require('../utils/prisma');
-const { sendPushToUser, sendToMultipleTokens } = require('./firebaseService');
+const { sendPushToUser, sendToMultipleTokens, getParentTokens } = require('./firebaseService');
 
 /**
  * Push notification khi child vào/ra khỏi geofence.
@@ -53,7 +53,7 @@ exports.sendGeofencePushNotification = async (profile, geofence, eventType) => {
 exports.sendAIAlertPush = async (user, profile, alert, log) => {
   if (!user || !profile) return;
   try {
-    const tokens = await prisma.fCMToken.findMany({ where: { userId: user.id } });
+    const tokens = await getParentTokens(user.id);
     if (tokens.length === 0) return;
 
     const tokenStrings = tokens.map(t => t.token);
@@ -85,9 +85,7 @@ exports.sendAIAlertPush = async (user, profile, alert, log) => {
 exports.sendSOSPushNotification = async (user, profile, sos) => {
   if (!user || !profile) return;
   try {
-    const tokens = await prisma.fCMToken.findMany({
-      where: { userId: user.id },
-    });
+    const tokens = await getParentTokens(user.id);
     if (tokens.length === 0) return;
 
     const tokenStrings = tokens.map(t => t.token);
