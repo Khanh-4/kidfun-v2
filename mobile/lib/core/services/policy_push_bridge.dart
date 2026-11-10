@@ -18,8 +18,9 @@ class PolicyPushBridge {
 
   static const portName = 'kidfun_policy_push_main_isolate';
 
-  /// Loại push cần gọi native, chỉ isolate chính xử lý được.
-  static const nativeTypes = {'blocked_apps_update', 'policy_update'};
+  /// Loại push chỉ isolate chính xử lý được: cần gọi native, hoặc cần tới màn
+  /// hình trẻ đang chạy (`extension_response` → hiện kết quả xin giờ, gỡ khoá).
+  static const nativeTypes = {'blocked_apps_update', 'policy_update', 'extension_response'};
 
   /// Isolate nền chờ isolate chính báo đã nhận trong khoảng này. Quá hạn nghĩa
   /// là cổng cũ của một isolate chính đã chết (vd. trẻ vuốt tắt app).

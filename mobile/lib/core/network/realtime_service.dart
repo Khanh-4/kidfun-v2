@@ -299,6 +299,13 @@ class RealtimeService {
   void emitTimeExtensionRequestSignal() =>
       _notify(_timeExtensionRequestListeners, 'TimeExtensionRequest', 'fcm');
 
+  /// Phía trẻ: FCM `extension_response` (phụ huynh vừa duyệt/từ chối) bơm vào
+  /// cùng đường refetch với tín hiệu Realtime — child_dashboard_screen gọi
+  /// latest-response + today-limit. Kênh Realtime hay rớt (lỗi test 10/11:
+  /// duyệt 4 lần, máy trẻ chỉ biết 1 lần) nên không thể chỉ dựa vào nó.
+  void emitTimeExtensionResponseSignal() =>
+      _notify(_timeExtensionResponseListeners, 'TimeExtensionRequest', 'fcm');
+
   void _notify(List<RealtimeCallback> listeners, String table, String eventType) {
     final signal = <String, dynamic>{
       'table': table,

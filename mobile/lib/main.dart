@@ -41,6 +41,14 @@ Future<void> _applyPolicyPush(Map<String, dynamic> data, {required String via}) 
     return;
   }
 
+  // Phụ huynh vừa duyệt/từ chối xin thêm giờ → màn hình trẻ refetch kết quả,
+  // hiện pop-up và gỡ khoá nếu được duyệt (xem _checkExtensionResponse).
+  if (type == 'extension_response') {
+    print('[FCM] ⏳ extension_response ($via): ${data['status']} req #${data['requestId']}');
+    RealtimeService.instance.emitTimeExtensionResponseSignal();
+    return;
+  }
+
   if (type == 'blocked_apps_update') {
     final packageNamesJson = data['packageNames'];
     if (packageNamesJson == null) return;

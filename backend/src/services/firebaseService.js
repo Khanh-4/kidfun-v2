@@ -179,13 +179,24 @@ async function sendToMultipleTokens(tokens, title, body, data = {}, options = {}
 /**
  * Gửi push notification cho tất cả devices của 1 user
  */
+/**
+ * Token FCM của các máy PHỤ HUYNH thuộc user.
+ *
+ * Máy trẻ đăng ký token dưới userId của chủ máy (= phụ huynh) kèm deviceId
+ * (POST /api/child/fcm-token), còn app phụ huynh không gửi deviceId. Lọc theo
+ * userId thôi thì máy trẻ nhận luôn thông báo dành cho phụ huynh — "xin thêm
+ * giờ", SOS, cảnh báo... (lỗi test 10/11).
+ * @param {number} userId
+ */
+function getParentTokens(userId) {
+  return prisma.fCMToken.findMany({ where: { userId, deviceId: null } });
+}
+
 async function sendPushToUser(userId, { title, body, data = {}, androidTag }) {
   // BUG 3 FIX: auto-initialize Firebase defensively so FCM works even if startup call fails
   try { initFirebase(); } catch (_) {}
   try {
-    const tokens = await prisma.fCMToken.findMany({
-      where: { userId },
-    });
+    const tokens = await getParentTokens(userId);
 
     if (tokens.length === 0) return;
 
@@ -246,5 +257,6 @@ module.exports = {
   sendPushNotification,
   sendToMultipleTokens,
   sendPushToUser,
+  getParentTokens,
   sendDataMessage
 };

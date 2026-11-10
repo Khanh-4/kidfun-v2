@@ -2,6 +2,9 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const socketService = require('../services/socketService');
 const { sendPushToUser } = require('../services/firebaseService');
+const { notifyChildExtensionResponse } = require('../services/childPolicyNotifier');
+const { calcRemaining } = require('./childController');
+const { grantedMinutesFor } = require('../utils/extensionGrant');
 
 // GET /api/profiles/:id/extension-requests
 exports.getExtensionRequests = async (req, res) => {
@@ -141,7 +144,7 @@ exports.approveExtension = async (req, res) => {
 
     const existing = await prisma.timeExtensionRequest.findUnique({
       where: { id: requestId },
-      select: { profileId: true, requestMinutes: true },
+      select: { profileId: true, deviceId: true, requestMinutes: true },
     });
     if (!existing || !profileIds.includes(existing.profileId)) {
       return sendError(res, 'Forbidden', 403);
@@ -153,12 +156,23 @@ exports.approveExtension = async (req, res) => {
     // = 0 phút. Chốt số phút TRƯỚC khi ghi để DB và phản hồi khớp nhau.
     const actualMinutes = responseMinutes || existing.requestMinutes;
 
+    // Trẻ đã vượt hạn mức thì "+N phút" phải tính từ bây giờ — bù phần vượt vào
+    // grantedMinutes (responseMinutes giữ đúng số phụ huynh thấy). Xem extensionGrant.js.
+    const { usedSeconds, dailyLimitMinutes, bonusMinutes } =
+      await calcRemaining(existing.profileId, existing.deviceId);
+    const grantedMinutes = grantedMinutesFor({
+      approvedMinutes: actualMinutes,
+      usedSeconds,
+      limitMinutes: dailyLimitMinutes + bonusMinutes,
+    });
+
     // ── Step 2: Update DB record so heartbeat sees the bonus immediately ────
     const request = await prisma.timeExtensionRequest.update({
       where: { id: requestId },
       data: {
         status: 'APPROVED',
         responseMinutes: actualMinutes,
+        grantedMinutes,
         respondedAt: new Date(),
       },
       include: {
@@ -179,7 +193,10 @@ exports.approveExtension = async (req, res) => {
         });
     }
 
-    console.log(`✅ [REST] Extension APPROVED: ${request.profile.profileName} +${actualMinutes}min (req #${requestId})`);
+    // Socket.IO ở trên không chạy trên Vercel → báo máy trẻ qua FCM data.
+    await notifyChildExtensionResponse(request.deviceId, { requestId: request.id, status: 'APPROVED' });
+
+    console.log(`✅ [REST] Extension APPROVED: ${request.profile.profileName} +${actualMinutes}min (granted ${grantedMinutes}min, req #${requestId})`);
 
     return sendSuccess(res, {
       requestId: request.id,
@@ -241,6 +258,8 @@ exports.rejectExtension = async (req, res) => {
           status: 'REJECTED',
         });
     }
+
+    await notifyChildExtensionResponse(request.deviceId, { requestId: request.id, status: 'REJECTED' });
 
     console.log(`❌ [REST] Extension REJECTED: ${request.profile.profileName} (req #${requestId})`);
 
