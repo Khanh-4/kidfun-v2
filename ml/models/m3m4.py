@@ -7,21 +7,19 @@ Chạy từ thư mục ml/:
 import argparse
 from pathlib import Path
 
-import matplotlib
+import numpy as np
+import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.metrics import adjusted_rand_score, silhouette_score
+from sklearn.preprocessing import StandardScaler
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-from sklearn.cluster import KMeans  # noqa: E402
-from sklearn.metrics import adjusted_rand_score, silhouette_score  # noqa: E402
-from sklearn.preprocessing import StandardScaler  # noqa: E402
+from features import Calendar, build_hourly_features, load_categories
+from features.common import CATEGORIES, NIGHT_HOURS
 
-from features import Calendar, build_hourly_features, load_categories  # noqa: E402
-from features.common import CATEGORIES, NIGHT_HOURS  # noqa: E402
+from .explain import minutes
 
-from .explain import minutes  # noqa: E402
-from .m1.data import load_sim  # noqa: E402
+# matplotlib và models.m1.data (kéo theo mã EDA) chỉ import trong plot_heatmaps/main: tác vụ ban đêm
+# (jobs/insights.py) dùng module này mà chỉ cài requirements-job.txt.
 
 HABIT_END = pd.Timestamp("2026-06-01")  # dùng năm học (trước hè) để mô tả thói quen
 K_RANGE = range(3, 7)
@@ -63,7 +61,8 @@ def habit_vectors(hours: pd.DataFrame) -> pd.DataFrame:
 
 def cluster(vectors: pd.DataFrame) -> tuple[np.ndarray, int, dict]:
     z = StandardScaler().fit_transform(vectors)
-    scores = {k: silhouette_score(z, KMeans(k, n_init=10, random_state=0).fit_predict(z)) for k in K_RANGE}
+    ks = [k for k in K_RANGE if k < len(vectors)]  # silhouette cần k < số trẻ (dữ liệu thật có thể ít trẻ)
+    scores = {k: silhouette_score(z, KMeans(k, n_init=10, random_state=0).fit_predict(z)) for k in ks}
     best = max(scores, key=scores.get)
     return KMeans(best, n_init=10, random_state=0).fit_predict(z), best, scores
 
@@ -71,7 +70,7 @@ def cluster(vectors: pd.DataFrame) -> tuple[np.ndarray, int, dict]:
 def traits(vectors: pd.DataFrame, members: pd.Index, k: int = 2) -> str:
     """Mô tả nhóm bằng k đặc điểm lệch nhiều nhất so với toàn bộ trẻ (theo độ lệch chuẩn)."""
     cols = list(TRAITS)
-    z = (vectors.loc[members, cols].mean() - vectors[cols].mean()) / vectors[cols].std()
+    z = ((vectors.loc[members, cols].mean() - vectors[cols].mean()) / vectors[cols].std()).fillna(0)  # cột hằng → 0
     top = z.abs().sort_values(ascending=False).index[:k]
     return ", ".join(TRAITS[c][0] if z[c] > 0 else TRAITS[c][1] for c in top)
 
@@ -95,6 +94,11 @@ def describe(vectors: pd.DataFrame, labels: np.ndarray, daily_min: pd.Series, ag
 
 
 def plot_heatmaps(hours: pd.DataFrame, labels: pd.Series, path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     clusters = sorted(labels.unique())
     fig, axes = plt.subplots(1, len(clusters), figsize=(4 * len(clusters), 3), squeeze=False)
     for ax, c in zip(axes[0], clusters):
@@ -200,6 +204,7 @@ def main() -> None:
     p.add_argument("--out", type=Path, default=Path("reports"))
     args = p.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    from .m1.data import load_sim
 
     t = load_sim(args.sim)
     hours = build_hourly_features(t["app_usage_hourly"], calendar=Calendar.load(), categories=load_categories())

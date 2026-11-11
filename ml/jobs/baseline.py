@@ -32,14 +32,14 @@ def http_put_json(url: str, headers: dict, body: dict) -> tuple[int, dict]:
     return http_json(url, headers, method="PUT", body=body)
 
 
-# Ngày VN chỉ sang ngày mới lúc 06:00 (khớp vnQuotaDayRange ở backend). Cron hẹn 21:05 VN nhưng GitHub
-# hay chạy trễ 6–7 giờ (đo 05–06/11: 03–04h sáng VN) — lấy ngày theo đồng hồ thì tác vụ tính cho ngày mới
-# gần như rỗng (M1 bỏ qua trẻ, M2 chấm lệch một ngày).
-TASK_DAY_CUTOFF = pd.Timedelta(hours=6)
+# Cron hẹn 21:05 VN nhưng GitHub chạy trễ rất thất thường: đo 08–10/11 lúc 01:46, 06:22, 03:45 sáng VN.
+# Lấy ngày theo đồng hồ thì tác vụ tính cho ngày mới gần như rỗng (M1 bỏ qua trẻ, M2 chấm lệch một ngày).
+# Mốc 06:00 (PR #352) vẫn hụt lần 06:22 → trước 12:00 trưa VN đều tính là ngày hôm trước.
+TASK_DAY_CUTOFF = pd.Timedelta(hours=12)
 
 
 def task_day(now: pd.Timestamp) -> pd.Timestamp:
-    """Ngày tác vụ: ngày VN vừa diễn ra (trước 06:00 sáng vẫn tính là hôm trước), dạng naive 00:00 —
+    """Ngày tác vụ: ngày VN vừa diễn ra (trước 12:00 trưa vẫn tính là hôm trước), dạng naive 00:00 —
     cùng kiểu cột `date` của build_hourly_features."""
     return (now.tz_convert("UTC").tz_localize(None) + VN_OFFSET - TASK_DAY_CUTOFF).normalize()
 

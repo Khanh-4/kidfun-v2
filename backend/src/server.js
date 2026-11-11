@@ -206,6 +206,9 @@ app.put('/api/cron/behavior-baselines', verifyCronSecret, express.json({ limit: 
 // Tác vụ ML ban đêm (đồ án chuyên ngành, T7.2.3) gửi dự đoán M1 + cảnh báo tầng 2 (tới 500 dòng).
 app.post('/api/cron/behavior-results', verifyCronSecret, express.json({ limit: '1mb' }),
   require('./controllers/behaviorResultsController').saveResults);
+// Tác vụ ML ban đêm (đồ án chuyên ngành, T7.5.3) ghi nhóm thói quen M3 + gợi ý M4 (tới 500 dòng).
+app.put('/api/cron/habit-insights', verifyCronSecret, express.json({ limit: '1mb' }),
+  require('./controllers/habitInsightController').saveInsights);
 // Tác vụ ML ban đêm (đồ án chuyên ngành, T7.1.1a) đọc dữ liệu đã lọc cột định danh.
 app.get('/api/cron/thesis-data', verifyCronSecret, require('./controllers/thesisDataController').getThesisData);
 app.get('/api/cron/weekly-reports', verifyCronSecret, async (req, res) => {

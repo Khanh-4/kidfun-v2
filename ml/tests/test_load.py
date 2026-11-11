@@ -123,3 +123,12 @@ def test_ket_qua_dua_thang_vao_build_daily_features():
     assert len(df) == 11
     assert (df["profileId"] == 1).all()
     assert df["limit_tomorrow"].eq(60).all()
+
+
+def test_doc_nhom_tuoi_va_van_chay_voi_backend_cu_chua_tra_profiles():
+    new = to_frames([{"profileIds": [1, 2], "nextAfterProfileId": None, "hourly": [], "limits": [], "extRequests": [],
+                      "profiles": [{"profileId": 1, "ageGroup": "6-10"}, {"profileId": 2, "ageGroup": None}]}])
+    old = to_frames([{"profileIds": [1], "nextAfterProfileId": None, "hourly": [], "limits": [], "extRequests": []}])
+
+    assert new.profiles.set_index("profileId")["ageGroup"].to_dict() == {1: "6-10", 2: None}
+    assert old.profiles.empty

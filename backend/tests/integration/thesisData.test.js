@@ -32,8 +32,8 @@ describe('GET /api/cron/thesis-data', () => {
 
     owner = await prisma.user.create({ data: { email: `thesis_${STAMP}@kidfun.test`, fullName: 'Phụ Huynh' } });
     profiles = [];
-    for (const profileName of ['Bé Một', 'Bé Hai']) {
-      profiles.push(await prisma.profile.create({ data: { userId: owner.id, profileName } }));
+    for (const [profileName, dateOfBirth] of [['Bé Một', new Date('2018-03-01')], ['Bé Hai', null]]) {
+      profiles.push(await prisma.profile.create({ data: { userId: owner.id, profileName, dateOfBirth } }));
     }
     const [p1] = profiles;
     device = await prisma.device.create({
@@ -86,6 +86,16 @@ describe('GET /api/cron/thesis-data', () => {
     expect((await get('?days=0')).status).toBe(400);
     expect((await get('?days=abc')).status).toBe(400);
     expect((await get('?limit=1000')).status).toBe(400);
+  });
+
+  it('trả nhóm tuổi (không lộ ngày sinh); chưa có ngày sinh → null', async () => {
+    const res = await get('?days=28&limit=50');
+
+    const mineProfiles = res.body.data.profiles.filter((p) => profiles.some((x) => x.id === p.profileId));
+    expect(mineProfiles).toEqual([
+      { profileId: profiles[0].id, ageGroup: '6-10' },
+      { profileId: profiles[1].id, ageGroup: null },
+    ]);
   });
 
   it('trả dữ liệu trong cửa sổ ngày, đủ cột ML cần', async () => {

@@ -23,4 +23,11 @@ class InsightsRepository {
     final res = await _client.get('/api/profiles/$profileId/usage-heatmap');
     return UsageHeatmap.fromJson(Map<String, dynamic>.from(res.data['data'] as Map));
   }
+
+  /// GET /api/profiles/:id/habit-insight — null khi tác vụ ban đêm chưa tính cho bé.
+  Future<HabitInsight?> fetchHabitInsight(int profileId) async {
+    final res = await _client.get('/api/profiles/$profileId/habit-insight');
+    final raw = res.data['data']['insight'];
+    return raw == null ? null : HabitInsight.fromJson(Map<String, dynamic>.from(raw as Map));
+  }
 }

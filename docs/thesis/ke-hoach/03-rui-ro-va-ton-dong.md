@@ -34,8 +34,10 @@
 - Bất thường `binge_day` có recall < 0,3 vì giới hạn chặn bớt (`docs/thesis/08`).
 - Chưa dùng bộ dữ liệu Tsinghua App Usage dù đã nêu trong PDF.
 - Câu giải thích chưa được phụ huynh thật chấm điểm dễ hiểu (thang 1–5) → T8.5.
-- `GET /api/cron/thesis-data` chưa trả `ageGroup` → gói M1 coi tuổi là thiếu, kém chính xác hơn lúc huấn luyện
-  (T7.1.4). Nên thêm (tính từ `Profile.dateOfBirth`) trước khi đánh giá trên dữ liệu thật (T8.3).
+- `GET /api/cron/thesis-data` đã trả `profiles[].ageGroup` (11/11, T7.5.3) và M4 dùng nó, nhưng **gói M1 vẫn chưa
+  nối** (coi tuổi là thiếu, T7.1.4) — nối vào `jobs/predict.py` trước khi đánh giá trên dữ liệu thật (T8.3).
+- K-Means (M3) chỉ chạy khi ≥ 6 trẻ đủ 7 ngày dữ liệu; production hiện ít trẻ nên app chỉ thấy mô tả "so với các
+  bé khác", chưa có số nhóm.
 - Trẻ không dùng máy cả ngày hôm nay (không có dòng nào) thì tác vụ không dự đoán ngày mai (`predict.py` cần dòng
   của hôm nay). Chấp nhận được lúc này; xem lại nếu dữ liệu thật hay thiếu ngày.
 - Xác suất vượt giới hạn của M1 rất thô vì hiệu chỉnh isotonic là hàm bậc thang (~25 bậc): trong kiểm thử đầu cuối

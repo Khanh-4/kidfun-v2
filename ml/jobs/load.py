@@ -12,7 +12,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 from urllib.parse import urlencode
 
@@ -27,6 +27,7 @@ HOURLY_COLS = {"profileId": "int64", "packageName": "object", "hourStart": "date
 LIMIT_COLS = {"profileId": "int64", "dayOfWeek": "int64", "dailyLimitMinutes": "int64",
               "isActive": "bool", "isGradual": "bool"}
 EXT_COLS = {"profileId": "int64", "createdAt": "datetime", "requestMinutes": "int64", "status": "object"}
+PROFILE_COLS = {"profileId": "int64", "ageGroup": "object"}  # ageGroup null khi chưa có ngày sinh
 FEEDBACK_COLS = {"profileId": "int64", "rule": "object", "category": "object", "dayType": "object",
                  "feedback": "object", "feedbackAt": "datetime"}
 
@@ -45,6 +46,7 @@ class ThesisData:
     limits: pd.DataFrame
     ext_requests: pd.DataFrame
     alert_feedback: pd.DataFrame  # phụ huynh bấm "được phép" cho cảnh báo tầng 1 → nới ngưỡng
+    profiles: pd.DataFrame = field(default_factory=lambda: _frame([], PROFILE_COLS))  # nhóm tuổi (M4)
 
 
 def http_json(url: str, headers: dict, *, method: str = "GET", body: dict | None = None) -> tuple[int, dict]:
@@ -108,6 +110,7 @@ def to_frames(pages: list[dict]) -> ThesisData:
         limits=_frame(rows("limits"), LIMIT_COLS),
         ext_requests=_frame(rows("extRequests"), EXT_COLS),
         alert_feedback=_frame(rows("alertFeedback"), FEEDBACK_COLS),
+        profiles=_frame(rows("profiles"), PROFILE_COLS),
     )
 
 

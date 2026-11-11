@@ -5,12 +5,19 @@ import 'package:mobile/features/behavior/data/insights_repository.dart';
 import 'package:mobile/features/behavior/screens/ai_insights_screen.dart';
 
 class FakeInsightsRepo extends InsightsRepository {
-  FakeInsightsRepo({this.predictions = const [], UsageHeatmap? heatmap, this.fail = false})
+  FakeInsightsRepo({this.predictions = const [], UsageHeatmap? heatmap, this.habit, this.fail = false})
       : heatmap = heatmap ?? UsageHeatmap.empty();
 
   final List<UsagePrediction> predictions;
   final UsageHeatmap heatmap;
+  final HabitInsight? habit;
   final bool fail;
+
+  @override
+  Future<HabitInsight?> fetchHabitInsight(int profileId) async {
+    if (fail) throw Exception('offline');
+    return habit;
+  }
 
   @override
   Future<List<UsagePrediction>> fetchPredictions(int profileId) async {
@@ -91,5 +98,37 @@ void main() {
 
     expect(find.textContaining('Không tải được'), findsOneWidget);
     expect(find.text('Thử lại'), findsOneWidget);
+  });
+
+  testWidgets('thói quen: câu mô tả nhóm + các gợi ý có nguồn', (tester) async {
+    await pump(
+      tester,
+      FakeInsightsRepo(
+        heatmap: heatmapWith(),
+        habit: const HabitInsight(
+          date: '2026-11-10',
+          habitSummary: 'hay dùng khuya, nghiêng về game',
+          clusterId: 1,
+          clusterCount: 3,
+          suggestions: [
+            HabitSuggestion(code: 'gio_ngu', text: 'Tuần qua bé dùng máy sau nửa đêm ở 4 đêm.'),
+            HabitSuggestion(code: 'who', text: 'WHO khuyến nghị trẻ 2–4 tuổi không quá 1 giờ/ngày.'),
+          ],
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(find.textContaining('WHO khuyến nghị'), 200);
+
+    expect(find.textContaining('hay dùng khuya, nghiêng về game'), findsOneWidget);
+    expect(find.textContaining('Nhóm 2/3'), findsOneWidget);
+    expect(find.textContaining('sau nửa đêm ở 4 đêm'), findsOneWidget);
+    expect(find.textContaining('Nguồn: WHO 2019'), findsOneWidget);
+  });
+
+  testWidgets('chưa có kết quả thói quen → câu chờ phân tích', (tester) async {
+    await pump(tester, FakeInsightsRepo(heatmap: heatmapWith(days: 3)));
+    await tester.scrollUntilVisible(find.text('Thói quen & gợi ý'), 200);
+
+    expect(find.textContaining('sau khi có đủ 7 ngày dữ liệu'), findsOneWidget);
   });
 }

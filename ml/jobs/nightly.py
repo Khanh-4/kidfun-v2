@@ -3,7 +3,8 @@
 Tải dữ liệu MỘT lần qua /api/cron/thesis-data, rồi:
   1. tính mức thường ngày cho luật tầng 1 → PUT /api/cron/behavior-baselines;
   2. dự đoán M1 cho ngày mai → POST /api/cron/behavior-results (server tự tạo cảnh báo khi p ≥ 0,6);
-  3. chấm M2 tầng 2 mức ngày (DBSCAN) cho hôm qua → POST /api/cron/behavior-results, `alerts` (T7.3.2).
+  3. chấm M2 tầng 2 mức ngày (DBSCAN) cho hôm qua → POST /api/cron/behavior-results, `alerts` (T7.3.2);
+  4. nhóm thói quen M3 + gợi ý M4 → PUT /api/cron/habit-insights (T7.5.3).
 
     CRON_SECRET=... .venv/bin/python -m jobs.nightly --url https://kidfun-backend.vercel.app          # chỉ tính
     CRON_SECRET=... .venv/bin/python -m jobs.nightly --url https://kidfun-backend.vercel.app --push   # tính + gửi
@@ -18,6 +19,7 @@ import pandas as pd
 from features import Calendar, load_categories
 from jobs.anomaly import MIN_HISTORY_DAYS as M2_MIN_DAYS, build_day_alerts, push_alerts
 from jobs.baseline import MIN_BASELINE_DAYS, build_baselines, push_baselines
+from jobs.insights import MIN_HABIT_DAYS, MODEL_VERSION as INSIGHTS_VERSION, build_insights, push_insights
 from jobs.load import load_thesis_data
 from jobs.predict import MIN_HISTORY_DAYS, build_predictions, push_results
 from models.m1 import bundle as m1_bundle
@@ -61,6 +63,10 @@ def main(argv=None) -> int:
           f"{a_report['flagged']} | bỏ qua (< {M2_MIN_DAYS} ngày dữ liệu hoặc hôm qua không dùng máy): "
           f"{len(a_report['skipped'])}")
 
+    insights, i_report = build_insights(data, now=now, calendar=calendar, categories=categories)
+    print(f"M3/M4 ({INSIGHTS_VERSION}): {i_report['processed']} trẻ | số nhóm K-Means: {i_report['clusters'] or '—'} "
+          f"| bỏ qua (< {MIN_HABIT_DAYS} ngày dữ liệu): {len(i_report['skipped'])}")
+
     if args.push:
         print(f"đã lưu {push_baselines(args.url, secret, baselines)} baseline lên backend")
         summary = push_results(args.url, secret, predictions, version)
@@ -70,6 +76,9 @@ def main(argv=None) -> int:
             a_sum = push_alerts(args.url, secret, day_alerts, m2_version)
             print(f"cảnh báo ngày: mới {a_sum['alertsCreated']} | trùng {a_sum['alertDuplicates']} "
                   f"| bị loại {a_sum['alertsRejected']}")
+        if insights:
+            i_sum = push_insights(args.url, secret, insights)
+            print(f"đã lưu {i_sum['saved']} nhóm thói quen + gợi ý | profile lạ: {i_sum['unknownProfiles']}")
     return 1 if b_report["errors"] or p_report["errors"] else 0
 
 

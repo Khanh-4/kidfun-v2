@@ -42,7 +42,7 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 - [x] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
   tác vụ, chạy được bằng tay (`workflow_dispatch`). Xong khi: một lần chạy thật thành công trên GitHub.
   **Sửa 11/11/2026:** GitHub chạy cron trễ 6–7 giờ (03–04h sáng VN) làm "hôm nay" thành ngày mới rỗng → các job
-  dùng `task_day()` (giờ VN − 6h, khớp mốc 06:00 của backend) thay cho `vn_today()`; test `ml/tests/test_task_day.py`.
+  dùng `task_day()` (giờ VN − 12h; ban đầu − 6h nhưng cron 09/11 chạy lúc 06:22 VN) thay cho `vn_today()`; test `ml/tests/test_task_day.py`.
   **Đã viết (05/11/2026):** `.github/workflows/thesis-nightly.yml` chạy `jobs.baseline --push`; bấm tay có ô chọn
   chỉ tính không gửi. Cài `ml/requirements-job.txt` (pandas/numpy/sklearn/xgboost) thay vì `requirements.txt` đầy
   đủ — torch/prophet chỉ dùng so sánh mô hình, quá nặng cho Actions. Chạy thử trên máy (không gửi): 9 trẻ, 32 dòng
@@ -131,10 +131,13 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   `mobile/lib/features/behavior/screens/ai_insights_screen.dart`, mở từ nút biểu đồ tím ở danh sách hồ sơ (11/11).
 - [x] T7.5.2 Heatmap theo giờ × thứ trong tuần 4 tuần gần nhất (M3). `GET /api/profiles/:id/usage-heatmap`
   (tính trên Vercel từ `AppUsageHourly`, nhẹ — không cần tác vụ ban đêm).
-- [ ] T7.5.3 Nhóm thói quen của trẻ (K-Means, M3) và 1–3 gợi ý có dẫn nguồn (M4).
+- [x] T7.5.3 Nhóm thói quen của trẻ (K-Means, M3) và 1–3 gợi ý có dẫn nguồn (M4). `ml/jobs/insights.py` (dùng lại
+  `models/m3m4.py`): ≥ 6 trẻ đủ 7 ngày mới chạy K-Means, ít hơn thì mô tả từng trẻ so với các trẻ khác; gợi ý theo
+  nhóm tuổi (`thesis-data` trả thêm `profiles[].ageGroup` từ ngày sinh). App hiện nguồn mỗi gợi ý (WHO/AAP/dữ liệu bé).
 - [x] T7.5.4 Trạng thái rỗng khi chưa đủ dữ liệu ("cần thêm N ngày"; số ngày lấy từ `daysWithData` của heatmap).
   Flowtest `docs/flowtest/13-ai-insights.md`.
-- [ ] T7.5.5 Nếu M3/M4 cần API riêng: thêm vào tác vụ ban đêm (T7.1) thay vì tính trên Vercel.
+- [x] T7.5.5 M3/M4 chạy trong tác vụ ban đêm → `PUT /api/cron/habit-insights` (bảng `HabitInsight`),
+  app đọc `GET /api/profiles/:id/habit-insight`. E2E `ml/e2e/run_local.sh` OK (11/11).
 
 ## T7.6 Bàn giao
 
