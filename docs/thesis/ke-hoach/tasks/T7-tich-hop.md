@@ -125,10 +125,13 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 
 ## T7.5 Tab "AI Insights" trong app phụ huynh
 
-- [ ] T7.5.1 Thẻ "Ngày mai": phút dự đoán, xác suất vượt giới hạn, câu giải thích (M1).
-- [ ] T7.5.2 Heatmap theo giờ × thứ trong tuần 4 tuần gần nhất (M3).
+- [x] T7.5.1 Thẻ "Ngày mai": phút dự đoán, xác suất vượt giới hạn, câu giải thích (M1).
+  `mobile/lib/features/behavior/screens/ai_insights_screen.dart`, mở từ nút biểu đồ tím ở danh sách hồ sơ (11/11).
+- [x] T7.5.2 Heatmap theo giờ × thứ trong tuần 4 tuần gần nhất (M3). `GET /api/profiles/:id/usage-heatmap`
+  (tính trên Vercel từ `AppUsageHourly`, nhẹ — không cần tác vụ ban đêm).
 - [ ] T7.5.3 Nhóm thói quen của trẻ (K-Means, M3) và 1–3 gợi ý có dẫn nguồn (M4).
-- [ ] T7.5.4 Trạng thái rỗng khi chưa đủ dữ liệu ("cần thêm N ngày").
+- [x] T7.5.4 Trạng thái rỗng khi chưa đủ dữ liệu ("cần thêm N ngày"; số ngày lấy từ `daysWithData` của heatmap).
+  Flowtest `docs/flowtest/13-ai-insights.md`.
 - [ ] T7.5.5 Nếu M3/M4 cần API riêng: thêm vào tác vụ ban đêm (T7.1) thay vì tính trên Vercel.
 
 ## T7.6 Bàn giao

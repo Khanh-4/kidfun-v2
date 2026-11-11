@@ -24,6 +24,7 @@ import 'features/profile/screens/web_filter_screen.dart';
 import 'features/profile/screens/app_usage_report_screen.dart';
 import 'features/device/providers/device_provider.dart';
 import 'features/behavior/screens/behavior_alerts_screen.dart';
+import 'features/behavior/screens/ai_insights_screen.dart';
 import 'features/device/screens/device_list_screen.dart';
 import 'features/device/screens/add_device_screen.dart';
 import 'features/device/screens/scan_qr_screen.dart';
@@ -758,6 +759,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
               final alertId = int.tryParse(state.uri.queryParameters['alertId'] ?? '');
               return BehaviorAlertsScreen(profileId: id, profileName: name, highlightAlertId: alertId);
+            },
+          ),
+          GoRoute(
+            path: ':id/ai-insights',
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              final name = state.uri.queryParameters['name'] ?? 'Trẻ em';
+              return AiInsightsScreen(profileId: id, profileName: name);
             },
           ),
           GoRoute(
