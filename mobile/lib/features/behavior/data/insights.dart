@@ -62,3 +62,49 @@ class UsageHeatmap {
 
   double get maxValue => grid.expand((r) => r).fold(0, (a, b) => a > b ? a : b);
 }
+
+/// Một gợi ý M4 (luật trong ml/models/m3m4.suggest).
+class HabitSuggestion {
+  final String code;
+  final String text;
+
+  const HabitSuggestion({required this.code, required this.text});
+
+  factory HabitSuggestion.fromJson(Map<String, dynamic> json) =>
+      HabitSuggestion(code: json['code'] as String, text: json['text'] as String);
+
+  /// Nguồn của luật — T7.5.3 yêu cầu gợi ý "có dẫn nguồn".
+  String get source => switch (code) {
+        'who' => 'Nguồn: WHO 2019 — hướng dẫn thời gian màn hình cho trẻ dưới 5 tuổi',
+        'gio_ngu' => 'Nguồn: AAP — ngừng dùng màn hình ít nhất 1 giờ trước khi ngủ',
+        _ => 'Dựa trên dữ liệu sử dụng 28 ngày gần nhất của bé',
+      };
+}
+
+/// GET /api/profiles/:id/habit-insight — nhóm thói quen (M3) + gợi ý (M4) mới nhất, do tác vụ ban đêm tính.
+class HabitInsight {
+  final String date;
+  final String? habitSummary;
+  final int? clusterId;
+  final int? clusterCount;
+  final List<HabitSuggestion> suggestions;
+
+  const HabitInsight({
+    required this.date,
+    this.habitSummary,
+    this.clusterId,
+    this.clusterCount,
+    this.suggestions = const [],
+  });
+
+  factory HabitInsight.fromJson(Map<String, dynamic> json) => HabitInsight(
+        date: json['date'] as String,
+        habitSummary: json['habitSummary'] as String?,
+        clusterId: (json['clusterId'] as num?)?.toInt(),
+        clusterCount: (json['clusterCount'] as num?)?.toInt(),
+        suggestions: [
+          for (final s in (json['suggestions'] as List?) ?? const [])
+            HabitSuggestion.fromJson(Map<String, dynamic>.from(s as Map)),
+        ],
+      );
+}

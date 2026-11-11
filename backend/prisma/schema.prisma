@@ -64,6 +64,7 @@ model Profile {
   behaviorAlerts   BehaviorAlert[]
   behaviorBaseline BehaviorBaseline?
   usagePredictions UsagePrediction[]
+  habitInsights    HabitInsight[]
 }
 
 model Device {
@@ -607,5 +608,22 @@ model UsagePrediction {
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   // Tác vụ chạy lại trong ngày thì ghi đè, không tạo trùng
+  @@unique([profileId, date])
+}
+
+// Đồ án chuyên ngành (T7.5.3): nhóm thói quen (M3, K-Means) + gợi ý cho phụ huynh (M4), do tác vụ ban đêm ghi.
+model HabitInsight {
+  id           Int      @id @default(autoincrement())
+  profileId    Int
+  date         DateTime @db.Date // ngày tác vụ (giờ VN) — xem ml/jobs/baseline.task_day
+  habitSummary String? // vd "hay dùng khuya, nghiêng về game"; null khi chưa đủ trẻ để so sánh
+  clusterId    Int? // nhóm K-Means; null khi quá ít trẻ để phân nhóm
+  clusterCount Int? // số nhóm của lần chạy đó
+  suggestions  Json // [{ code, text }] — luật M4 (models/m3m4.suggest)
+  modelVersion String
+  createdAt    DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
   @@unique([profileId, date])
 }

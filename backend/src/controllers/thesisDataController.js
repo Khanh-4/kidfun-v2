@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
+const { ageGroupOf } = require('../utils/ageGroup');
 
 // Đồ án chuyên ngành (T7.1.1a): tác vụ ML ban đêm trên GitHub Actions đọc dữ liệu qua đây
 // thay vì nối thẳng DB (lý do ở docs/thesis/ke-hoach/tasks/T7-tich-hop.md, T7.1.1).
@@ -25,7 +26,8 @@ const parseIntParam = (raw, fallback, min, max) => {
 };
 
 // GET /api/cron/thesis-data?days=28&limit=10&afterProfileId=0
-// → { since, profileIds, nextAfterProfileId, hourly, limits, extRequests, alertFeedback }
+// → { since, profileIds, nextAfterProfileId, profiles, hourly, limits, extRequests, alertFeedback }
+// profiles: [{ profileId, ageGroup }] — chỉ nhóm tuổi (không ngày sinh), dùng cho luật gợi ý M4 và gói M1.
 const getThesisData = async (req, res) => {
   try {
     const days = parseIntParam(req.query.days, DEFAULT_DAYS, 1, MAX_DAYS);
@@ -41,7 +43,7 @@ const getThesisData = async (req, res) => {
       where: { isActive: true, id: { gt: afterProfileId } },
       orderBy: { id: 'asc' },
       take: limit,
-      select: { id: true },
+      select: { id: true, dateOfBirth: true },
     });
     const profileIds = page.map((p) => p.id);
     const since = new Date(Date.now() - days * DAY_MS);
@@ -76,6 +78,7 @@ const getThesisData = async (req, res) => {
       since,
       profileIds,
       nextAfterProfileId: profileIds.length === limit ? profileIds[profileIds.length - 1] : null,
+      profiles: page.map((p) => ({ profileId: p.id, ageGroup: ageGroupOf(p.dateOfBirth) })),
       hourly,
       limits,
       extRequests,

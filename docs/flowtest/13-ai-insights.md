@@ -33,7 +33,14 @@
 | 4.1 | Sau khi Khánh gửi dự đoán, làm mới màn | Thẻ hiện "1 giờ 35 phút / giới hạn 2 giờ", "Khả năng vượt giới hạn: 72%" màu đỏ, câu giải thích bắt đầu "[Thử nghiệm]" |
 | 4.2 | Hồ sơ đủ ≥ 7 ngày nhưng chưa có dự đoán | "Dự đoán cho ngày mai sẽ có sau khi hệ thống phân tích lúc 21:00 tối nay." |
 
-**Gửi kết quả:** bảng ✅/❌ theo mã bước, kèm ảnh chụp màn hình bước 2.1, 3.1, 4.1.
+## Bước 5 — Thói quen & gợi ý (T7.5.3)
+
+| # | Làm | Mong đợi |
+|---|---|---|
+| 5.1 | Hồ sơ chưa đủ 7 ngày: cuộn xuống phần "Thói quen & gợi ý" | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé sau khi có đủ 7 ngày dữ liệu." |
+| 5.2 | Sau khi Khánh gửi kết quả thử (cuối file), làm mới | "So với các bé khác: [Thử nghiệm] hay dùng khuya…", "Nhóm 2/3 (phân nhóm K-Means)", 2 thẻ gợi ý, mỗi thẻ có dòng nguồn in nghiêng (WHO / AAP) |
+
+**Gửi kết quả:** bảng ✅/❌ theo mã bước, kèm ảnh chụp màn hình bước 2.1, 3.1, 4.1, 5.2.
 
 ---
 
@@ -51,3 +58,17 @@ curl -s -X POST https://kidfun-backend.vercel.app/api/cron/behavior-results \
 ```
 
 Tác vụ ban đêm thật sẽ ghi đè dòng này (cùng `profileId` + ngày) khi bé đủ 7 ngày dữ liệu.
+
+### Dành cho Khánh — gửi nhóm thói quen thử (bước 5.2)
+
+```bash
+TODAY=$(TZ=Asia/Ho_Chi_Minh date +%F)
+curl -s -X PUT https://kidfun-backend.vercel.app/api/cron/habit-insights \
+  -H "Authorization: Bearer $CRON_SECRET" -H 'Content-Type: application/json' \
+  -d "{\"modelVersion\":\"flowtest-13\",\"insights\":[{\"profileId\":<ID>,\"date\":\"$TODAY\",
+       \"habitSummary\":\"[Thử nghiệm] hay dùng khuya, nghiêng về game\",\"clusterId\":1,\"clusterCount\":3,
+       \"suggestions\":[{\"code\":\"gio_ngu\",\"text\":\"[Thử nghiệm] Tuần qua bé dùng máy sau nửa đêm ở 4 đêm.\"},
+                      {\"code\":\"who\",\"text\":\"[Thử nghiệm] WHO khuyến nghị trẻ 2–4 tuổi không quá 1 giờ/ngày.\"}]}]}"
+```
+
+Mong đợi `{"saved":1,"unknownProfiles":0}`. Tác vụ ban đêm thật ghi đè khi bé đủ 7 ngày.

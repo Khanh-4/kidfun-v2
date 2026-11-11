@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../data/insights.dart';
 import '../data/insights_repository.dart';
+import '../widgets/habit_insight_view.dart';
 import '../widgets/usage_heatmap_view.dart';
 
 /// "AI Insights" của một trẻ (đồ án chuyên ngành, T7.5): thẻ "Ngày mai" (M1), heatmap giờ × thứ (M3),
-/// và trạng thái rỗng khi tác vụ ban đêm chưa đủ dữ liệu để dự đoán.
+/// nhóm thói quen + gợi ý có nguồn (M3/M4), và trạng thái rỗng khi tác vụ ban đêm chưa đủ dữ liệu để dự đoán.
 class AiInsightsScreen extends StatefulWidget {
   final int profileId;
   final String profileName;
@@ -26,6 +27,7 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
 
   List<UsagePrediction> _predictions = const [];
   UsageHeatmap _heatmap = UsageHeatmap.empty();
+  HabitInsight? _habit;
   bool _loading = true;
   String? _error;
 
@@ -41,11 +43,16 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
       _error = null;
     });
     try {
-      final results = await Future.wait([_repo.fetchPredictions(widget.profileId), _repo.fetchHeatmap(widget.profileId)]);
+      final results = await Future.wait([
+        _repo.fetchPredictions(widget.profileId),
+        _repo.fetchHeatmap(widget.profileId),
+        _repo.fetchHabitInsight(widget.profileId),
+      ]);
       if (!mounted) return;
       setState(() {
         _predictions = results[0] as List<UsagePrediction>;
         _heatmap = results[1] as UsageHeatmap;
+        _habit = results[2] as HabitInsight?;
         _loading = false;
       });
     } catch (_) {
@@ -94,6 +101,8 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
           _section('Ngày mai', _tomorrowContent()),
           const SizedBox(height: 16),
           _section('Thói quen theo giờ', UsageHeatmapView(heatmap: _heatmap)),
+          const SizedBox(height: 16),
+          _section('Thói quen & gợi ý', HabitInsightView(insight: _habit, minDays: _heatmap.minDaysForPrediction)),
         ],
       ),
     );

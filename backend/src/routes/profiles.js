@@ -157,5 +157,7 @@ router.get('/:id/behavior-alerts', behaviorAlertController.listAlerts);
 router.get('/:id/predictions', require('../controllers/behaviorResultsController').listPredictions);
 // GET /api/profiles/:id/usage-heatmap - Heatmap giờ × thứ 4 tuần + số ngày có dữ liệu (T7.5.2, T7.5.4)
 router.get('/:id/usage-heatmap', require('../controllers/behaviorResultsController').usageHeatmap);
+// GET /api/profiles/:id/habit-insight - Nhóm thói quen M3 + gợi ý M4 mới nhất (T7.5.3)
+router.get('/:id/habit-insight', require('../controllers/habitInsightController').latestInsight);
 
 module.exports = router;
