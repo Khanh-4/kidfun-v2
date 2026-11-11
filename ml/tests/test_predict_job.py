@@ -117,3 +117,34 @@ def test_github_chay_tre_luc_4h_sang_van_du_doan_cho_dung_ngay_mai():
 
     assert report["skipped"] == []
     assert [p["date"] for p in preds] == ["2026-10-21"]
+
+
+class SpyBundle(FakeBundle):
+    def predict_minutes(self, df):
+        self.seen = df.set_index("profileId")["ageGroup"].to_dict() if "ageGroup" in df.columns else None
+        return super().predict_minutes(df)
+
+
+def test_ghep_nhom_tuoi_vao_dong_dac_trung_truoc_khi_goi_m1():
+    data = to_frames([{"profileIds": [1, 2], "nextAfterProfileId": None, "hourly": days_of_usage(1, 14) + days_of_usage(2, 14),
+                       "limits": [], "extRequests": [], "alertFeedback": [],
+                       "profiles": [{"profileId": 1, "ageGroup": "6-10"}, {"profileId": 2, "ageGroup": None}]}])
+    spy = SpyBundle()
+    build_predictions(data, now=NOW, calendar=CAL, categories=CATS, bundle=spy)
+
+    assert spy.seen[1] == "6-10"
+    assert pd.isna(spy.seen[2])  # chưa có ngày sinh → để trống, gói M1 coi tuổi là thiếu
+
+
+def test_tuoi_that_lam_doi_du_doan_cua_goi_m1():
+    rows = days_of_usage(1, 21)
+    base = {"profileIds": [1], "nextAfterProfileId": None, "hourly": rows, "limits": [], "extRequests": [],
+            "alertFeedback": []}
+    young = to_frames([{**base, "profiles": [{"profileId": 1, "ageGroup": "3-5"}]}])
+    teen = to_frames([{**base, "profiles": [{"profileId": 1, "ageGroup": "15-17"}]}])
+    bundle = m1_bundle.load()
+
+    [a], _ = build_predictions(young, now=NOW, calendar=CAL, categories=CATS, bundle=bundle)
+    [b], _ = build_predictions(teen, now=NOW, calendar=CAL, categories=CATS, bundle=bundle)
+
+    assert a["predictedMinutes"] != b["predictedMinutes"]

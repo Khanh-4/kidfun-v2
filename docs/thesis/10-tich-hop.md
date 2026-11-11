@@ -91,6 +91,6 @@ và `docs/flowtest/13-ai-insights.md` (dự đoán, nhóm thói quen). Câu th�
 
 ## 6. Giới hạn đã biết
 
-Xem `ke-hoach/03-rui-ro-va-ton-dong.md`. Chính: gói M1 chưa dùng `ageGroup` dù API đã trả; xác suất vượt giới hạn
+Xem `ke-hoach/03-rui-ro-va-ton-dong.md`. Chính: trẻ chưa nhập ngày sinh thì M1/M4 coi tuổi là thiếu; xác suất vượt giới hạn
 dạng bậc thang; production còn ít trẻ đủ dữ liệu nên K-Means chưa chạy thật; trẻ không dùng máy cả ngày thì không có
 dự đoán ngày mai.

@@ -25,7 +25,7 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 
 Việc tiếp theo (theo thứ tự):
 1. **Đọc kết quả flowtest 11** (cảnh báo hành vi, cần test khuya 0–2h) **và 13** (AI Insights) khi người test gửi.
-2. Nối `ageGroup` (API đã trả từ 11/11) vào gói M1 trong `jobs/predict.py` — trước khi đánh giá ở T8.3.
+2. ~~Nối `ageGroup` vào gói M1~~ xong 11/11. Nhắc phụ huynh trong nhóm test nhập ngày sinh cho bé (thiếu thì M1 coi tuổi là thiếu).
 3. **T8** kiểm thử máy thật, đo pin, đánh giá cuối (cần dữ liệu thật ≥ 7–14 ngày).
 4. **T9** báo cáo, slide, demo.
 
