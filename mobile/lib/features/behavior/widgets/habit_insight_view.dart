@@ -6,15 +6,19 @@ import '../data/insights.dart';
 /// Nhóm thói quen (M3) + gợi ý có nguồn (M4) — T7.5.3.
 class HabitInsightView extends StatelessWidget {
   final HabitInsight? insight;
-  final int minDays;
+  /// Số ngày dữ liệu còn thiếu (từ heatmap) — 0 nghĩa là đủ, chỉ đang chờ tác vụ ban đêm.
+  final int missingDays;
 
-  const HabitInsightView({super.key, required this.insight, required this.minDays});
+  const HabitInsightView({super.key, required this.insight, required this.missingDays});
 
   @override
   Widget build(BuildContext context) {
     final i = insight;
     if (i == null) {
-      return Text('Hệ thống sẽ mô tả thói quen và gợi ý cho bé sau khi có đủ $minDays ngày dữ liệu.',
+      return Text(
+          missingDays > 0
+              ? 'Hệ thống sẽ mô tả thói quen và gợi ý cho bé khi có thêm $missingDays ngày dữ liệu.'
+              : 'Hệ thống sẽ mô tả thói quen và gợi ý cho bé sau lần phân tích ban đêm (thường xong trước sáng mai).',
           style: const TextStyle(color: AppColors.slate500, height: 1.4));
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

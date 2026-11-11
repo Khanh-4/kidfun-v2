@@ -64,12 +64,26 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
     }
   }
 
-  UsagePrediction? get _tomorrow {
-    final t = (widget.today ?? DateTime.now()).add(const Duration(days: 1));
-    final key = '${t.year.toString().padLeft(4, '0')}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  static String _dateKey(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  UsagePrediction? _predictionFor(DateTime day) {
+    final key = _dateKey(day);
     for (final p in _predictions) {
       if (p.date == key) return p;
     }
+    return null;
+  }
+
+  /// Dự đoán để hiện: ưu tiên ngày mai; chưa có thì lấy hôm nay. Cron GitHub hay chạy trễ sang sau nửa đêm
+  /// (đo được 01:46–06:22 sáng VN), nên dự đoán "ngày mai" thường chỉ có mặt khi đã sang chính ngày đó —
+  /// chỉ tìm đúng ngày mai thì thẻ gần như luôn trống (flowtest 13, 11/11).
+  ({UsagePrediction prediction, bool isToday})? get _shownPrediction {
+    final today = widget.today ?? DateTime.now();
+    final tomorrow = _predictionFor(today.add(const Duration(days: 1)));
+    if (tomorrow != null) return (prediction: tomorrow, isToday: false);
+    final todays = _predictionFor(today);
+    if (todays != null) return (prediction: todays, isToday: true);
     return null;
   }
 
@@ -93,16 +107,17 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
         ]),
       );
     }
+    final shown = _shownPrediction;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _section('Ngày mai', _tomorrowContent()),
+          _section(shown != null && shown.isToday ? 'Hôm nay' : 'Ngày mai', _predictionContent(shown?.prediction)),
           const SizedBox(height: 16),
           _section('Thói quen theo giờ', UsageHeatmapView(heatmap: _heatmap)),
           const SizedBox(height: 16),
-          _section('Thói quen & gợi ý', HabitInsightView(insight: _habit, minDays: _heatmap.minDaysForPrediction)),
+          _section('Thói quen & gợi ý', HabitInsightView(insight: _habit, missingDays: _heatmap.missingDays)),
         ],
       ),
     );
@@ -122,14 +137,13 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
         ),
       );
 
-  Widget _tomorrowContent() {
-    final p = _tomorrow;
+  Widget _predictionContent(UsagePrediction? p) {
     if (p == null) {
       final missing = _heatmap.missingDays;
       return _note(missing > 0
           ? 'Cần thêm $missing ngày dữ liệu để bắt đầu dự đoán '
               '(đã có ${_heatmap.daysWithData}/${_heatmap.minDaysForPrediction} ngày). Hãy để máy của bé bật KidFun mỗi ngày.'
-          : 'Dự đoán cho ngày mai sẽ có sau khi hệ thống phân tích lúc 21:00 tối nay.');
+          : 'Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm (thường xong trước sáng mai).');
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.end, children: [

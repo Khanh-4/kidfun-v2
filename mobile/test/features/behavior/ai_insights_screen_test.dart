@@ -75,10 +75,61 @@ void main() {
     expect(find.text('72%'), findsNothing);
   });
 
-  testWidgets('đủ dữ liệu nhưng chưa có dự đoán ngày mai → báo chờ tác vụ ban đêm', (tester) async {
+  testWidgets('đủ dữ liệu nhưng chưa có dự đoán nào → báo chờ tác vụ ban đêm, không hứa mốc 21:00', (tester) async {
     await pump(tester, FakeInsightsRepo(heatmap: heatmapWith(days: 9)));
 
-    expect(find.textContaining('21:00'), findsOneWidget);
+    expect(find.textContaining('Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm'), findsOneWidget);
+    expect(find.textContaining('21:00'), findsNothing);
+  });
+
+  testWidgets('cron chạy sau nửa đêm: chưa có dự đoán ngày mai → hiện dự đoán hôm nay, đổi tiêu đề "Hôm nay"',
+      (tester) async {
+    await pump(
+      tester,
+      FakeInsightsRepo(
+        predictions: [
+          const UsagePrediction(date: '2026-11-11', predictedMinutes: 40, pOverLimit: 0.1, limitMinutes: 120),
+          const UsagePrediction(date: '2026-11-10', predictedMinutes: 70, pOverLimit: 0.3, limitMinutes: 120),
+        ],
+        heatmap: heatmapWith(),
+      ),
+    );
+
+    expect(find.text('Hôm nay'), findsOneWidget);
+    expect(find.text('Ngày mai'), findsNothing);
+    expect(find.text('40 phút'), findsOneWidget);
+    expect(find.text('10%'), findsOneWidget);
+  });
+
+  testWidgets('có dự đoán ngày mai → ưu tiên ngày mai dù có cả hôm nay', (tester) async {
+    await pump(
+      tester,
+      FakeInsightsRepo(
+        predictions: [
+          const UsagePrediction(date: '2026-11-12', predictedMinutes: 95, pOverLimit: 0.72, limitMinutes: 120),
+          const UsagePrediction(date: '2026-11-11', predictedMinutes: 40, pOverLimit: 0.1, limitMinutes: 120),
+        ],
+        heatmap: heatmapWith(),
+      ),
+    );
+
+    expect(find.text('Ngày mai'), findsOneWidget);
+    expect(find.text('Hôm nay'), findsNothing);
+    expect(find.text('1 giờ 35 phút'), findsOneWidget);
+  });
+
+  testWidgets('dự đoán cũ hơn hôm nay → không hiện, coi như chưa có', (tester) async {
+    await pump(
+      tester,
+      FakeInsightsRepo(
+        predictions: [const UsagePrediction(date: '2026-11-10', predictedMinutes: 70, limitMinutes: 120)],
+        heatmap: heatmapWith(),
+      ),
+    );
+
+    expect(find.text('Ngày mai'), findsOneWidget);
+    expect(find.text('1 giờ 10 phút'), findsNothing);
+    expect(find.textContaining('Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm'), findsOneWidget);
   });
 
   testWidgets('heatmap có đủ 7 hàng × 24 ô', (tester) async {
@@ -125,10 +176,19 @@ void main() {
     expect(find.textContaining('Nguồn: WHO 2019'), findsOneWidget);
   });
 
-  testWidgets('chưa có kết quả thói quen → câu chờ phân tích', (tester) async {
+  testWidgets('chưa có kết quả thói quen, còn thiếu ngày → nêu số ngày còn thiếu', (tester) async {
     await pump(tester, FakeInsightsRepo(heatmap: heatmapWith(days: 3)));
-    await tester.scrollUntilVisible(find.text('Thói quen & gợi ý'), 200);
+    await tester.scrollUntilVisible(find.textContaining('mô tả thói quen'), 200);
 
-    expect(find.textContaining('sau khi có đủ 7 ngày dữ liệu'), findsOneWidget);
+    expect(find.textContaining('mô tả thói quen và gợi ý cho bé khi có thêm 4 ngày dữ liệu'), findsOneWidget);
+  });
+
+  testWidgets('chưa có kết quả thói quen nhưng đã đủ ngày → chờ lần phân tích ban đêm, không đòi đủ 7 ngày',
+      (tester) async {
+    await pump(tester, FakeInsightsRepo(heatmap: heatmapWith(days: 9)));
+    await tester.scrollUntilVisible(find.textContaining('mô tả thói quen'), 200);
+
+    expect(find.textContaining('đủ 7 ngày'), findsNothing);
+    expect(find.textContaining('mô tả thói quen và gợi ý cho bé sau lần phân tích ban đêm'), findsOneWidget);
   });
 }
