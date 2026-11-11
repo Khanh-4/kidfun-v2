@@ -42,7 +42,7 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 - [x] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
   tác vụ, chạy được bằng tay (`workflow_dispatch`). Xong khi: một lần chạy thật thành công trên GitHub.
   **Sửa 11/11/2026:** GitHub chạy cron trễ 6–7 giờ (03–04h sáng VN) làm "hôm nay" thành ngày mới rỗng → các job
-  dùng `task_day()` (giờ VN − 6h, khớp mốc 06:00 của backend) thay cho `vn_today()`; test `ml/tests/test_task_day.py`.
+  dùng `task_day()` (giờ VN − 12h; ban đầu − 6h nhưng cron 09/11 chạy lúc 06:22 VN) thay cho `vn_today()`; test `ml/tests/test_task_day.py`.
   **Đã viết (05/11/2026):** `.github/workflows/thesis-nightly.yml` chạy `jobs.baseline --push`; bấm tay có ô chọn
   chỉ tính không gửi. Cài `ml/requirements-job.txt` (pandas/numpy/sklearn/xgboost) thay vì `requirements.txt` đầy
   đủ — torch/prophet chỉ dùng so sánh mô hình, quá nặng cho Actions. Chạy thử trên máy (không gửi): 9 trẻ, 32 dòng
