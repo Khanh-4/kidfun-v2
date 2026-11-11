@@ -44,3 +44,20 @@ Nếu 3.2 hoặc 3.3 sai: gửi logcat đoạn từ lúc bấm Home tới lúc q
 | 4.3 | Lúc ~00:15 phụ huynh xem thời gian đã dùng hôm nay | Tăng đều theo thời gian dùng thật từ 00:00, không đứng ở vài phút |
 
 Báo kết quả trong vòng 1 giờ sau khi test để còn kéo được log Vercel (gói Hobby chỉ giữ 1 giờ).
+
+## Bước 5 — Hạn mức 0 phút / giảm dần: heartbeat không làm nhảy đồng hồ (PR #351, báo cáo 11/11)
+
+Lỗi cũ: phụ huynh đặt hạn mức **0 phút** rồi duyệt thêm giờ → `today-limit` trả đúng (vd 158s) nhưng mỗi heartbeat
+trả ~7298s (server đọc 0 thành 120 phút) → đồng hồ nhảy lên ~2 tiếng. Cần APK máy trẻ bất kỳ từ `develop` (bản sửa
+chỉ ở server). Logcat lọc `📊|💓|HEARTBEAT|Drift`.
+
+| # | Thao tác | Mong đợi |
+|---|----------|----------|
+| 5.1 | Phụ huynh đặt hạn mức **hôm nay = 0 phút**, lưu | Máy trẻ khoá (hết giờ) |
+| 5.2 | Trẻ xin thêm 15 phút, phụ huynh duyệt | Máy trẻ mở, đồng hồ còn ~15 phút |
+| 5.3 | Để app trẻ chạy ≥ 3 phút (≥ 3 lần heartbeat) | Logcat: `💓 [HEARTBEAT] ping successful. server=Ns` với N ≈ số giây còn lại trên màn hình (lệch ≤ 60s); **không** có dòng `Drift … detected` với số lớn hàng nghìn giây |
+| 5.4 | Nhìn đồng hồ trong suốt 5.3 | Giảm đều, không nhảy lên ~2 tiếng |
+
+Ghi lại giờ làm 5.3 để Khánh kéo log Vercel (`getTodayLimit` phải khớp heartbeat). Trường hợp "giảm dần" cũng
+được sửa cùng PR nhưng app mobile chưa có nút bật giảm dần → chỉ kiểm bằng unit test `backend/tests/unit/dailyLimit.test.js`.
+
