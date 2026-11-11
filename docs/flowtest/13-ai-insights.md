@@ -41,13 +41,15 @@ tuổi). Bé không có ngày sinh vẫn chạy nhưng bị coi là thiếu tu�
 | # | Làm | Mong đợi |
 |---|---|---|
 | 4.1 | Sau khi Khánh gửi dự đoán, làm mới màn | Thẻ hiện "1 giờ 35 phút / giới hạn 2 giờ", "Khả năng vượt giới hạn: 72%" màu đỏ, câu giải thích bắt đầu "[Thử nghiệm]" |
-| 4.2 | Hồ sơ đủ ≥ 7 ngày nhưng chưa có dự đoán | "Dự đoán cho ngày mai sẽ có sau khi hệ thống phân tích lúc 21:00 tối nay." |
+| 4.2 | Hồ sơ đủ ≥ 7 ngày nhưng chưa có dự đoán cho hôm nay lẫn ngày mai | "Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm (thường xong trước sáng mai)." — không còn nhắc "21:00" |
+| 4.3 | Sáng hôm sau (tác vụ ban đêm đã chạy, thường xong 01:00–07:00 sáng), mở lại màn | Tiêu đề thẻ đổi thành **"Hôm nay"**, hiện số phút dự đoán cho hôm nay. (Hôm nào tác vụ chạy kịp trước nửa đêm thì tối đó thẻ hiện "Ngày mai" luôn — cả hai đều đúng) |
 
 ## Bước 5 — Thói quen & gợi ý (T7.5.3)
 
 | # | Làm | Mong đợi |
 |---|---|---|
-| 5.1 | Hồ sơ chưa đủ 7 ngày: cuộn xuống phần "Thói quen & gợi ý" | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé sau khi có đủ 7 ngày dữ liệu." |
+| 5.1 | Hồ sơ chưa đủ 7 ngày: cuộn xuống phần "Thói quen & gợi ý" | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé khi có thêm N ngày dữ liệu." — N trùng với số N ở thẻ "Ngày mai" |
+| 5.1b | Hồ sơ đủ ≥ 7 ngày nhưng chưa có kết quả thói quen | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé sau lần phân tích ban đêm (thường xong trước sáng mai)." — không còn đòi "đủ 7 ngày" |
 | 5.2 | Sau khi Khánh gửi kết quả thử (cuối file), làm mới | "So với các bé khác: [Thử nghiệm] hay dùng khuya…", "Nhóm 2/3 (phân nhóm K-Means)", 2 thẻ gợi ý, mỗi thẻ có dòng nguồn in nghiêng (WHO / AAP) |
 
 **Gửi kết quả:** bảng ✅/❌ theo mã bước, kèm ảnh chụp màn hình bước 2.1, 3.1, 4.1, 5.2.
