@@ -89,22 +89,26 @@ kiểm tra sau; đo cả tỷ lệ câu giải thích nói đúng loại bất t
 `tier1/rules.py` là bản tham chiếu của luật chạy trên máy trẻ; `tier1/test_vectors.json` là ca kiểm thử dùng chung với
 bản Kotlin (sinh từ `tests/test_tier1.py::CASES`).
 
-## Tải dữ liệu thật (tác vụ ban đêm, T7.1.2)
+## Tác vụ ban đêm (T7) — tài liệu đầy đủ: `docs/thesis/10-tich-hop.md`
 
-Đọc qua `GET /api/cron/thesis-data` của backend (không nối thẳng DB), in số trẻ/số dòng mỗi trang:
+Chạy bởi `.github/workflows/thesis-nightly.yml` lúc 21:05 VN (GitHub có thể trễ tới sáng — job tính theo
+`jobs.baseline.task_day()`). Một lần đọc dữ liệu qua `GET /api/cron/thesis-data` (không nối thẳng DB), rồi:
+
+| Bước | Module | Ghi vào |
+|---|---|---|
+| Mức thường ngày cho luật tầng 1 trên máy trẻ | `jobs/baseline.py` | `PUT /api/cron/behavior-baselines` |
+| M1 dự đoán ngày mai (+ cảnh báo khi p ≥ 0,6 ở server) | `jobs/predict.py` | `POST /api/cron/behavior-results` |
+| M2 tầng 2 mức ngày (DBSCAN) cho hôm qua | `jobs/anomaly.py` | `POST /api/cron/behavior-results` (`alerts`) |
+| M3 nhóm thói quen + M4 gợi ý theo nhóm tuổi | `jobs/insights.py` | `PUT /api/cron/habit-insights` |
 
 ```bash
-cd ml && CRON_SECRET=... .venv/bin/python -m jobs.load --url https://kidfun-backend.vercel.app
+cd ml
+CRON_SECRET=... .venv/bin/python -m jobs.nightly --url https://kidfun-backend.vercel.app [--push]   # cả tác vụ
+CRON_SECRET=... .venv/bin/python -m jobs.load --url https://kidfun-backend.vercel.app              # chỉ tải, in số dòng
 ```
 
-Mức thường ngày cho luật tầng 1 (T7.1.3) — mặc định chỉ tính và in báo cáo, thêm `--push` để ghi lên backend:
-
-```bash
-cd ml && CRON_SECRET=... .venv/bin/python -m jobs.baseline --url https://kidfun-backend.vercel.app [--push]
-```
-
-Trong code: `from jobs.load import load_thesis_data` → `hourly`, `limits`, `ext_requests` đưa thẳng vào
-`build_daily_features` / `build_hourly_features`.
+Không `--push` thì chỉ tính và in báo cáo. Job trên GitHub chỉ cài `requirements-job.txt` (không matplotlib/torch):
+module dùng trong job không được import các gói đó ở đầu file.
 
 ## Test
 
@@ -120,4 +124,4 @@ bash ml/e2e/run_local.sh
 
 Mô phỏng 3 trẻ → seed vào DB test (`backend/.env.test`, chặn nếu trỏ Supabase) → bật backend local → `jobs.nightly
 --push` hai lần → `backend/scripts/thesis-e2e.js verify` kiểm `UsagePrediction` / `BehaviorBaseline` /
-`BehaviorAlert` → tự dọn. Chạy lại sau mỗi lần sửa tác vụ ban đêm hoặc API kết quả.
+`BehaviorAlert` → tự dọn (log cũng in số nhóm thói quen đã lưu vào `HabitInsight`). Chạy lại sau mỗi lần sửa tác vụ ban đêm hoặc API kết quả.

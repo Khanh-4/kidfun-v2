@@ -141,6 +141,7 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
 
 ## T7.6 Bàn giao
 
-- [ ] T7.6.1 Viết `docs/thesis/10-tich-hop.md`: kiến trúc thật, lịch chạy, cách chạy tay, xử lý lỗi.
-- [ ] T7.6.2 Flowtest mới `docs/flowtest/05-ai-insights.md` (nhận thông báo, bấm đúng/sai, xem tab).
-- [ ] T7.6.3 Cập nhật `ml/README.md` (lệnh chạy tác vụ) và bảng trạng thái ở [README](../README.md).
+- [x] T7.6.1 Viết `docs/thesis/10-tich-hop.md`: kiến trúc thật, lịch chạy, cách chạy tay, xử lý lỗi (11/11).
+- [x] T7.6.2 Flowtest: số 05 đã dùng cho việc khác → `docs/flowtest/11-canh-bao-hanh-vi-phu-huynh.md` (nhận thông
+  báo, bấm đúng/sai) + `docs/flowtest/13-ai-insights.md` (xem màn AI Insights). (chờ: người test chạy)
+- [x] T7.6.3 Cập nhật `ml/README.md` (lệnh chạy tác vụ) và bảng trạng thái ở [README](../README.md).
