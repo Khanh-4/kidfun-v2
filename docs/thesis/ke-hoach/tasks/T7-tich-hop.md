@@ -38,7 +38,7 @@ thường; phụ huynh nhận thông báo, bấm đúng/sai, và xem tab "AI Ins
   gói ở `ml/models/m1/artifacts/` (~4 MB, chỉ JSON, không pickle): `xgb_rel` + `xgb_clf_iso` theo báo cáo tuần 4,
   isotonic lưu dạng mốc (x, y) và nội suy. Huấn luyện lại: `python -m models.m1.bundle --sim data/sim` (~15 giây).
   Test `ml/tests/test_m1_bundle.py`. **Tồn đọng cho T7.3.1:** `thesis-data` chưa trả `ageGroup` → gói vẫn chạy
-  (coi tuổi là thiếu) nhưng kém chính xác hơn; nên thêm `ageGroup` vào API.
+  (coi tuổi là thiếu) nhưng kém chính xác hơn; nên thêm `ageGroup` vào API. **Xong 11/11:** API trả `profiles[].ageGroup`, `jobs/predict.py` ghép vào trước khi gọi gói.
 - [x] T7.1.5 `.github/workflows/thesis-nightly.yml`: cron 21:05 giờ VN (14:05 UTC), cài `ml/requirements.txt`, chạy
   tác vụ, chạy được bằng tay (`workflow_dispatch`). Xong khi: một lần chạy thật thành công trên GitHub.
   **Sửa 11/11/2026:** GitHub chạy cron trễ 6–7 giờ (03–04h sáng VN) làm "hôm nay" thành ngày mới rỗng → các job

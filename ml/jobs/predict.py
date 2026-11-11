@@ -42,6 +42,11 @@ def build_predictions(data: ThesisData, *, now: pd.Timestamp, calendar: Calendar
     if rows.empty:
         return [], report
 
+    # Nhóm tuổi từ thesis-data (tính từ ngày sinh). Trẻ chưa có ngày sinh → để trống, gói M1 coi tuổi là thiếu
+    # như trước 11/11 — lúc huấn luyện mô hình có dùng tuổi, thiếu thì kém chính xác hơn (T7.1.4).
+    ages = data.profiles.set_index("profileId")["ageGroup"]
+    rows = rows.assign(ageGroup=rows["profileId"].map(ages))
+
     try:
         minutes = bundle.predict_minutes(rows)
         p_over = bundle.predict_over_limit(rows)
