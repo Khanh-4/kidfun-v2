@@ -15,6 +15,7 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { sendBehaviorAlertPush } = require('../services/fcmService');
 const { parseBehaviorAlerts, buildMessage, formatMinutes } = require('../utils/behaviorAlert');
+const { buildUsageHeatmap, MIN_DAYS_FOR_PREDICTION } = require('../utils/usageHeatmap');
 
 const M1_ALERT_THRESHOLD = 0.6;
 const MAX_PREDICTIONS = 500;
@@ -236,4 +237,30 @@ const listPredictions = async (req, res) => {
   }
 };
 
-module.exports = { saveResults, listPredictions, M1_ALERT_THRESHOLD };
+const HEATMAP_WEEKS = 4;
+
+// GET /api/profiles/:id/usage-heatmap (T7.5.2, T7.5.4) — heatmap giờ × thứ 4 tuần gần nhất (giờ VN)
+// + số ngày có dữ liệu để app hiện "cần thêm N ngày" khi tác vụ ban đêm chưa đủ lịch sử.
+const usageHeatmap = async (req, res) => {
+  try {
+    const profileId = parseInt(req.params.id, 10);
+    const profile = await prisma.profile.findFirst({ where: { id: profileId, userId: req.user.userId } });
+    if (!profile) return sendError(res, 'Profile not found', 404, 'NOT_FOUND');
+
+    const todayVn = new Date(Date.now() + VN_OFFSET_MS).toISOString().slice(0, 10);
+    const from = new Date(Date.parse(`${todayVn}T00:00:00Z`) - (HEATMAP_WEEKS * 7 - 1) * DAY_MS - VN_OFFSET_MS);
+    const rows = await prisma.appUsageHourly.findMany({
+      where: { profileId, hourStart: { gte: from } },
+      select: { hourStart: true, usageSeconds: true },
+    });
+    return sendSuccess(res, {
+      ...buildUsageHeatmap(rows, { weeks: HEATMAP_WEEKS }),
+      minDaysForPrediction: MIN_DAYS_FOR_PREDICTION,
+    });
+  } catch (err) {
+    console.error('usageHeatmap error:', err);
+    return sendError(res, err.message, 500, 'INTERNAL_ERROR');
+  }
+};
+
+module.exports = { saveResults, listPredictions, usageHeatmap, M1_ALERT_THRESHOLD };

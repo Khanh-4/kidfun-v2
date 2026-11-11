@@ -155,5 +155,7 @@ const behaviorAlertController = require('../controllers/behaviorAlertController'
 router.get('/:id/behavior-alerts', behaviorAlertController.listAlerts);
 // GET /api/profiles/:id/predictions?days=14 - Dự đoán M1 (thẻ "Ngày mai", đồ án chuyên ngành T7.2.4)
 router.get('/:id/predictions', require('../controllers/behaviorResultsController').listPredictions);
+// GET /api/profiles/:id/usage-heatmap - Heatmap giờ × thứ 4 tuần + số ngày có dữ liệu (T7.5.2, T7.5.4)
+router.get('/:id/usage-heatmap', require('../controllers/behaviorResultsController').usageHeatmap);
 
 module.exports = router;

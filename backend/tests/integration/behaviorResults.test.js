@@ -220,4 +220,45 @@ describe('POST /api/cron/behavior-results (đồ án chuyên ngành, T7.2.3)', (
       expect(wide.body.data.predictions).toHaveLength(4);
     });
   });
+
+  describe('GET /api/profiles/:id/usage-heatmap (T7.5.2, T7.5.4)', () => {
+    const tokenOf = (user) => jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET);
+    const get = (id, user) => request(app).get(`/api/profiles/${id}/usage-heatmap`).set('Authorization', `Bearer ${tokenOf(user)}`);
+    let stranger;
+
+    beforeAll(async () => {
+      stranger = await prisma.user.create({ data: { email: `${TAG}_h@kidfun.test`, fullName: 'Stranger' } });
+      const device = await prisma.device.create({
+        data: { userId: parent.id, profileId, deviceName: 'Máy bé', deviceCode: `${TAG}_dev` },
+      });
+      const hour = (hoursAgo) => new Date(Math.floor(Date.now() / HOUR_MS) * HOUR_MS - hoursAgo * HOUR_MS);
+      await prisma.appUsageHourly.createMany({
+        data: [
+          { profileId, deviceId: device.id, packageName: 'com.a', hourStart: hour(1), usageSeconds: 1200 },
+          { profileId, deviceId: device.id, packageName: 'com.b', hourStart: hour(1), usageSeconds: 1200 },
+          { profileId, deviceId: device.id, packageName: 'com.a', hourStart: hour(60 * 24), usageSeconds: 9999 }, // ngoài 4 tuần
+        ],
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany({ where: { id: stranger.id } });
+    });
+
+    it('hồ sơ của người khác → 404', async () => {
+      expect((await get(profileId, stranger)).status).toBe(404);
+    });
+
+    it('lưới 7×24 chỉ gồm 4 tuần gần nhất, kèm số ngày có dữ liệu và ngưỡng dự đoán', async () => {
+      const res = await get(profileId, parent);
+
+      expect(res.status).toBe(200);
+      const { grid, weeks, daysWithData, minDaysForPrediction } = res.body.data;
+      expect(weeks).toBe(4);
+      expect(grid).toHaveLength(7);
+      expect(grid.flat().reduce((a, b) => a + b, 0)).toBe(10); // (20 + 20 phút) / 4 tuần
+      expect(daysWithData).toBe(1);
+      expect(minDaysForPrediction).toBe(7);
+    });
+  });
 });

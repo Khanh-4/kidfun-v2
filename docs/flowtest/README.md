@@ -21,6 +21,7 @@ trên điện thoại thật.
 | 10 | [10-chan-app-web-khi-chay-nen.md](10-chan-app-web-khi-chay-nen.md) | Chặn app / lọc web khi app trẻ chạy nền — sửa push FCM nền văng lỗi (báo cáo 05/11, PR #334); tốc độ API sau khi chuyển syd1 (#335); để máy trẻ thu dữ liệu 7–14 ngày cho đồ án | ~25 phút + nhiều ngày | Người test |
 | 11 | [11-canh-bao-hanh-vi-phu-huynh.md](11-canh-bao-hanh-vi-phu-huynh.md) | App phụ huynh: thông báo cảnh báo hành vi kèm lý do, mở đúng cảnh báo, nút "Đúng là bất thường" / "Được phép" (đồ án T7.4) | ~20 phút | Người test + Khanh gửi cảnh báo thử |
 | 12 | [12-xin-them-gio.md](12-xin-them-gio.md) | Xin thêm giờ: máy trẻ không nhận nhầm thông báo phụ huynh, nhận kết quả duyệt/từ chối qua FCM, duyệt khi đã hết giờ = +N phút kể từ lúc duyệt (báo cáo 10/11) | ~20 phút | Người test |
+| 13 | [13-ai-insights.md](13-ai-insights.md) | Màn AI Insights (T7.5): thẻ "Ngày mai", heatmap thói quen theo giờ, trạng thái "cần thêm N ngày" | ~10 phút | Người test |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).

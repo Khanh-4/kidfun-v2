@@ -244,6 +244,17 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
               ),
             ),
             const SizedBox(width: 4),
+            // Đồ án chuyên ngành (T7.5): dự đoán ngày mai + heatmap thói quen theo giờ
+            IconButton(
+              icon: const Icon(Icons.auto_graph_rounded, color: AppColors.request, size: 22),
+              tooltip: 'AI Insights',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => context.push(
+                '/profiles/${profile.id}/ai-insights?name=${Uri.encodeComponent(profile.profileName)}',
+              ),
+            ),
+            const SizedBox(width: 4),
             // TC-20: SOS history button
             IconButton(
               icon: const Icon(Icons.sos_rounded, color: Colors.red, size: 22),
