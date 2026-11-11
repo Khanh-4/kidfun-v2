@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from features import Calendar, build_day_anomaly_features
-from jobs.baseline import vn_today
+from jobs.baseline import task_day
 from jobs.load import ApiError, ThesisData
 from jobs.predict import PostJson, http_post_json
 from models.explain import explain_day
@@ -47,7 +47,7 @@ def build_day_alerts(data: ThesisData, *, now: pd.Timestamp, calendar: Calendar,
                      bundle) -> tuple[list[dict], dict]:
     """Trả (cảnh báo để POST, báo cáo processed/flagged/skipped)."""
     report = {"processed": 0, "flagged": 0, "skipped": list(data.profile_ids)}
-    yesterday = vn_today(now) - pd.Timedelta(days=1)
+    yesterday = task_day(now) - pd.Timedelta(days=1)
     days = build_day_anomaly_features(data.hourly, calendar=calendar, categories=categories,
                                       ext_requests=data.ext_requests)
     if days.empty:

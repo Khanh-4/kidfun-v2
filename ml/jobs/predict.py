@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from features import Calendar, build_daily_features
-from jobs.baseline import vn_today
+from jobs.baseline import task_day
 from jobs.load import ApiError, ThesisData, http_json
 from models.m1.bundle import BundleError
 
@@ -30,7 +30,7 @@ def build_predictions(data: ThesisData, *, now: pd.Timestamp, calendar: Calendar
                       bundle) -> tuple[list[dict], dict]:
     """Trả (danh sách dự đoán để POST, báo cáo processed/skipped/errors)."""
     report = {"processed": 0, "skipped": [], "errors": []}
-    today = vn_today(now)
+    today = task_day(now)
     daily = build_daily_features(data.hourly, calendar=calendar, categories=categories,
                                  limits=data.limits, ext_requests=data.ext_requests)
     rows = daily[(daily["date"] == today) & (daily["history_days"] >= MIN_HISTORY_DAYS)] if not daily.empty else daily

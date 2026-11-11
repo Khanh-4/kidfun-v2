@@ -108,3 +108,12 @@ def test_khong_co_du_doan_thi_khong_goi_backend():
         raise AssertionError("không được gọi")
 
     assert push_results("https://x.test", "s", [], "v1", post_json=fake_post)["predictions"] == 0
+
+
+def test_github_chay_tre_luc_4h_sang_van_du_doan_cho_dung_ngay_mai():
+    late = pd.Timestamp("2026-10-20 21:00", tz="UTC")  # 04:00 VN ngày 21/10
+    preds, report = build_predictions(data_for([1], days_of_usage(1, 14), limit_rows(1, 120)),
+                                      now=late, calendar=CAL, categories=CATS, bundle=FakeBundle())
+
+    assert report["skipped"] == []
+    assert [p["date"] for p in preds] == ["2026-10-21"]

@@ -1,4 +1,4 @@
-"""Tác vụ ban đêm của đồ án chuyên ngành (T7.3.1) — chạy bởi .github/workflows/thesis-nightly.yml lúc 21:05 giờ VN.
+"""Tác vụ ban đêm của đồ án chuyên ngành (T7.3.1) — chạy bởi .github/workflows/thesis-nightly.yml lúc 21:05 giờ VN (GitHub có thể trễ tới sáng — xem task_day).
 
 Tải dữ liệu MỘT lần qua /api/cron/thesis-data, rồi:
   1. tính mức thường ngày cho luật tầng 1 → PUT /api/cron/behavior-baselines;

@@ -17,7 +17,7 @@ import sys
 import pandas as pd
 
 from features import Calendar
-from jobs.baseline import vn_today
+from jobs.baseline import task_day
 from simulator.generate import simulate
 
 DAYS = 21
@@ -65,7 +65,7 @@ def _records(df: pd.DataFrame, pid: int, cols: list[str]) -> list[dict]:
 
 
 def main(out_path: str) -> None:
-    today = vn_today(pd.Timestamp.now(tz="UTC"))
+    today = task_day(pd.Timestamp.now(tz="UTC"))
     start = (today - pd.Timedelta(days=DAYS - 1)).date().isoformat()
     sim = simulate(N_POOL, start, DAYS, seed=SEED, calendar=Calendar.load())
     picked = _pick(sim, today)

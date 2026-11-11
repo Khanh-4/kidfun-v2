@@ -32,9 +32,16 @@ def http_put_json(url: str, headers: dict, body: dict) -> tuple[int, dict]:
     return http_json(url, headers, method="PUT", body=body)
 
 
-def vn_today(now: pd.Timestamp) -> pd.Timestamp:
-    """Ngày hôm nay theo giờ VN, dạng naive 00:00 — cùng kiểu cột `date` của build_hourly_features."""
-    return (now.tz_convert("UTC").tz_localize(None) + VN_OFFSET).normalize()
+# Ngày VN chỉ sang ngày mới lúc 06:00 (khớp vnQuotaDayRange ở backend). Cron hẹn 21:05 VN nhưng GitHub
+# hay chạy trễ 6–7 giờ (đo 05–06/11: 03–04h sáng VN) — lấy ngày theo đồng hồ thì tác vụ tính cho ngày mới
+# gần như rỗng (M1 bỏ qua trẻ, M2 chấm lệch một ngày).
+TASK_DAY_CUTOFF = pd.Timedelta(hours=6)
+
+
+def task_day(now: pd.Timestamp) -> pd.Timestamp:
+    """Ngày tác vụ: ngày VN vừa diễn ra (trước 06:00 sáng vẫn tính là hôm trước), dạng naive 00:00 —
+    cùng kiểu cột `date` của build_hourly_features."""
+    return (now.tz_convert("UTC").tz_localize(None) + VN_OFFSET - TASK_DAY_CUTOFF).normalize()
 
 
 TIER1_RULES = ("night", "spike")
@@ -57,7 +64,7 @@ def overrides_from_feedback(feedback: pd.DataFrame) -> dict:
 def build_baselines(data: ThesisData, *, now: pd.Timestamp, calendar: Calendar,
                     categories: dict[str, str]) -> tuple[list[dict], dict]:
     """Trả (danh sách {profileId, payload, validUntil} để PUT, báo cáo processed/skipped/errors)."""
-    today = vn_today(now)
+    today = task_day(now)
     as_of = today + pd.Timedelta(days=1)
     hours = build_hourly_features(data.hourly, calendar=calendar, categories=categories)
     if not hours.empty:
