@@ -1,7 +1,17 @@
 # Flowtest 13 — Màn AI Insights (đồ án chuyên ngành, T7.5)
 
-**Cần:** APK phụ huynh build từ `develop` sau PR T7.5. Một hồ sơ trẻ **đã có** máy trẻ chạy KidFun vài ngày
+**Cần:** APK phụ huynh build từ `develop` (sau PR #357). Một hồ sơ trẻ **đã có** máy trẻ chạy KidFun vài ngày
 (để có heatmap) và một hồ sơ **mới** (để xem trạng thái rỗng).
+
+## Bước 0 — Chuẩn bị (làm một lần, quan trọng cho đánh giá T8)
+
+| # | Làm | Mong đợi |
+|---|---|---|
+| 0.1 | App phụ huynh → sửa hồ sơ từng bé đang test → **nhập ngày sinh**, lưu | Danh sách hồ sơ hiện tuổi/ngày sinh của bé |
+| 0.2 | Ghi lại tên bé + nhóm tuổi (3–5 / 6–10 / 11–14 / 15–17) vào phần Ghi chép | — |
+
+Từ 11/11 tác vụ ban đêm dùng nhóm tuổi cho dự đoán M1 và gợi ý M4 (vd mốc "dùng máy sau 22h" chỉ áp cho bé ≤ 10
+tuổi). Bé không có ngày sinh vẫn chạy nhưng bị coi là thiếu tuổi → kém chính xác.
 
 ## Bước 1 — Mở màn
 
@@ -43,6 +53,16 @@
 **Gửi kết quả:** bảng ✅/❌ theo mã bước, kèm ảnh chụp màn hình bước 2.1, 3.1, 4.1, 5.2.
 
 ---
+
+### Dành cho Khánh — kiểm lần chạy cron thật (sáng hôm sau, không cần máy)
+
+GitHub → Actions → `thesis-nightly` → run mới nhất (có thể chạy trễ tới sáng hôm sau, xem `docs/thesis/10-tich-hop.md`):
+
+- [ ] Run xanh (không có email lỗi).
+- [ ] Có đủ 4 dòng báo cáo: `baseline`, `dự đoán M1`, `M2 tầng 2 mức ngày`, `M3/M4 (m3m4-kmeans+rules@…)`.
+- [ ] Nếu run bắt đầu sau 00:00 VN: số trẻ "đã tính" ở M1 **không** tụt về 0 so với hôm trước (ngày tác vụ vẫn là
+      ngày hôm qua — PR #352/#354).
+- [ ] Khi có bé đủ 7 ngày: dòng `đã lưu N nhóm thói quen + gợi ý` với N > 0, và bé đó có dòng trong bảng `HabitInsight`.
 
 ### Dành cho Khánh — gửi dự đoán thử
 
