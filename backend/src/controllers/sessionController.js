@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma');
 const { vnQuotaDayRange } = require('../utils/vnTime');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { extensionMinutes } = require('../utils/extensionGrant');
+const { effectiveDailyLimit } = require('../utils/dailyLimit');
 
 exports.startSession = async (req, res) => {
   try {
@@ -75,7 +76,7 @@ exports.heartbeat = async (req, res) => {
     });
     const extensionBonus = extensions.reduce((sum, req) => sum + extensionMinutes(req), 0);
 
-    const baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
+    const baseLimit = effectiveDailyLimit(todayLimit);
     const limitMinutes = baseLimit + extensionBonus;
 
     const sessions = await prisma.usageSession.findMany({

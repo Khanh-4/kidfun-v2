@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma');
 const { sendSuccess, sendError } = require('../middleware/responseHandler');
 const { vnQuotaDayRange } = require('../utils/vnTime');
 const { extensionMinutes } = require('../utils/extensionGrant');
+const { effectiveDailyLimit } = require('../utils/dailyLimit');
 
 // Helper: calculate remaining minutes for a profile today, including bonus.
 // KHÔNG cache: cache in-memory trên Vercel nằm riêng từng instance, clearCache
@@ -20,7 +21,8 @@ const calcRemaining = async (profileId, deviceId) => {
     }
   });
 
-  const dailyLimitMinutes = timeLimit?.dailyLimitMinutes || 120;
+  // Cùng công thức với today-limit (gồm 0 phút và giảm dần) — xem utils/dailyLimit.js.
+  const dailyLimitMinutes = effectiveDailyLimit(timeLimit);
 
   // Auto-close stale ACTIVE sessions from previous days
   const staleSessions = await prisma.session.findMany({
@@ -761,39 +763,13 @@ const getTodayLimit = async (req, res) => {
     const { dayOfWeek: today } = vnQuotaDayRange(); // 0 = Sunday, theo giờ VN
     const todayLimit = device.profile.timeLimits.find(tl => tl.dayOfWeek === today);
 
-    // fallback to limitMinutes if dailyLimitMinutes is null
-    let baseLimit = todayLimit?.dailyLimitMinutes || todayLimit?.limitMinutes || 0;
-
-    // Gradual reduction: tính limit hiệu lực nếu đang trong tiến trình giảm dần
-    if (
-      todayLimit?.isGradual &&
-      todayLimit.gradualTarget != null &&
-      todayLimit.gradualWeeks &&
-      todayLimit.gradualStartDate
-    ) {
-      const startDate = new Date(todayLimit.gradualStartDate);
-      // Đo khoảng cách giữa hai mốc thật nên dùng now() thẳng: chênh lệch hai
-      // thời điểm không phụ thuộc timezone, cộng thêm +7h vào một vế chỉ gây lệch.
-      const weeksElapsed = Math.floor((Date.now() - startDate) / (7 * 24 * 60 * 60 * 1000));
-      if (weeksElapsed < todayLimit.gradualWeeks) {
-        const reduction =
-          (baseLimit - todayLimit.gradualTarget) * (weeksElapsed / todayLimit.gradualWeeks);
-        baseLimit = Math.round(baseLimit - reduction);
-      } else {
-        baseLimit = todayLimit.gradualTarget;
-      }
-    }
-
-    // BUG FIX: dùng calcRemaining() thay vì usageSession (bảng không được ghi bởi session APIs)
-    // calcRemaining đọc từ usageLog (được tạo bởi startSession + heartbeat) → chính xác
-    const { usedMinutes, usedSeconds, bonusMinutes } =
+    // Hạn mức (gồm giảm dần) + thời gian còn lại lấy thẳng từ calcRemaining —
+    // đúng con số heartbeat trả về. Trước đây hai nơi tự tính riêng và lệch nhau
+    // (xem utils/dailyLimit.js), app trẻ "sửa drift" làm bộ đếm nhảy ~2 tiếng.
+    const { dailyLimitMinutes: baseLimit, usedMinutes, bonusMinutes, remainingMinutes, remainingSeconds } =
       await calcRemaining(device.profile.id, device.id);
 
     const limitMinutes = baseLimit + bonusMinutes;
-    // Tính remaining từ chính limitMinutes trả về (đã gồm giảm dần) để app trẻ
-    // luôn nhận một cặp số khớp nhau: limitMinutes*60 - remainingSeconds = usedSeconds.
-    const remainingSeconds = Math.max(0, limitMinutes * 60 - usedSeconds);
-    const remainingMinutes = Math.round(remainingSeconds / 60);
 
     const dbIsActive = todayLimit?.isActive ?? true;
     const isLimitEnabled = dbIsActive;
