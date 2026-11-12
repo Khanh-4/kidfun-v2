@@ -20,22 +20,29 @@
 
 ### Mức giờ
 
-| Bộ phát hiện | PR-AUC | Precision | Recall | F1 | Recall: khuya | Recall: đột biến | Recall: app lạ |
+| Bộ phát hiện | PR-AUC (KTC 95%) | Precision | Recall | F1 | Recall: khuya | Recall: đột biến | Recall: app lạ |
 |---|---|---|---|---|---|---|---|
-| z-score (so với cùng giờ, cùng loại ngày) | **0,61** | **0,33** | 0,66 | **0,44** | 0,96 | 0,45 | 0,65 |
-| Isolation Forest | 0,59 | 0,08 | **0,74** | 0,15 | **1,00** | 0,47 | 0,95 |
-| Luật tầng 1 | 0,54 | 0,19 | 0,66 | 0,29 | 0,99 | 0,35 | 0,81 |
-| Autoencoder | 0,36 | 0,12 | 0,61 | 0,20 | 0,42 | **0,60** | **0,98** |
+| z-score (so với cùng giờ, cùng loại ngày) | **0,61** [0,54; 0,69] | **0,33** | 0,66 | **0,44** | 0,96 | 0,45 | 0,65 |
+| Isolation Forest | 0,59 [0,53; 0,66] | 0,08 | **0,74** | 0,15 | **1,00** | 0,47 | 0,95 |
+| Luật tầng 1 | 0,54 [0,47; 0,61] | 0,19 | 0,66 | 0,29 | 0,99 | 0,35 | 0,81 |
+| Autoencoder | 0,36 [0,30; 0,43] | 0,12 | 0,61 | 0,20 | 0,42 | **0,60** | **0,98** |
 
 ### Mức ngày
 
-| Bộ phát hiện | PR-AUC | Precision | Recall | F1 | Cả ngày | Nội dung | App lạ | Khuya | Đột biến |
+| Bộ phát hiện | PR-AUC (KTC 95%) | Precision | Recall | F1 | Cả ngày | Nội dung | App lạ | Khuya | Đột biến |
 |---|---|---|---|---|---|---|---|---|---|
-| DBSCAN | **0,70** | **0,51** | **0,76** | **0,61** | 0,27 | 0,89 | 0,97 | 0,95 | 0,76 |
-| Isolation Forest | 0,60 | **0,51** | 0,61 | 0,56 | 0,18 | 0,91 | 0,89 | 0,65 | 0,44 |
-| Autoencoder | 0,51 | 0,42 | 0,50 | 0,46 | 0,26 | 0,34 | 0,86 | 0,63 | 0,51 |
-| Luật tầng 1 | 0,18 | 0,23 | 0,20 | 0,21 | 0,15 | 0,24 | 0,35 | 0,17 | 0,12 |
-| z-score (tỷ lệ so với ngày thường) | 0,13 | 0,16 | 0,15 | 0,15 | 0,23 | 0,04 | 0,10 | 0,17 | 0,20 |
+| DBSCAN | **0,70** [0,65; 0,76] | **0,51** | **0,76** | **0,61** | 0,27 | 0,89 | 0,97 | 0,95 | 0,76 |
+| Isolation Forest | 0,60 [0,52; 0,67] | **0,51** | 0,61 | 0,56 | 0,18 | 0,91 | 0,89 | 0,65 | 0,44 |
+| Autoencoder | 0,51 [0,47; 0,55] | 0,42 | 0,50 | 0,46 | 0,26 | 0,34 | 0,86 | 0,63 | 0,51 |
+| Luật tầng 1 | 0,18 [0,15; 0,22] | 0,23 | 0,20 | 0,21 | 0,15 | 0,24 | 0,35 | 0,17 | 0,12 |
+| z-score (tỷ lệ so với ngày thường) | 0,13 [0,11; 0,16] | 0,16 | 0,15 | 0,15 | 0,23 | 0,04 | 0,10 | 0,17 | 0,20 |
+
+KTC 95%: khoảng tin cậy bootstrap 1.000 lần, lấy lại theo nguyên trẻ (T8.4, `ml/reports/t8_significance.md`).
+Chênh lệch PR-AUC giữa hai bộ đứng đầu, cùng cách bootstrap:
+
+- mức ngày, DBSCAN − Isolation Forest: **+0,107 [0,073; 0,137]**, khoảng không chứa 0 → DBSCAN tốt hơn thật;
+- mức giờ, z-score − Isolation Forest: +0,022 [−0,023; 0,065], khoảng chứa 0 → **chưa phân biệt được** hai bộ này về
+  PR-AUC. z-score vẫn được chọn vì F1 cao hơn hẳn (0,44 so với 0,15) và cảnh báo đúng ngân sách 1%.
 
 ## 3. Nhận xét
 

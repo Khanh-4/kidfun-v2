@@ -89,6 +89,16 @@ kiểm tra sau; đo cả tỷ lệ câu giải thích nói đúng loại bất t
 `tier1/rules.py` là bản tham chiếu của luật chạy trên máy trẻ; `tier1/test_vectors.json` là ca kiểm thử dùng chung với
 bản Kotlin (sinh từ `tests/test_tier1.py::CASES`).
 
+## T8.4 — kiểm định thống kê
+
+```bash
+.venv/bin/python -m models.significance --sim data/sim --lsapp data/lsapp.tsv.gz \
+    --studentlife data/dataset_rds --out reports   # ~8 phút
+```
+
+Wilcoxon cặp trên MAE theo từng người (XGBoost, LSTM so với MA7; hiệu chỉnh Holm) và khoảng tin cậy 95% bootstrap theo
+cụm người cho MAE, ΔMAE và PR-AUC của M2. Kết quả: `reports/t8_significance.md`.
+
 ## Tác vụ ban đêm (T7) — tài liệu đầy đủ: `docs/thesis/10-tich-hop.md`
 
 Chạy bởi `.github/workflows/thesis-nightly.yml` lúc 21:05 VN (GitHub có thể trễ tới sáng — job tính theo

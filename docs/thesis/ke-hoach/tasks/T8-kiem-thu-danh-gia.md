@@ -26,9 +26,12 @@
 
 ## T8.4 Kiểm định thống kê
 
-- [ ] T8.4.1 Wilcoxon cặp trên sai số theo từng trẻ (XGBoost so với MA7, LSTM so với MA7), báo cáo p-value.
-- [ ] T8.4.2 Khoảng tin cậy bootstrap 95% cho MAE và PR-AUC chính.
-- [ ] T8.4.3 Cập nhật bảng ở `docs/thesis/07`, `08` (thêm cột khoảng tin cậy).
+- [x] T8.4.1 Wilcoxon cặp trên sai số theo từng trẻ (XGBoost so với MA7, LSTM so với MA7), báo cáo p-value
+  (`ml/models/significance.py`, hiệu chỉnh Holm; 12/11 trên mô phỏng + LSApp + StudentLife).
+- [x] T8.4.2 Khoảng tin cậy bootstrap 95% cho MAE và PR-AUC chính (bootstrap theo nguyên người;
+  `ml/reports/t8_significance.md`).
+- [x] T8.4.3 Cập nhật bảng ở `docs/thesis/07`, `08` (thêm cột khoảng tin cậy). Chạy lại trên dữ liệu thật khi
+  có T8.3.
 
 ## T8.5 Câu giải thích
 
