@@ -22,6 +22,7 @@ trên điện thoại thật.
 | 11 | [11-canh-bao-hanh-vi-phu-huynh.md](11-canh-bao-hanh-vi-phu-huynh.md) | App phụ huynh: thông báo cảnh báo hành vi kèm lý do, mở đúng cảnh báo, nút "Đúng là bất thường" / "Được phép" (đồ án T7.4) | ~20 phút | Người test + Khanh gửi cảnh báo thử |
 | 12 | [12-xin-them-gio.md](12-xin-them-gio.md) | Xin thêm giờ: máy trẻ không nhận nhầm thông báo phụ huynh, nhận kết quả duyệt/từ chối qua FCM, duyệt khi đã hết giờ = +N phút kể từ lúc duyệt (báo cáo 10/11) | ~20 phút | Người test |
 | 13 | [13-ai-insights.md](13-ai-insights.md) | Màn AI Insights (T7.5): nhập ngày sinh cho bé, thẻ "Ngày mai", heatmap thói quen theo giờ, "Thói quen & gợi ý" có nguồn, trạng thái "cần thêm N ngày"; Khánh kiểm log cron | ~15 phút | Người test + Khanh |
+| 14 | [14-do-tre-canh-bao-va-pin.md](14-do-tre-canh-bao-va-pin.md) | **Đo** cho đồ án (T8.1, T8.2): độ trễ cảnh báo tầng 1 khi dùng máy 0h–2h sáng và chơi game đột biến buổi chiều, precision/recall; đo pin bản mốc `5b0a0b0` so với bản mới (thêm file netstats / jobscheduler / alarm) | 3 đêm + 3 chiều mỗi máy (≥ 2 máy) + 2 × 24 giờ đo pin | Người test + Khanh nạp mức thường ngày giả |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).
