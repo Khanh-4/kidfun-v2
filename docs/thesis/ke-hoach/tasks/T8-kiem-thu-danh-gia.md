@@ -6,7 +6,8 @@
 
 ## T8.1 Độ trễ cảnh báo tầng 1 (RQ4)
 
-- [ ] T8.1.1 Viết kịch bản: dùng máy lúc 0h–2h sáng và tăng đột biến game buổi chiều, ghi giờ bắt đầu chính xác.
+- [x] T8.1.1 Viết kịch bản: dùng máy lúc 0h–2h sáng và tăng đột biến game buổi chiều, ghi giờ bắt đầu chính xác
+  ([flowtest 14](../../../flowtest/14-do-tre-canh-bao-va-pin.md) phần A, 12/11).
 - [ ] T8.1.2 Người test chạy ≥ 5 lần mỗi kịch bản trên ≥ 2 dòng máy (chờ: người test).
 - [ ] T8.1.3 Tính độ trễ = giờ phụ huynh nhận FCM − giờ bắt đầu bất thường; so với chấm theo lô (sáng hôm sau).
 - [ ] T8.1.4 Đếm precision/recall của luật tầng 1 trên các lần chạy.
@@ -14,7 +15,8 @@
 ## T8.2 Tiêu hao pin (RQ4)
 
 - [ ] T8.2.1 Đo 24h bản mốc `5b0a0b0` (đồng bộ 5 phút/lần) và bản mới (gửi theo đợt + tầng 1), cùng máy, cùng kịch
-  bản, theo `docs/flowtest/04-do-pin.md` (chờ: người test).
+  bản, theo `docs/flowtest/04-do-pin.md` + flowtest 14 phần B (chờ: người test). Rủi ro: bản mốc còn Socket.IO mà
+  server đã bỏ → có thể kết nối lại liên tục, làm pin bản mốc tốn hơn thực tế.
 - [ ] T8.2.2 Bảng so sánh: % pin do app, số lần đánh thức, số request mạng.
 
 ## T8.3 Đánh giá trên dữ liệu thật
