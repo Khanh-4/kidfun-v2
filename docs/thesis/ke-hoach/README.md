@@ -23,14 +23,15 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 | [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | **T8.4 xong** (12/11, kiểm định trên mô phỏng + dữ liệu công khai); T8.1–T8.3, T8.5 chờ máy thật / dữ liệu thật |
 | [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | Chưa làm |
 
-Việc tiếp theo (theo thứ tự):
-1. **Đọc kết quả flowtest 11** (cảnh báo hành vi, cần test khuya 0–2h) **và 13** (AI Insights) khi người test gửi.
-2. ~~Nối `ageGroup` vào gói M1~~ xong 11/11. Nhắc phụ huynh trong nhóm test nhập ngày sinh cho bé (thiếu thì M1 coi tuổi là thiếu).
-3. **T8** kiểm thử máy thật, đo pin, đánh giá cuối (cần dữ liệu thật ≥ 7–14 ngày).
-4. **T9** báo cáo, slide, demo.
+Việc tiếp theo (theo thứ tự, cập nhật 12/11):
+1. **Build APK phụ huynh** (#359, #360), gửi người test: flowtest 13 (test lại), 05 bước 5, 10 (test lại) và
+   [flowtest 14](../../flowtest/14-do-tre-canh-bao-va-pin.md).
+2. **Phiếu theo dõi tuần 5** (T0.1); hỏi GVHD hình thức báo cáo và lịch bảo vệ (T0.2).
+3. Chọn bản mốc đo pin (xem [03](03-rui-ro-va-ton-dong.md), rủi ro Socket.IO).
+4. Tuần 6: **T8.1, T8.2** theo flowtest 14. Tuần 7: **T8.3, T8.5** trên dữ liệu thật, chạy lại T8.4. Tuần 8–9: **T9**.
 
-Dữ liệu thật: production có 9 trẻ / 32 dòng theo giờ (05/11), chưa trẻ nào đủ 7 ngày → tác vụ ban đêm chạy nhưng
-chưa tính gì. Flowtest 10 Bước 6 nhờ người test để máy trẻ chạy 7–14 ngày.
+Dữ liệu thật: tác vụ ban đêm 12/11 mới tính được cho 1 trẻ (đủ 7 ngày), K-Means chưa chia nhóm (cần ≥ 6 trẻ).
+Nhắc nhóm test để máy trẻ chạy liên tục và nhập ngày sinh cho bé.
 
 ## Quy ước
 
