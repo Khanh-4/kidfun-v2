@@ -20,11 +20,40 @@
 - **Dữ liệu trẻ em mô phỏng:** XGBoost tốt nhất. LSTM xếp thứ hai, gần với Prophet. Cả ba đều tốt hơn rõ rệt so với
   mô hình cơ sở. Thời gian chạy cả 26 tuần: XGBoost khoảng 30 giây, LSTM 58 giây, Prophet 71 giây.
 - **Dữ liệu công khai của người lớn:** LSTM nhỉnh nhất, MA7 sát ngay sau (LSApp: 80,2 so với 81,4; StudentLife: 142,3 so
-  với 148,0). XGBoost chỉ ngang MA7. Tập kiểm tra dưới 1.000 dự đoán, chênh lệch nhỏ (1,5–4%) và trên StudentLife RMSE
-  của MA7 còn tốt hơn LSTM, nên **không thể kết luận LSTM thật sự tốt hơn MA7**.
+  với 148,0). XGBoost chỉ ngang MA7. Kiểm định ở mục 1b cho thấy: trên LSApp **không** có mô hình nào hơn MA7 một cách
+  có ý nghĩa; trên StudentLife LSTM hơn MA7 nhưng chỉ vừa qua ngưỡng (p sau hiệu chỉnh 0,048), nên chỉ xem là dấu hiệu.
 - **Trả lời RQ1:** mô hình phức tạp chỉ tốt hơn rõ ràng khi có tín hiệu riêng của bối cảnh (lịch học, giới hạn) và đủ
   dữ liệu. Với chuỗi ngắn, thiếu các tín hiệu đó, MA7 là mức sàn rất khó vượt. → **Khi triển khai: dùng XGBoost cho
   trẻ đã có ≥ 7 ngày dữ liệu, và luôn báo cáo kèm MA7 để đối chiếu.**
+
+## 1b. Kiểm định thống kê (T8.4)
+
+> Số liệu đầy đủ: `ml/reports/t8_significance.md` (chạy lại: `ml/README.md` mục T8.4, khoảng 8 phút).
+
+- **Wilcoxon cặp** trên MAE theo từng người: mỗi người là một cặp (MAE mô hình, MAE MA7), hai phía. Mỗi bộ dữ liệu có
+  hai phép so sánh nên p được hiệu chỉnh Holm. Người không có dự đoán MA7 (thiếu 7 ngày liền trước) bị bỏ khỏi cặp.
+- **Khoảng tin cậy 95%** bằng bootstrap 2.000 lần, lấy lại theo **nguyên người** (các ngày của cùng một người phụ thuộc
+  nhau; lấy lại từng dòng sẽ cho khoảng hẹp giả tạo). ΔMAE = MAE mô hình − MAE MA7 trên cùng các dòng.
+
+| Bộ dữ liệu | So sánh | Thắng / số người | Trung vị ΔMAE | p (Holm) | ΔMAE (KTC 95%) |
+|---|---|---|---|---|---|
+| Mô phỏng | XGBoost (tỷ lệ) − MA7 | 100/100 | −12,5 | < 0,001 | **−18,7 [−22,0; −15,5]** |
+| Mô phỏng | LSTM − MA7 | 100/100 | −10,3 | < 0,001 | **−15,4 [−18,2; −12,8]** |
+| LSApp | XGBoost (tỷ lệ) − MA7 | 35/89 | +2,1 | 0,062 | +2,8 [+0,3; +5,3] |
+| LSApp | LSTM − MA7 | 45/89 | −0,2 | 0,696 | −0,2 [−3,7; +3,3] |
+| StudentLife | XGBoost (tỷ lệ) − MA7 | 20/46 | +0,6 | 0,926 | +0,6 [−5,5; +6,5] |
+| StudentLife | LSTM − MA7 | 29/46 | −6,4 | 0,048 | −6,8 [−12,6; −1,5] |
+
+MAE kèm khoảng tin cậy 95%: mô phỏng XGBoost 33,5 [29,0; 38,3], LSTM 36,8 [31,9; 42,0], MA7 52,3 [45,5; 59,5];
+LSApp LSTM 80,2 [68,8; 91,7], MA7 81,4 [69,6; 93,9]; StudentLife LSTM 142,3 [125,2; 160,1], MA7 148,0 [131,2; 165,8].
+
+- **Mô phỏng:** XGBoost và LSTM tốt hơn MA7 ở **mọi** trẻ, khoảng tin cậy của ΔMAE nằm xa 0. Kết luận RQ1 cho dữ liệu
+  trẻ em đứng vững về mặt thống kê (trong giới hạn dữ liệu mô phỏng, xem mục 4).
+- **LSApp:** không mô hình nào hơn MA7. XGBoost còn kém hơn MA7 khoảng 3 phút (khoảng tin cậy không chứa 0), nhưng
+  Wilcoxon sau hiệu chỉnh chưa đạt ngưỡng (0,062).
+- **StudentLife:** LSTM tốt hơn MA7 khoảng 7 phút/ngày, vừa đạt ngưỡng 0,05 sau hiệu chỉnh, chỉ thắng 29/46 người.
+- MAE tuyệt đối có khoảng tin cậy rộng (±5–18 phút) vì mức dùng máy khác nhau nhiều giữa người với người. Vì vậy so
+  sánh mô hình phải dùng **chênh lệch theo cặp** (ΔMAE, Wilcoxon), không nhìn hai khoảng MAE có chồng nhau hay không.
 
 ## 2. Xác suất ngày mai vượt giới hạn
 
@@ -75,8 +104,9 @@ Bảng tin cậy của mô hình đã hiệu chỉnh:
 
 - Dữ liệu mô phỏng được sinh theo đúng các quy luật mà bộ đặc trưng mô tả, nên kết quả trên mô phỏng có thể lạc quan.
   Dữ liệu công khai đều của người lớn.
-- Chưa kiểm định ý nghĩa thống kê của chênh lệch giữa các mô hình (dự kiến làm kiểm định Diebold–Mariano ở tuần 8
-  cùng dữ liệu thật).
+- Đã kiểm định ý nghĩa thống kê (mục 1b, T8.4) trên dữ liệu mô phỏng và công khai. Dùng Wilcoxon theo người thay cho
+  Diebold–Mariano dự kiến ban đầu, vì có nhiều chuỗi ngắn (mỗi người một chuỗi) thay vì một chuỗi dài. Còn phải chạy lại
+  trên dữ liệu thật (T8.3) khi đủ số trẻ.
 - LSTM chưa dò siêu tham số (14 ngày, 32 nút ẩn, 12 epoch).
 - **Đã sửa ở tuần 5:** đặc trưng `days_to_next_holiday` (số ngày tới kỳ nghỉ) để nguyên thì giảm đều theo thời gian
   trong tập kiểm tra (tháng 3 → hè), nên XGBoost dùng nó như một biến chỉ thời gian. Nó đứng đầu SHAP ở 64% cảnh báo

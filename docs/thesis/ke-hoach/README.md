@@ -13,14 +13,14 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 | [04-huong-phat-trien.md](04-huong-phat-trien.md) | Việc mở rộng nếu dư thời gian và hướng phát triển sau đồ án |
 | [tasks/](tasks/) | Danh sách task lớn, mỗi task chia thành các subtask có tiêu chí "xong" |
 
-## Trạng thái nhanh (cập nhật 11/11/2026)
+## Trạng thái nhanh (cập nhật 12/11/2026)
 
 | Task | Nội dung | Trạng thái |
 |---|---|---|
 | [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần |
 | [T1–T6](tasks/T1-T6-da-xong.md) | Thu thập theo giờ, EDA, đặc trưng, mô phỏng, M1, M2 hai tầng, phản hồi, M3/M4 | Code xong; **chờ test máy thật** |
 | [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối: tác vụ ban đêm, API kết quả, app phụ huynh | **Xong code T7.1–T7.6** (05–11/11); chờ flowtest 11 + 13 trên máy thật. Bàn giao: [10-tich-hop.md](../10-tich-hop.md) |
-| [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | Chưa làm (cần T7 và dữ liệu thật) |
+| [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | **T8.4 xong** (12/11, kiểm định trên mô phỏng + dữ liệu công khai); T8.1–T8.3, T8.5 chờ máy thật / dữ liệu thật |
 | [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | Chưa làm |
 
 Việc tiếp theo (theo thứ tự):
