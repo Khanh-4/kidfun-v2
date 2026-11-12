@@ -25,7 +25,7 @@ tuổi). Bé không có ngày sinh vẫn chạy nhưng bị coi là thiếu tu�
 
 | # | Làm | Mong đợi |
 |---|---|---|
-| 2.1 | Mở AI Insights của hồ sơ chưa có dữ liệu | Thẻ "Ngày mai": "Cần thêm 7 ngày dữ liệu… (đã có 0/7 ngày)"; "Thói quen theo giờ": "Chưa có dữ liệu sử dụng theo giờ." |
+| 2.1 | Mở AI Insights của hồ sơ chưa có dữ liệu | Thẻ "Dự đoán ngày mai": "Cần thêm 7 ngày dữ liệu… (đã có 0/7 ngày)"; "Thói quen theo giờ": "Chưa có dữ liệu sử dụng theo giờ." |
 | 2.2 | Hồ sơ có máy trẻ chạy được 2–6 ngày | "Cần thêm N ngày" với N = 7 − số ngày đã có; heatmap có vài ô tô màu |
 
 ## Bước 3 — Heatmap
@@ -36,19 +36,21 @@ tuổi). Bé không có ngày sinh vẫn chạy nhưng bị coi là thiếu tu�
 | 3.2 | Nhấn giữ một ô tô màu | Hiện "T? Xh: N phút" |
 | 3.3 | Đọc dòng chú thích dưới lưới | "Trung bình mỗi tuần trong 4 tuần gần nhất · ô đậm nhất ≈ N phút/giờ" |
 
-## Bước 4 — Thẻ "Ngày mai" (Khánh gửi dự đoán thử, xem cuối file)
+## Bước 4 — Thẻ "Dự đoán ngày mai" (Khánh gửi dự đoán thử, xem cuối file)
+
+> **Lưu ý:** số phút trên thẻ này là **dự đoán** của AI (tính ban đêm từ lịch sử các tuần trước), **không phải** thời gian bé đã dùng hôm nay. Máy trẻ chưa mở mà thẻ vẫn hiện vài chục phút là **đúng**, không phải lỗi. Thời gian đã dùng thật xem ở màn thời gian sử dụng / đồng hồ trên máy trẻ.
 
 | # | Làm | Mong đợi |
 |---|---|---|
 | 4.1 | Sau khi Khánh gửi dự đoán, làm mới màn | Thẻ hiện "1 giờ 35 phút / giới hạn 2 giờ", "Khả năng vượt giới hạn: 72%" màu đỏ, câu giải thích bắt đầu "[Thử nghiệm]" |
 | 4.2 | Hồ sơ đủ ≥ 7 ngày nhưng chưa có dự đoán cho hôm nay lẫn ngày mai | "Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm (thường xong trước sáng mai)." — không còn nhắc "21:00" |
-| 4.3 | Sáng hôm sau (tác vụ ban đêm đã chạy, thường xong 01:00–07:00 sáng), mở lại màn | Tiêu đề thẻ đổi thành **"Hôm nay"**, hiện số phút dự đoán cho hôm nay. (Hôm nào tác vụ chạy kịp trước nửa đêm thì tối đó thẻ hiện "Ngày mai" luôn — cả hai đều đúng) |
+| 4.3 | Sáng hôm sau (tác vụ ban đêm đã chạy, thường xong 01:00–07:00 sáng), mở lại màn | Tiêu đề thẻ đổi thành **"Dự đoán hôm nay"**, hiện số phút dự đoán cho hôm nay. (Hôm nào tác vụ chạy kịp trước nửa đêm thì tối đó thẻ hiện "Dự đoán ngày mai" luôn — cả hai đều đúng) |
 
 ## Bước 5 — Thói quen & gợi ý (T7.5.3)
 
 | # | Làm | Mong đợi |
 |---|---|---|
-| 5.1 | Hồ sơ chưa đủ 7 ngày: cuộn xuống phần "Thói quen & gợi ý" | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé khi có thêm N ngày dữ liệu." — N trùng với số N ở thẻ "Ngày mai" |
+| 5.1 | Hồ sơ chưa đủ 7 ngày: cuộn xuống phần "Thói quen & gợi ý" | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé khi có thêm N ngày dữ liệu." — N trùng với số N ở thẻ "Dự đoán ngày mai" |
 | 5.1b | Hồ sơ đủ ≥ 7 ngày nhưng chưa có kết quả thói quen | "Hệ thống sẽ mô tả thói quen và gợi ý cho bé sau lần phân tích ban đêm (thường xong trước sáng mai)." — không còn đòi "đủ 7 ngày" |
 | 5.2 | Sau khi Khánh gửi kết quả thử (cuối file), làm mới | "So với các bé khác: [Thử nghiệm] hay dùng khuya…", "Nhóm 2/3 (phân nhóm K-Means)", 2 thẻ gợi ý, mỗi thẻ có dòng nguồn in nghiêng (WHO / AAP) |
 

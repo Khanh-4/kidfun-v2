@@ -48,7 +48,7 @@ Future<void> pump(WidgetTester tester, FakeInsightsRepo repo) async {
 }
 
 void main() {
-  testWidgets('thẻ Ngày mai: số phút dự đoán, giới hạn, xác suất vượt và câu giải thích', (tester) async {
+  testWidgets('thẻ Dự đoán ngày mai: số phút dự đoán, giới hạn, xác suất vượt và câu giải thích', (tester) async {
     await pump(
       tester,
       FakeInsightsRepo(
@@ -61,7 +61,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Ngày mai'), findsOneWidget);
+    expect(find.text('Dự đoán ngày mai'), findsOneWidget);
     expect(find.text('1 giờ 35 phút'), findsOneWidget);
     expect(find.textContaining('2 giờ'), findsOneWidget); // giới hạn 120 phút
     expect(find.text('72%'), findsOneWidget);
@@ -82,7 +82,7 @@ void main() {
     expect(find.textContaining('21:00'), findsNothing);
   });
 
-  testWidgets('cron chạy sau nửa đêm: chưa có dự đoán ngày mai → hiện dự đoán hôm nay, đổi tiêu đề "Hôm nay"',
+  testWidgets('cron chạy sau nửa đêm: chưa có dự đoán ngày mai → hiện dự đoán hôm nay, đổi tiêu đề "Dự đoán hôm nay"',
       (tester) async {
     await pump(
       tester,
@@ -95,8 +95,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Hôm nay'), findsOneWidget);
-    expect(find.text('Ngày mai'), findsNothing);
+    expect(find.text('Dự đoán hôm nay'), findsOneWidget);
+    expect(find.text('Dự đoán ngày mai'), findsNothing);
     expect(find.text('40 phút'), findsOneWidget);
     expect(find.text('10%'), findsOneWidget);
   });
@@ -113,8 +113,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Ngày mai'), findsOneWidget);
-    expect(find.text('Hôm nay'), findsNothing);
+    expect(find.text('Dự đoán ngày mai'), findsOneWidget);
+    expect(find.text('Dự đoán hôm nay'), findsNothing);
     expect(find.text('1 giờ 35 phút'), findsOneWidget);
   });
 
@@ -127,7 +127,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Ngày mai'), findsOneWidget);
+    expect(find.text('Dự đoán ngày mai'), findsOneWidget);
     expect(find.text('1 giờ 10 phút'), findsNothing);
     expect(find.textContaining('Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm'), findsOneWidget);
   });
