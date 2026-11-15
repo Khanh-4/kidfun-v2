@@ -97,6 +97,25 @@ WEEKS = {
             "thật; M2 tầng 2 vào tác vụ ban đêm, kiểm thử đầu cuối, app phụ huynh.",
         ],
     ),
+    5: (
+        "09/11/2026\n–\n15/11/2026",
+        [
+            "Sửa lỗi KidFun theo kết quả test 10/11: chặn app/web khi app chạy nền, lịch học và "
+            "giới hạn từng app gửi máy trẻ qua FCM, chế độ đi học bật/tắt đúng giờ, xin thêm giờ, "
+            "mở lại phiên đếm giờ khi gỡ khoá, hạn mức 0 phút.",
+            "Tác vụ ban đêm tính đúng ngày khi GitHub chạy cron trễ; M1 dùng nhóm tuổi thật của trẻ.",
+            "App phụ huynh: màn AI Insights (dự đoán hôm nay/ngày mai, bản đồ nhiệt thói quen theo "
+            "giờ); M3 nhóm thói quen (K-Means) và M4 gợi ý chạy trong tác vụ ban đêm.",
+            "Hoàn thành giai đoạn tích hợp đầu cuối (T7); tài liệu bàn giao tích hợp.",
+            "Kiểm định thống kê M1/M2: Wilcoxon cặp theo trẻ, khoảng tin cậy bootstrap theo trẻ; "
+            "trên dữ liệu mô phỏng XGBoost tốt hơn MA7 ở 100/100 trẻ (ΔMAE −18,7 phút, KTC 95% "
+            "[−22,0; −15,5]); M2 mức ngày DBSCAN hơn Isolation Forest có ý nghĩa.",
+            "Người test chạy flowtest 11, 12, 13 đạt; viết flowtest 14 đo độ trễ cảnh báo tầng 1 "
+            "và đo pin.",
+            "Tồn đọng: build APK phụ huynh để test lại thẻ dự đoán; đo độ trễ và pin theo "
+            "flowtest 14 (từ 16/11); đánh giá trên dữ liệu thật khi đủ ≥ 2 tuần.",
+        ],
+    ),
 }
 
 CONTENT_PT = 11
