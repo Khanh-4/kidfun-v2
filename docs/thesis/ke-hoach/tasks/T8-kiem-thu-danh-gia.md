@@ -40,9 +40,12 @@
 
 ## T8.5 Câu giải thích
 
-- [ ] T8.5.1 Chọn 20 câu giải thích (cả đúng và sai), làm phiếu khảo sát ngắn.
+- [x] T8.5.1 Chọn 20 câu giải thích (cả đúng và sai), làm phiếu khảo sát ngắn — `python -m models.survey --sim
+  data/sim` → `ml/reports/t85_survey.md` (14 câu app dựng đúng + 6 câu ghép tình huống với câu của ngày khác, loại
+  khác), đáp án `t85_answer_key.csv` (không gửi phụ huynh), mẫu nhập `t85_responses_template.csv` (16/11).
 - [ ] T8.5.2 Nhờ 5–10 phụ huynh chấm mức dễ hiểu 1–5 và đúng/sai.
-- [ ] T8.5.3 Tính tỷ lệ câu đúng và điểm trung bình.
+- [ ] T8.5.3 Tính tỷ lệ câu đúng và điểm trung bình — công cụ sẵn: `python -m models.survey --score phan_hoi.csv`
+  (điểm dễ hiểu TB, % câu đúng được công nhận, % câu sai bị phát hiện, % "Không chắc").
 
 ## T8.6 Bàn giao
 
