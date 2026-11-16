@@ -13,4 +13,4 @@ Tầng 1 trên dữ liệu mô phỏng từ 02/03/2026; phụ huynh mô phỏng 
 
 ![Vòng phản hồi](m2_feedback.png)
 
-Kích thước JSON mức thường ngày gửi xuống máy trẻ: trung vị 9.1 KB, lớn nhất 16.1 KB (100 trẻ).
+Kích thước JSON mức thường ngày gửi xuống máy trẻ: trung vị 10.3 KB, lớn nhất 17.3 KB (100 trẻ).

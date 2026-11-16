@@ -120,3 +120,15 @@ def test_geofence_events_alternate_and_outings_fall_in_idle_hours():
     outings = geo[home & (geo["type"] == "EXIT") & ((geo["createdAt"] + pd.Timedelta(hours=7)).dt.hour >= 14)]
     assert not outings.empty
     assert all(minutes.get((p, t.floor("h")), 0) <= 10 for p, t in zip(outings["profileId"], outings["createdAt"]))
+
+
+def test_binge_day_marked_unobservable_when_the_limit_blocks_it():
+    s = simulate(60, "2025-09-01", 150, seed=3, geofence=False)  # đủ ngày binge ở trẻ KHÔNG giới hạn (≈ 13)
+    an = s["anomalies"]
+    assert an["observable"].dtype == bool
+    assert an.loc[an["kind"] != "binge_day", "observable"].all()
+    limited_ids = set(s["time_limits"]["profileId"])
+    binge = an[an["kind"] == "binge_day"].assign(limited=lambda d: d["profileId"].isin(limited_ids))
+    rate = binge.groupby("limited")["observable"].mean()
+    assert rate[False] > 0.5  # không giới hạn: phần lớn lộ rõ (trừ trẻ vốn đã dùng gần kín 60 phút/giờ)
+    assert rate[True] < rate[False]  # có giới hạn: nhiều ngày bị chặn, trông như ngày bình thường

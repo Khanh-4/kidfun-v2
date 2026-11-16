@@ -51,7 +51,9 @@
   KHÔNG giúp M1 (bỏ đi ΔMAE −0,1 phút) — kết quả âm, ghi vào chương 5. Tác vụ ban đêm production chưa nhận dữ liệu
   vị trí nên gói M1 vẫn học với đặc trưng này = 0.
 - Lịch học VN trong `ml/config/vn_school_calendar.csv` có nhiều ngày ước lượng (xem cột `note`).
-- Bất thường `binge_day` có recall < 0,3 vì giới hạn chặn bớt (`docs/thesis/08`).
+- ~~Bất thường `binge_day` có recall < 0,3 vì giới hạn chặn bớt~~ — xong 16/11: phần lớn là lỗi chấm (89% ngày binge
+  của trẻ có giới hạn bị chặn, trông như ngày thường). Bỏ nhãn "vô hình" (cột `observable`): recall binge DBSCAN
+  0,27 → 0,49, PR-AUC mức ngày 0,704 → 0,767; mức giờ không đổi (`docs/thesis/08` mục bổ sung).
 - ~~Chưa dùng bộ dữ liệu Tsinghua App Usage dù đã nêu trong PDF~~ — thẩm định 16/11: **loại**, chỉ có 1 tuần/người
   (M1 cần ≥ 28 ngày) và là bản ghi lưu lượng mạng, không có thời lượng dùng app. Thay bằng **LiveLab** (34 người,
   9.014 người-ngày, trung vị 294 ngày/người): XGBoost và LSTM đều hơn MA7 có ý nghĩa (Holm p < 0,001), xem

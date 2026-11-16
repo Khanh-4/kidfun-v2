@@ -92,3 +92,18 @@ def test_top_reasons_uses_xgboost_shap():
     x = pd.DataFrame({"is_weekend": [0, 1] * 50, "noise": np.random.default_rng(0).random(100)})
     model = xgb.XGBClassifier(n_estimators=20, max_depth=2, n_jobs=1).fit(x, x["is_weekend"])
     assert top_reasons(model, x.iloc[[1]], k=1) == [["is_weekend"]]
+
+
+def test_attach_labels_drops_binge_days_the_limit_made_invisible():
+    from models.m2.data import attach_labels
+
+    d1, d2 = pd.Timestamp("2025-10-01"), pd.Timestamp("2025-10-02")
+    hours = pd.DataFrame({"profileId": [1, 1], "date": [d1, d2], "hour": [10, 10], "hour_min": [30.0, 30.0]})
+    days = pd.DataFrame({"profileId": [1, 1], "date": [d1, d2]})
+    labels = pd.DataFrame({"profileId": [1, 1], "date": [d1, d2], "kind": ["binge_day", "binge_day"],
+                           "hours": ["10", "10"], "observable": [True, False]})
+    hours_out, out, stats = attach_labels(hours, days, labels)
+
+    assert out.set_index("date")["label"].to_dict() == {d1: True, d2: False}
+    assert hours_out.empty  # mức giờ vẫn loại MỌI ngày binge (kể cả bị chặn): vài giờ trước khi chạm giới hạn vẫn cao
+    assert stats["nhãn binge_day bị giới hạn chặn (bỏ)"] == 1
