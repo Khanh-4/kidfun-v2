@@ -92,7 +92,7 @@ def test_reg_resid_probability_agrees_with_predicted_minutes(daily):
     train, test = rows[rows["target_date"] < cut], rows[rows["target_date"] >= cut]
     model = RegResidual().fit(train)
     minutes, p = model.predict_minutes(test), model.predict_proba(test)
-    limit = test["limit_tomorrow"].to_numpy()
+    limit = test["limit_tomorrow"].to_numpy() - 5  # "dùng hết giờ"
 
     assert np.all((p >= 0) & (p <= 1))
     assert np.all(p[minutes > limit] >= 0.5)  # dự đoán vượt giới hạn → không thể "gần như chắc không vượt"

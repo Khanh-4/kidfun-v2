@@ -18,7 +18,9 @@ import pandas as pd
 
 from .data import sim_daily_features
 from .models import XGBRelative
-from .over_limit import RegResidual, XGBClassifierIsotonic, XGBClassifierPlatt, proba_metrics, walk_forward_proba
+from features.daily import HIT_LIMIT_MARGIN_MIN
+
+from .over_limit import M1_LABEL, RegResidual, XGBClassifierIsotonic, XGBClassifierPlatt, proba_metrics, walk_forward_proba
 
 
 def clip_to_minutes(p: np.ndarray, minutes: np.ndarray, limit: np.ndarray) -> np.ndarray:
@@ -45,7 +47,7 @@ class _Clipped:
     def predict_proba(self, test):
         p = self.clf.predict_proba(test)
         minutes = np.clip(self.reg.predict(test), 0, None)
-        limit = test["limit_tomorrow"].to_numpy(dtype=float)
+        limit = test["limit_tomorrow"].to_numpy(dtype=float) - HIT_LIMIT_MARGIN_MIN
         self.seen["rows"] += len(p)
         self.seen["conflicts"] += int(conflicts(p, minutes, limit).sum())
         return clip_to_minutes(p, minutes, limit)
@@ -73,12 +75,12 @@ def report(daily: pd.DataFrame, start: pd.Timestamp) -> str:
     table["số mức p khác nhau"] = [preds[n].round(4).nunique() for n in names]
     rate = {c.name: c.seen["conflicts"] / max(c.seen["rows"], 1) for c in (IsoClipped, PlattClipped)}
     return "\n".join([
-        "# M1 — số phút và xác suất vượt giới hạn có khớp nhau không",
+        "# M1 — số phút và xác suất dùng hết giờ có khớp nhau không",
         "",
         f"Dữ liệu mô phỏng, walk-forward từ {start.date()}: {len(preds):,} ngày có giới hạn, "
-        f"tỷ lệ vượt thực tế {preds['over_limit_next'].astype(float).mean():.1%}.",
+        f"tỷ lệ dùng hết giờ thực tế {preds[M1_LABEL].astype(float).mean():.1%}.",
         "",
-        f"**Ngày mâu thuẫn trước khi kẹp** (số phút dự đoán vượt giới hạn mà p < 0,5, hoặc ngược lại): "
+        f"**Ngày mâu thuẫn trước khi kẹp** (số phút dự đoán ≥ giới hạn − 5 mà p < 0,5, hoặc ngược lại): "
         f"`xgb_clf_iso` {rate['xgb_clf_iso_clip']:.1%}, `xgb_clf_platt` {rate['xgb_clf_platt_clip']:.1%}.",
         "",
         table.round(3).to_markdown(),
@@ -87,7 +89,7 @@ def report(daily: pd.DataFrame, start: pd.Timestamp) -> str:
         "- Platt thay isotonic: Brier như nhau, xác suất liên tục thay vì ~26 mức. **Gói M1 dùng `xgb_clf_platt_clip`"
         " từ 16/11.**",
         "- `reg_resid`: nhất quán và mịn nhưng hiệu chỉnh kém hơn — một phân phối sai số chung cho mọi trẻ không",
-        "  bắt được việc độ dao động khác nhau giữa các trẻ (bỏ dời trung vị cũng không khá hơn: ECE ~0,10).",
+        "  bắt được việc độ dao động khác nhau giữa các trẻ.",
         "",
     ])
 

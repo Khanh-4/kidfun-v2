@@ -16,7 +16,7 @@ from .evaluate import metrics, report, walk_forward
 from .lstm import LSTMGlobal
 from .models import ALL_MODELS, XGBAbsolute, feature_columns
 from .consistency import PlattClipped
-from .over_limit import ALL_CLASSIFIERS, proba_metrics, reliability_table, walk_forward_proba
+from .over_limit import ALL_CLASSIFIERS, M1_LABEL, proba_metrics, reliability_table, walk_forward_proba
 
 REGRESSORS = (*ALL_MODELS, LSTMGlobal)
 PROBA_MODELS = (*ALL_CLASSIFIERS, PlattClipped)
@@ -63,17 +63,17 @@ def over_limit_section(daily: pd.DataFrame, start: pd.Timestamp) -> str:
     preds = walk_forward_proba(daily, PROBA_MODELS, start, daily["target_date"].max())
     names = [m.name for m in PROBA_MODELS]
     table = proba_metrics(preds, names)
-    base_rate = preds["over_limit_next"].astype(float).mean()
+    base_rate = preds[M1_LABEL].astype(float).mean()
     return "\n".join(
         [
-            "## Xác suất ngày mai vượt giới hạn (dữ liệu mô phỏng)",
+            "## Xác suất ngày mai dùng hết giờ — dùng ≥ giới hạn − 5 phút (dữ liệu mô phỏng)",
             "",
-            f"{len(preds):,} ngày có giới hạn, tỷ lệ vượt thực tế {base_rate:.1%}.",
+            f"{len(preds):,} ngày có giới hạn, tỷ lệ dùng hết giờ thực tế {base_rate:.1%}.",
             "",
             table.round(3).to_markdown(),
             "",
-            f"Bảng tin cậy của `{PRODUCTION_PROBA}` — mô hình gói M1 đang dùng (xác suất dự đoán so với tỷ lệ vượt "
-            "thực tế). Dải (0,4; 0,6] dồn nhiều ngày vì phép kẹp đưa các ngày mâu thuẫn về 0,5:",
+            f"Bảng tin cậy của `{PRODUCTION_PROBA}` — mô hình gói M1 đang dùng (xác suất dự đoán so với tỷ lệ "
+            "dùng hết giờ thực tế):",
             "",
             reliability_table(preds, PRODUCTION_PROBA).round(3).to_markdown(),
             "",

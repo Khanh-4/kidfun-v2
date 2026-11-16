@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-NON_FEATURES = {"profileId", "date", "target_date", "y_next", "over_limit_next", "ageGroup"}
+NON_FEATURES = {"profileId", "date", "target_date", "y_next", "over_limit_next", "hit_limit_next", "ageGroup"}
 AGE_MID = {"3-5": 4.0, "6-10": 8.0, "11-14": 12.5, "15-17": 16.0}
 
 

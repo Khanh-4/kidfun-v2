@@ -48,7 +48,7 @@ Future<void> pump(WidgetTester tester, FakeInsightsRepo repo) async {
 }
 
 void main() {
-  testWidgets('thẻ Dự đoán ngày mai: số phút dự đoán, giới hạn, xác suất vượt và câu giải thích', (tester) async {
+  testWidgets('thẻ Dự đoán ngày mai: số phút dự đoán, giới hạn, khả năng dùng hết giờ và câu giải thích', (tester) async {
     await pump(
       tester,
       FakeInsightsRepo(
@@ -65,6 +65,7 @@ void main() {
     expect(find.text('1 giờ 35 phút'), findsOneWidget);
     expect(find.textContaining('2 giờ'), findsOneWidget); // giới hạn 120 phút
     expect(find.text('72%'), findsOneWidget);
+    expect(find.text('Khả năng dùng hết giờ: '), findsOneWidget);
     expect(find.textContaining('thứ Năm'), findsOneWidget);
   });
 

@@ -49,7 +49,7 @@
     ]
   },
   "classifier": {
-    "model": "xgb_clf_platt",
+    "model": "xgb_hit_platt",
     "columns": [
       "y_lag1",
       "y_lag7",

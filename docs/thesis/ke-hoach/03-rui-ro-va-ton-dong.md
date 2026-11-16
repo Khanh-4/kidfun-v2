@@ -34,6 +34,10 @@
 
 ## Tồn đọng kỹ thuật (đã biết, chưa làm)
 
+- ~~Xác suất "vượt giới hạn" của M1 hiếm khi tới ngưỡng cảnh báo~~ — xong 16/11: máy bị chặn khi hết giờ nên "vượt"
+  chỉ xảy ra khi xin thêm giờ được duyệt (p bị chặn trên ~0,5). Đổi nhãn sang "dùng hết giờ" (≥ giới hạn − 5 phút):
+  ROC-AUC 0,726 → 0,854; ngưỡng cảnh báo 0,8 (precision 0,92, ~2,7 cảnh báo/trẻ/tuần trên mô phỏng). Chú ý: tỷ lệ
+  dùng hết giờ trên mô phỏng 63% có thể cao hơn thực tế — xem lại tần suất cảnh báo ở T8.3.
 - ~~Chưa kiểm định thống kê~~ — xong 12/11 (T8.4, #361) trên mô phỏng + LSApp + StudentLife. Còn chạy lại trên dữ
   liệu thật ở T8.3. Kết quả đáng chú ý: StudentLife LSTM hơn MA7 chỉ sát ngưỡng (p Holm 0,048); mức giờ M2 chưa phân
   biệt được z-score và Isolation Forest.

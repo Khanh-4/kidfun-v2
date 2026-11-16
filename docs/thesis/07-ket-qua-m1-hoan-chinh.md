@@ -117,3 +117,22 @@ Bảng tin cậy của mô hình đã hiệu chỉnh:
 
 M2 tầng 2: Isolation Forest, DBSCAN, Autoencoder trên đặc trưng theo giờ/ngày (đã có nhãn bất thường cài sẵn trong
 `anomalies.csv`); bộ sinh câu giải thích (mẫu câu + SHAP).
+
+## Bổ sung 16/11 — đổi nhãn xác suất từ "vượt giới hạn" sang "dùng hết giờ"
+
+Khi dựng tài khoản demo (T9.3.2), hạ giới hạn của một bé từ 126 xuống 38 phút mà p gốc chỉ tăng 0,18 → 0,24. Nguyên nhân
+không phải lỗi mô hình mà là **nhãn**: máy trẻ bị chặn khi hết giờ (cả app thật lẫn bộ mô phỏng), nên `y > giới hạn`
+chỉ xảy ra khi trẻ xin thêm giờ **và được duyệt**. Trên mô phỏng: 56% ngày có giới hạn trẻ chạm giới hạn, nhưng chỉ
+một nửa trong số đó vượt; không ngày nào vượt quá giới hạn + 30 phút. Xác suất "vượt" vì vậy bị chặn trên bởi tỷ lệ
+phụ huynh duyệt (~0,5) — cũng là lý do ROC-AUC chỉ ~0,73 ở mục 2.
+
+Nhãn mới `hit_limit_next` = ngày mai dùng ≥ giới hạn − 5 phút ("dùng hết giờ"), là điều phụ huynh cần biết trước.
+Cột `pOverLimit` giữ tên (tránh migration) nhưng mang nghĩa mới; ngưỡng cảnh báo 0,6 → 0,8.
+
+| Mô hình (mô phỏng, walk-forward) | ROC-AUC | Brier | ECE |
+|---|---|---|---|
+| Nhãn cũ — `xgb_clf_platt_clip` | 0,726 | 0,192 | 0,040 |
+| **Nhãn mới — `xgb_clf_platt_clip`** | **0,854** | **0,149** | **0,018** |
+
+Tỷ lệ dùng hết giờ thực tế 62,8%. Ngưỡng 0,8: báo ~39% số ngày có giới hạn, precision 0,92, recall 0,57, ~2,7 cảnh
+báo/trẻ/tuần (0,9: precision 0,955, ~1,9/tuần). Số liệu đầy đủ: `ml/reports/m1_round2.md`, `m1_consistency.md`.

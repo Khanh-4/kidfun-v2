@@ -1,7 +1,7 @@
 /// Cảnh báo hành vi bất thường (đồ án chuyên ngành) — bảng BehaviorAlert ở backend.
 ///
 /// Nguồn: TIER1 (luật chạy trên máy trẻ), TIER2 (mô hình ML ban đêm: theo giờ hoặc `day_anomaly` cả ngày),
-/// M1 (dự đoán ngày mai có khả năng vượt giới hạn).
+/// M1 (dự đoán ngày mai có khả năng dùng hết giờ).
 class BehaviorAlert {
   final int id;
   final int profileId;

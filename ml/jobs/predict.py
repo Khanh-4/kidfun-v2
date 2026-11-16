@@ -2,7 +2,7 @@
 
 Tác vụ chạy 21:05 giờ VN: bảng đặc trưng ngày dựng từ dữ liệu thật (cùng build_daily_features với lúc huấn
 luyện), lấy dòng của HÔM NAY (target_date = ngày mai), cho gói M1 đã đóng gói (T7.1.4) dự đoán.
-Server tự tạo cảnh báo khi pOverLimit ≥ 0,6 và dựng câu tiếng Việt — tác vụ chỉ gửi số liệu.
+Server tự tạo cảnh báo khi pOverLimit (khả năng dùng hết giờ) ≥ 0,8 và dựng câu tiếng Việt — tác vụ chỉ gửi số liệu.
 """
 
 from typing import Callable

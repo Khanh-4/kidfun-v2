@@ -76,17 +76,17 @@ describe('POST /api/cron/behavior-results (đồ án chuyên ngành, T7.2.3)', (
     expect(rows[0].date.toISOString().slice(0, 10)).toBe(DATE);
   });
 
-  it('xác suất < 0,6 → chỉ lưu dự đoán, không cảnh báo', async () => {
-    const res = await post({ modelVersion: 'v', predictions: [prediction({ pOverLimit: 0.59 })] });
+  it('khả năng dùng hết giờ < 0,8 → chỉ lưu dự đoán, không cảnh báo', async () => {
+    const res = await post({ modelVersion: 'v', predictions: [prediction({ pOverLimit: 0.79 })] });
 
     expect(res.body.data).toMatchObject({ predictions: 1, alertsCreated: 0 });
     expect(await prisma.behaviorAlert.count({ where: { profileId } })).toBe(0);
     expect(sendBehaviorAlertPush).not.toHaveBeenCalled();
   });
 
-  it('xác suất ≥ 0,6 → tạo cảnh báo M1 + FCM một lần; gửi lại không báo trùng', async () => {
-    const first = await post({ modelVersion: 'v', predictions: [prediction({ pOverLimit: 0.72 })] });
-    const again = await post({ modelVersion: 'v', predictions: [prediction({ pOverLimit: 0.75 })] });
+  it('khả năng dùng hết giờ ≥ 0,8 → tạo cảnh báo M1 + FCM một lần; gửi lại không báo trùng', async () => {
+    const first = await post({ modelVersion: 'v', predictions: [prediction({ pOverLimit: 0.85 })] });
+    const again = await post({ modelVersion: 'v', predictions: [prediction({ pOverLimit: 0.88 })] });
 
     expect(first.body.data).toMatchObject({ alertsCreated: 1, alertDuplicates: 0 });
     expect(again.body.data).toMatchObject({ alertsCreated: 0, alertDuplicates: 1 });
@@ -94,7 +94,7 @@ describe('POST /api/cron/behavior-results (đồ án chuyên ngành, T7.2.3)', (
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({ source: 'M1', rule: 'over_limit', category: 'all' });
     expect(alerts[0].slotStart.toISOString()).toBe('2026-11-05T17:00:00.000Z'); // 00:00 ngày 06/11 giờ VN
-    expect(alerts[0].message).toMatch(/72%/);
+    expect(alerts[0].message).toMatch(/85% khả năng dùng hết giờ/);
     expect(alerts[0].notifiedAt).not.toBeNull();
     expect(sendBehaviorAlertPush).toHaveBeenCalledTimes(1);
   });
