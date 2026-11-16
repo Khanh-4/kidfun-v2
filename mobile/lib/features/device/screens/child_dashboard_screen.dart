@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/role_provider.dart';
-import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
@@ -184,9 +183,8 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       _error = null;
     });
 
-    // Connect Socket.IO (idempotent — won't duplicate if already connected)
+    // Join Realtime channel for this device (idempotent)
     if (deviceCode != null && deviceCode.isNotEmpty) {
-      SocketService.instance.joinDevice(deviceCode);
       RealtimeService.instance.joinDevice(deviceCode);
       print('📡 Child Dashboard: called joinDevice for code $deviceCode');
     }
@@ -1111,14 +1109,6 @@ _startHeartbeat();
     // (xem core/services/location_request_handler.dart, gọi từ main.dart) —
     // Socket.IO không chạy trên Vercel nên listener cũ ở đây không bao giờ bắn.
 
-    // Sprint 10: deviceError — thiết bị chưa được liên kết trong DB
-    SocketService.instance.addDeviceErrorListener(_onDeviceError);
-  }
-
-  void _onDeviceError(Map<String, dynamic> data) {
-    if (data['code'] == 'DEVICE_NOT_FOUND') {
-      _handleDeviceNotLinked();
-    }
   }
 
   void _showResultDialog(bool approved, int minutes) {
@@ -1172,9 +1162,6 @@ _startHeartbeat();
       _childRepo.endSession(_sessionId!, _deviceCode!);
     }
     
-    // Remove socket listeners
-    SocketService.instance.removeDeviceErrorListener(_onDeviceError);
-
     // Remove Realtime listeners
     RealtimeService.instance.removeTimeLimitUpdatedListener(_onRealtimeTimeLimitUpdated);
     RealtimeService.instance.removeBlockedAppsUpdatedListener(_onRealtimeBlockedAppsUpdated);

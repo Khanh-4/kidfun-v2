@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/auth_repository.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../core/storage/secure_storage.dart';
-import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
 import '../../../core/network/auth_event_bus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -57,7 +56,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         // Reconnect socket for returning users
         if (userId != null && userId > 0) {
-          SocketService.instance.joinFamily(userId);
           RealtimeService.instance.joinFamily(userId);
           print('📡 Auto-login: called joinFamily for user $userId');
         }
@@ -79,7 +77,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveEmail(user.email);
       state = AuthAuthenticated(user);
       sendFcmTokenIfAvailable();
-      SocketService.instance.joinFamily(user.id);
       RealtimeService.instance.joinFamily(user.id);
       print('📡 Login success: called joinFamily for user ${user.id}');
     } catch (e) {
@@ -99,7 +96,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveEmail(user.email);
       state = AuthAuthenticated(user);
       sendFcmTokenIfAvailable();
-      SocketService.instance.joinFamily(user.id);
       RealtimeService.instance.joinFamily(user.id);
       print('📡 Google Login success: called joinFamily for user ${user.id}');
       
@@ -119,7 +115,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SecureStorage.saveEmail(user.email);
       state = AuthAuthenticated(user);
       sendFcmTokenIfAvailable();
-      SocketService.instance.joinFamily(user.id);
       RealtimeService.instance.joinFamily(user.id);
       print('📡 Register success: called joinFamily for user ${user.id}');
     } catch (e) {
@@ -130,7 +125,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     state = AuthLoading();
     await _repo.logout();
-    SocketService.instance.disconnect();
     RealtimeService.instance.disconnect();
     state = AuthUnauthenticated();
   }

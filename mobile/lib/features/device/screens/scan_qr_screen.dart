@@ -8,7 +8,6 @@ import '../providers/device_provider.dart';
 import '../../auth/providers/role_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/network/socket_service.dart';
 import '../../../core/network/realtime_service.dart';
 import '../../../core/permissions/child_permission_guard.dart';
 
@@ -109,7 +108,6 @@ class _ScanQrScreenState extends ConsumerState<ScanQrScreen>
         final prefs = await SharedPreferences.getInstance();
         final savedDeviceCode = prefs.getString('device_code');
         if (savedDeviceCode != null && savedDeviceCode.isNotEmpty) {
-          SocketService.instance.joinDevice(savedDeviceCode);
           RealtimeService.instance.joinDevice(savedDeviceCode);
           print('📡 Scan QR: called joinDevice for code $savedDeviceCode');
         }

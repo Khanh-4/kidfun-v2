@@ -61,7 +61,6 @@ dependencies:
   mobile_scanner: ^7.2.0
   shared_preferences: ^2.5.4
   device_info_plus: ^12.3.0
-  socket_io_client: 2.0.3+1
   supabase_flutter: ^2.8.0
   mapbox_maps_flutter: ^2.21.0
   geolocator: ^14.0.2
