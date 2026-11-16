@@ -30,6 +30,23 @@ cd ml/data && unzip dataset_rds.zip 'dataset_rds/other/app_usage.Rds' 'dataset_r
 ml/.venv/bin/python ml/eda/studentlife_eda.py ml/data/dataset_rds ml/reports
 ```
 
+## Dữ liệu LiveLab (thêm 16/11)
+
+34 sinh viên Rice / Houston Community College dùng iPhone, 02/2010 → 04/2011; bảng `appusage` có thời lượng từng
+phiên. Sau lọc: 9.014 người-ngày, mọi người ≥ 28 ngày (trung vị 294 ngày) — bộ dữ liệu thật dài nhất của M1.
+Giấy phép (https://www.yecl.org/livelab/traces.html): dùng cho nghiên cứu, **không phân phối lại**, cấm tái định danh,
+trích dẫn Shepard et al., SIGMETRICS 2010 — nên repo chỉ chứa code chuyển đổi (`models/m1/data.py: livelab_*`).
+
+```bash
+mkdir -p ml/data/livelab && curl -L -o ml/data/livelab/apps.tar.gz https://www.yecl.org/livelab/traces/apps.tar.gz
+tar -xzf ml/data/livelab/apps.tar.gz -C ml/data/livelab     # → appusage.sql (~114 MB), apps.sql
+```
+
+`apps.tar.gz` tải ngày 16/11/2026: 13.382.968 byte, md5 `e0632209c4e49c63624ed6b536cca5e7`.
+
+Chuyển đổi: bỏ `SpringBoard` (màn hình chính), phiên ≤ 0 giây; chặn phiên ở 4 giờ; cắt theo giờ; giờ Houston
+(America/Chicago, có giờ mùa hè). Tên app là bundle id iOS nên phần lớn rơi vào nhóm "other" của `app_categories.csv`.
+
 ## Đặc trưng (`features/`) — đặc tả: `docs/thesis/05-dac-ta-dac-trung.md`
 
 - `build_daily_features()` — M1, một dòng / (trẻ, ngày t), tính lúc 21:00 giờ VN, kèm nhãn `y_next`, `over_limit_next`.

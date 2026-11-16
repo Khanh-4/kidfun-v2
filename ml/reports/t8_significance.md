@@ -60,6 +60,26 @@ MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 | xgb_rel | 148.6 | [131.9; 165.0] |               0.6 | [-5.5; 6.5]    |
 | xgb_abs | 149.5 | [132.1; 167.3] |               1.5 | [-5.8; 8.6]    |
 
+## M1 — LiveLab (sinh viên, iPhone)
+
+4,807 dự đoán, 34 người.
+
+Wilcoxon cặp trên MAE theo từng người (hai phía; ΔMAE < 0 là mô hình sai ít hơn MA7):
+
+| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p       | p (Holm)   | kết luận             |
+|:---------------|:-------------|-----------------------:|----:|:--------|:-----------|:---------------------|
+| xgb_rel vs ma7 | 29/34        |                  -1.96 |  27 | < 0,001 | < 0,001    | khác biệt có ý nghĩa |
+| lstm vs ma7    | 31/34        |                  -2.82 |  12 | < 0,001 | < 0,001    | khác biệt có ý nghĩa |
+
+MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
+
+| model   |   MAE | KTC 95% MAE   |   ΔMAE so với ma7 | KTC 95% ΔMAE   |
+|:--------|------:|:--------------|------------------:|:---------------|
+| lstm    |  50   | [43.0; 57.6]  |              -3.3 | [-4.1; -2.5]   |
+| xgb_rel |  50.6 | [43.6; 58.4]  |              -2.7 | [-3.6; -1.8]   |
+| xgb_abs |  50.7 | [43.7; 58.5]  |              -2.5 | [-3.4; -1.6]   |
+| ma7     |  53.2 | [46.2; 61.0]  |             nan   | nan            |
+
 ## M2 tầng 2 — mức giờ
 
 174,369 dòng kiểm tra, 676 dòng bất thường, 100 trẻ. Bootstrap 1000 lần theo trẻ:

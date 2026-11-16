@@ -1,8 +1,10 @@
 """Nạp dữ liệu cho M1 và dựng bảng đặc trưng ngày (ml/features) — dùng chung cho mọi mô hình."""
 
+import re
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from features import Calendar, build_daily_features, load_categories
@@ -75,6 +77,60 @@ def studentlife_hourly(rds_dir: Path) -> pd.DataFrame:
             "launchCount": hourly["snaps"],
         }
     )
+
+
+LIVELAB_ROW = re.compile(r"^INSERT INTO appusage VALUES \((\d+), '([^']*)', '(.*)', (\d+), (-?\d+)\);$")
+LIVELAB_TZ = "America/Chicago"  # Rice University + Houston Community College
+LIVELAB_HOME = "SpringBoard"  # màn hình chính iOS, như launcher bị bỏ ở StudentLife
+LIVELAB_MAX_SESSION_S = 4 * 3600  # phiên dài hơn coi là lỗi ghi log (tắt màn hình đã thoát app)
+
+
+def livelab_events(path: Path) -> pd.DataFrame:
+    """Đọc appusage.sql của LiveLab (dump PostgreSQL, mỗi dòng một INSERT): uid, name, time (POSIX), duration (giây).
+    Bỏ SpringBoard và phiên ≤ 0 giây; chặn phiên ở 4 giờ."""
+    rows = []
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            m = LIVELAB_ROW.match(line.rstrip("\n"))
+            if m:
+                rows.append((m.group(2), m.group(3), int(m.group(4)), int(m.group(5))))
+    ev = pd.DataFrame(rows, columns=["uid", "name", "time", "duration"])
+    ev = ev[(ev["name"] != LIVELAB_HOME) & (ev["duration"] > 0)]
+    return ev.assign(duration=ev["duration"].clip(upper=LIVELAB_MAX_SESSION_S)).reset_index(drop=True)
+
+
+def livelab_hourly(path: Path) -> pd.DataFrame:
+    """LiveLab -> định dạng AppUsageHourly. Cắt phiên theo ranh giới giờ (múi Chicago lệch giờ tròn nên cắt theo giờ
+    UTC cũng là theo giờ địa phương), đổi sang giờ Houston (có giờ mùa hè), rồi xử lý như LSApp: lùi 7 giờ để to_vn()
+    trả lại đúng giờ địa phương gốc."""
+    ev = livelab_events(path)
+    start = ev["time"].to_numpy()
+    end = start + ev["duration"].to_numpy()
+    first_hour, last_hour = start // 3600, (end - 1) // 3600
+    n = (last_hour - first_hour + 1).astype(int)
+    idx = np.repeat(np.arange(len(ev)), n)
+    hour = np.repeat(first_hour, n) + (np.arange(n.sum()) - np.repeat(np.cumsum(n) - n, n))
+    seconds = np.minimum(end[idx], (hour + 1) * 3600) - np.maximum(start[idx], hour * 3600)
+    parts = pd.DataFrame({"uid": ev["uid"].to_numpy()[idx], "name": ev["name"].to_numpy()[idx],
+                          "hour": hour, "seconds": seconds,
+                          "launch": (hour == first_hour[idx]).astype(int)})  # lượt mở tính ở giờ bắt đầu phiên
+    hourly = parts.groupby(["uid", "name", "hour"], as_index=False)[["seconds", "launch"]].sum()
+    local = (pd.to_datetime(hourly["hour"] * 3600, unit="s", utc=True)
+             .dt.tz_convert(LIVELAB_TZ).dt.tz_localize(None))
+    return pd.DataFrame(
+        {
+            "profileId": hourly["uid"],
+            "packageName": hourly["name"],
+            "hourStart": (local - pd.Timedelta(hours=7)).dt.tz_localize("UTC"),
+            "usageSeconds": hourly["seconds"].astype(int),
+            "launchCount": hourly["launch"].astype(int),
+        }
+    )
+
+
+def livelab_daily_features(path: Path) -> pd.DataFrame:
+    daily = build_daily_features(livelab_hourly(path), calendar=Calendar.load(), categories=load_categories())
+    return daily.assign(ageGroup="adult")
 
 
 def studentlife_daily_features(rds_dir: Path) -> pd.DataFrame:

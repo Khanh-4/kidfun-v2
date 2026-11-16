@@ -41,7 +41,11 @@
 - Bộ mô phỏng chưa sinh `GeofenceEvent`, nên nhóm đặc trưng vị trí chưa đánh giá được.
 - Lịch học VN trong `ml/config/vn_school_calendar.csv` có nhiều ngày ước lượng (xem cột `note`).
 - Bất thường `binge_day` có recall < 0,3 vì giới hạn chặn bớt (`docs/thesis/08`).
-- Chưa dùng bộ dữ liệu Tsinghua App Usage dù đã nêu trong PDF.
+- ~~Chưa dùng bộ dữ liệu Tsinghua App Usage dù đã nêu trong PDF~~ — thẩm định 16/11: **loại**, chỉ có 1 tuần/người
+  (M1 cần ≥ 28 ngày) và là bản ghi lưu lượng mạng, không có thời lượng dùng app. Thay bằng **LiveLab** (34 người,
+  9.014 người-ngày, trung vị 294 ngày/người): XGBoost và LSTM đều hơn MA7 có ý nghĩa (Holm p < 0,001), xem
+  `ml/reports/m1_round2.md`, `t8_significance.md`. Không có bộ dữ liệu trẻ em công khai tải được (ABCD-EARS cần
+  xin quyền NIMH) → ghi vào hạn chế của báo cáo.
 - Câu giải thích chưa được phụ huynh thật chấm điểm dễ hiểu (thang 1–5) → T8.5.
 - ~~Gói M1 chưa dùng tuổi~~ — đã nối 11/11: `jobs/predict.py` ghép `profiles[].ageGroup` từ `thesis-data`. Trẻ **chưa
   nhập ngày sinh** vẫn bị coi là thiếu tuổi (kém chính xác hơn) → nhắc phụ huynh nhập ngày sinh trước T8.3.
