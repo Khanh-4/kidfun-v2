@@ -1,0 +1,21 @@
+câu,câu cảnh báo,đúng,loại tình huống,loại câu nói,loại đã cài (mô phỏng)
+1,Hôm nay bé xem 5 video có thể không phù hợp với lứa tuổi.,True,danger_content,danger_content,danger_content
+2,Hôm nay bé dùng máy 1 giờ 41 phút vào giờ ngủ (22h–6h sáng).,False,new_app,night_use,new_app
+3,Hôm nay bé dùng máy 16 phút vào giờ ngủ (22h–6h sáng).,False,binge_day,night_use,binge_day
+4,Hôm nay có lúc bé dùng máy nhiều bất thường (cao nhất 44 phút trong 1 giờ).,False,new_app,spike,new_app
+5,Hôm nay bé dùng máy 2 giờ 45 phút vào giờ ngủ (22h–6h sáng).,True,night_use,night_use,night_use
+6,Hôm nay có lúc bé dùng máy nhiều bất thường (cao nhất 51 phút trong 1 giờ).,True,spike,spike,spike
+7,"Hôm nay bé dùng máy 6 giờ 5 phút, gấp 3 lần một ngày đi học bình thường (khoảng 2 giờ 21 phút).",True,binge_day,binge_day,binge_day
+8,Hôm nay bé dùng máy 46 phút vào giờ ngủ (22h–6h sáng).,True,night_use,night_use,night_use
+9,"Hôm nay bé dùng máy 9 giờ 6 phút, gấp 3 lần một ngày nghỉ bình thường (khoảng 2 giờ 41 phút).",True,binge_day,binge_day,binge_day
+10,Hôm nay bé dùng máy 21 phút vào giờ ngủ (22h–6h sáng).,True,night_use,night_use,night_use
+11,Hôm nay có lúc bé dùng máy nhiều bất thường (cao nhất 55 phút trong 1 giờ).,True,spike,spike,spike
+12,Hôm nay bé dùng máy 1 giờ 33 phút vào giờ ngủ (22h–6h sáng).,False,binge_day,night_use,binge_day
+13,"Hôm nay bé dùng máy 7 giờ 48 phút, gấp 3 lần một ngày nghỉ bình thường (khoảng 2 giờ 45 phút).",False,night_use,binge_day,night_use
+14,Hôm nay bé xem 4 video có thể không phù hợp với lứa tuổi.,True,danger_content,danger_content,danger_content
+15,Hôm nay bé dùng một ứng dụng mới trong 58 phút.,True,new_app,new_app,new_app
+16,Hôm nay bé xem 3 video có thể không phù hợp với lứa tuổi.,True,danger_content,danger_content,danger_content
+17,Hôm nay có lúc bé dùng máy nhiều bất thường (cao nhất 36 phút trong 1 giờ).,True,spike,spike,spike
+18,Hôm nay bé dùng một ứng dụng mới trong 32 phút.,True,new_app,new_app,new_app
+19,Hôm nay bé dùng máy 1 giờ 36 phút vào giờ ngủ (22h–6h sáng).,False,binge_day,night_use,spike
+20,"Hôm nay bé dùng máy 1 giờ 54 phút, gấp 2 lần một ngày nghỉ bình thường (khoảng 49 phút).",True,binge_day,binge_day,binge_day
