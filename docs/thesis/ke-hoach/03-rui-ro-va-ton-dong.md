@@ -47,13 +47,12 @@
   nhập ngày sinh** vẫn bị coi là thiếu tuổi (kém chính xác hơn) → nhắc phụ huynh nhập ngày sinh trước T8.3.
 - K-Means (M3) chỉ chạy khi ≥ 6 trẻ đủ 7 ngày dữ liệu; production hiện ít trẻ nên app chỉ thấy mô tả "so với các
   bé khác", chưa có số nhóm.
-- Trẻ không dùng máy cả ngày hôm nay (không có dòng nào) thì tác vụ không dự đoán ngày mai (`predict.py` cần dòng
-  của hôm nay). Chấp nhận được lúc này; xem lại nếu dữ liệu thật hay thiếu ngày.
+- ~~Trẻ không dùng máy cả ngày hôm nay thì tác vụ không dự đoán ngày mai~~ — xong 16/11: `pad_idle_today` coi hôm
+  nay là 0 phút nếu hôm qua trẻ còn dữ liệu; trống ≥ 2 ngày liền vẫn bỏ qua (máy tắt / gỡ app).
 - Xác suất vượt giới hạn của M1 rất thô vì hiệu chỉnh isotonic là hàm bậc thang (~25 bậc): trong kiểm thử đầu cuối
   (T7.3.4) hai trẻ dùng máy khác hẳn nhau cùng ra p = 0,362. Xem xét Platt scaling hoặc isotonic trên tập hiệu chỉnh
   lớn hơn khi đánh giá ở T8.3.
-- M1 hai mô hình có lúc mâu thuẫn: trong E2E 07/11 trẻ "thap" được dự đoán 76 phút > giới hạn 67 nhưng p vượt = 0,000
-  (bộ phân loại và bộ hồi quy học riêng). App phụ huynh (T7.4/T7.5) nên hiện cả hai cho nhất quán hoặc ghi chú; xem
-  lại ở T8.3.
+- ~~M1 hai mô hình có lúc mâu thuẫn~~ — đo được 27,1% số ngày có giới hạn trên mô phỏng; xong 16/11: gói M1 kẹp
+  p theo số phút (Brier 0,191 → 0,193, ECE 0,006 → 0,037), xem `ml/reports/m1_consistency.md`.
 - ~~Test `backend/tests/integration/todayLimitReboot.test.js` fail nếu chạy trong 06:00–06:40 giờ VN~~ — xong 16/11:
   test cố định đồng hồ ở 12:00 VN (chỉ giả `Date`).

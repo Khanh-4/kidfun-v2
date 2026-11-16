@@ -14,7 +14,7 @@ from scipy.stats import norm
 from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
-from .models import XGB_PARAMS, _matrix, feature_columns
+from .models import XGB_PARAMS, XGBRelative, _matrix, feature_columns
 
 CALIBRATION_SHARE = 0.2
 MIN_STD = 10.0
@@ -65,7 +65,39 @@ class XGBClassifierIsotonic:
         return self.iso.predict(self.base.predict_proba(test))
 
 
-ALL_CLASSIFIERS = (NormalMA7, XGBClassifier, XGBClassifierIsotonic)
+class RegResidual:
+    """Xác suất suy từ CHÍNH bộ hồi quy số phút (xgb_rel) + phân phối sai số thực nghiệm, thay vì một bộ phân
+    loại học riêng — để số phút dự đoán và xác suất không mâu thuẫn (vd 76 phút > giới hạn 67 mà p = 0).
+    Sai số log r = log((y+1)/(m+1)) đo trên 20% cuối theo thời gian, dời cho trung vị = 0, nên
+    m > L ⇔ p ≥ 0,5. p = tỷ lệ sai số r với (m+1)·e^r − 1 > L: mịn theo m và L, không bậc thang như isotonic."""
+
+    name = "reg_resid"
+
+    def fit(self, train):
+        rows = train[train["y_next"].notna()]
+        cut = rows["target_date"].quantile(1 - CALIBRATION_SHARE)
+        fit_part, cal_part = rows[rows["target_date"] < cut], rows[rows["target_date"] >= cut]
+        self.reg = XGBRelative().fit(fit_part)
+        pred = np.clip(self.reg.predict(cal_part), 0, None)
+        resid = np.log1p(cal_part["y_next"].to_numpy()) - np.log1p(pred)
+        resid = resid[np.isfinite(resid)]
+        self.resid = np.sort(resid - np.median(resid))
+        return self
+
+    def predict_minutes(self, test):
+        return np.clip(self.reg.predict(test), 0, None)
+
+    def predict_proba(self, test):
+        m = self.predict_minutes(test)
+        threshold = np.log1p(test["limit_tomorrow"].to_numpy()) - np.log1p(m)
+        # Hàm phân phối thực nghiệm nội suy tuyến tính (mốc (i+0.5)/n): liên tục dù tập hiệu chỉnh nhỏ, và vì
+        # trung vị đã dời về 0 nên CDF(0) = 0,5 đúng → giữ m > L ⇔ p ≥ 0,5.
+        n = len(self.resid)
+        cdf = np.interp(threshold, self.resid, (np.arange(n) + 0.5) / n, left=0.0, right=1.0)
+        return 1 - cdf
+
+
+ALL_CLASSIFIERS = (NormalMA7, XGBClassifier, XGBClassifierIsotonic, RegResidual)
 
 
 def walk_forward_proba(daily, models, test_start, test_end, fold_days=7, min_history=7) -> pd.DataFrame:

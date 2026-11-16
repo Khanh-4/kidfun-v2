@@ -84,6 +84,22 @@ def test_over_limit_probabilities_and_calibration_error(daily):
     assert expected_calibration_error(np.array([0, 0]), np.array([0.9, 0.9])) == pytest.approx(0.9)
 
 
+def test_reg_resid_probability_agrees_with_predicted_minutes(daily):
+    from models.m1.over_limit import RegResidual, limited
+
+    rows = daily[limited(daily) & (daily["history_days"] >= 7)]
+    cut = rows["target_date"].quantile(0.7)
+    train, test = rows[rows["target_date"] < cut], rows[rows["target_date"] >= cut]
+    model = RegResidual().fit(train)
+    minutes, p = model.predict_minutes(test), model.predict_proba(test)
+    limit = test["limit_tomorrow"].to_numpy()
+
+    assert np.all((p >= 0) & (p <= 1))
+    assert np.all(p[minutes > limit] >= 0.5)  # dự đoán vượt giới hạn → không thể "gần như chắc không vượt"
+    assert np.all(p[minutes < limit] <= 0.5)
+    assert len(np.unique(np.round(p, 4))) > 40  # mịn, không còn ~25 bậc như isotonic
+
+
 def test_ablation_variants_drop_exactly_their_group(daily):
     from models.m1.models import feature_columns
     from models.m1.round2 import FEATURE_GROUPS, ablation_models

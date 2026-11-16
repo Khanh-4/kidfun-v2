@@ -50,6 +50,16 @@ def test_over_limit_probability_stays_in_unit_interval(saved, daily):
     assert ((p >= 0) & (p <= 1)).all()
 
 
+def test_probability_never_contradicts_predicted_minutes(saved, daily):
+    m1 = bundle.load(saved[1])
+    rows = daily[limited(daily) & (daily["mean7"] > 0)]
+    minutes, p = m1.predict_minutes(rows), m1.predict_over_limit(rows)
+    limit = rows["limit_tomorrow"].to_numpy()
+
+    assert (p[minutes > limit] >= 0.5).all()
+    assert (p[minutes < limit] <= 0.5).all()
+
+
 def test_minutes_are_never_negative_and_nan_only_without_history(saved, daily):
     minutes = bundle.load(saved[1]).predict_minutes(daily)
     no_history = ~(daily["mean7"] > 0) & daily["y_lag1"].isna()

@@ -58,8 +58,18 @@ class M1Bundle:
         return np.clip(minutes, 0, None)
 
     def predict_over_limit(self, df: pd.DataFrame) -> np.ndarray:
+        """Xác suất từ bộ phân loại + isotonic, rồi KẸP cho khớp số phút dự đoán: phút > giới hạn thì p ≥ 0,5,
+        phút < giới hạn thì p ≤ 0,5. Hai mô hình học riêng nên nói ngược nhau ~27% số ngày trên mô phỏng
+        (vd 76 phút > giới hạn 67 mà p = 0); kẹp giữ Brier gần như cũ (0,191 → 0,193), ECE 0,006 → 0,037
+        (ml/reports/m1_consistency.md). Server báo khi p ≥ 0,6 nên kẹp chỉ có thể làm BỚT cảnh báo."""
         raw = self.classifier.predict_proba(_matrix(df, self.clf_cols))[:, 1]
-        return np.interp(raw, self.iso_x, self.iso_y)
+        p = np.interp(raw, self.iso_x, self.iso_y)
+        if "limit_tomorrow" not in df.columns:
+            return p
+        minutes = self.predict_minutes(df)
+        limit = df["limit_tomorrow"].to_numpy(dtype=float)
+        p = np.where(minutes > limit, np.maximum(p, 0.5), p)
+        return np.where(minutes < limit, np.minimum(p, 0.5), p)
 
 
 def train(daily: pd.DataFrame, n_estimators: int | None = None) -> M1Bundle:
