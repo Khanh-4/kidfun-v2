@@ -34,6 +34,10 @@
 
 ## Tồn đọng kỹ thuật (đã biết, chưa làm)
 
+- **`history_days` có thể là đặc trưng "mùa" giả** (phát hiện 16/11): trong bộ mô phỏng mọi trẻ bắt đầu 01/09/2025 nên
+  số ngày lịch sử trùng với mùa trong năm. Gói M1 (trong mẫu) cho p ≥ 0,8 ở 32% số ngày với trẻ có ≥ 90 ngày lịch sử
+  nhưng chỉ 7–8% với trẻ < 90 ngày — đúng nhóm trẻ thật hiện nay; walk-forward (lịch sử dài) vì vậy lạc quan hơn thực
+  tế. Ở T8.3: thử bỏ `history_days` khỏi đặc trưng M1 (hoặc cho trẻ mô phỏng bắt đầu lệch ngày), đo lại tần suất cảnh báo.
 - ~~Xác suất "vượt giới hạn" của M1 hiếm khi tới ngưỡng cảnh báo~~ — xong 16/11: máy bị chặn khi hết giờ nên "vượt"
   chỉ xảy ra khi xin thêm giờ được duyệt (p bị chặn trên ~0,5). Đổi nhãn sang "dùng hết giờ" (≥ giới hạn − 5 phút):
   ROC-AUC 0,726 → 0,854; ngưỡng cảnh báo 0,8 (precision 0,92, ~2,7 cảnh báo/trẻ/tuần trên mô phỏng). Chú ý: tỷ lệ
