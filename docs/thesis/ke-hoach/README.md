@@ -13,25 +13,33 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 | [04-huong-phat-trien.md](04-huong-phat-trien.md) | Việc mở rộng nếu dư thời gian và hướng phát triển sau đồ án |
 | [tasks/](tasks/) | Danh sách task lớn, mỗi task chia thành các subtask có tiêu chí "xong" |
 
-## Trạng thái nhanh (cập nhật 12/11/2026)
+## Trạng thái nhanh (cập nhật 16/11/2026)
 
 | Task | Nội dung | Trạng thái |
 |---|---|---|
-| [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần |
-| [T1–T6](tasks/T1-T6-da-xong.md) | Thu thập theo giờ, EDA, đặc trưng, mô phỏng, M1, M2 hai tầng, phản hồi, M3/M4 | Code xong; **chờ test máy thật** |
-| [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối: tác vụ ban đêm, API kết quả, app phụ huynh | **Xong code T7.1–T7.6** (05–11/11); chờ flowtest 11 + 13 trên máy thật. Bàn giao: [10-tich-hop.md](../10-tich-hop.md) |
-| [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | **T8.4 xong** (12/11, kiểm định trên mô phỏng + dữ liệu công khai); T8.1–T8.3, T8.5 chờ máy thật / dữ liệu thật |
-| [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | Chưa làm |
+| [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần (tuần 5 xong, #364) |
+| [T1–T6](tasks/T1-T6-da-xong.md) | Thu thập theo giờ, EDA, đặc trưng, mô phỏng, M1, M2 hai tầng, phản hồi, M3/M4 | Code xong; flowtest 10, 11, 13 PASS trên máy thật (16/11) |
+| [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối | **Xong**. Bàn giao: [10-tich-hop.md](../10-tich-hop.md) |
+| [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | T8.4 xong (kèm LiveLab, kết luận ghi chiều); **công cụ T8.3 sẵn** (`models.real_eval`); **phiếu T8.5.1 sẵn** (`ml/reports/t85_survey.md`); T8.1–T8.2 chờ flowtest 14 |
+| [T9](tasks/T9-bao-cao-demo.md) | Báo cáo, slide, demo | **T9.3.2 xong** (tài khoản demo, [demo-bao-ve.md](../demo-bao-ve.md)); báo cáo chưa viết |
 
-Việc tiếp theo (theo thứ tự, cập nhật 12/11):
-1. **Build APK phụ huynh** (#359, #360), gửi người test: flowtest 13 (test lại), 05 bước 5, 10 (test lại) và
-   [flowtest 14](../../flowtest/14-do-tre-canh-bao-va-pin.md).
-2. **Phiếu theo dõi tuần 5** (T0.1); hỏi GVHD hình thức báo cáo và lịch bảo vệ (T0.2).
-3. Chọn bản mốc đo pin (xem [03](03-rui-ro-va-ton-dong.md), rủi ro Socket.IO).
-4. Tuần 6: **T8.1, T8.2** theo flowtest 14. Tuần 7: **T8.3, T8.5** trên dữ liệu thật, chạy lại T8.4. Tuần 8–9: **T9**.
+Thay đổi lớn ngày 16/11 (chi tiết: mục "Bổ sung 16/11" trong [07](../07-ket-qua-m1-hoan-chinh.md), [08](../08-ket-qua-m2-tang2.md)):
+M1 đổi nhãn "vượt giới hạn" → **"dùng hết giờ"** (ROC-AUC 0,726 → 0,854, ngưỡng cảnh báo 0,8), Platt + kẹp, bỏ
+`history_days`; thêm bộ dữ liệu **LiveLab**; mô phỏng sinh GeofenceEvent (nhóm vị trí không giúp); làm sạch nhãn
+`binge_day` (recall DBSCAN 0,27 → 0,49).
 
-Dữ liệu thật: tác vụ ban đêm 12/11 mới tính được cho 1 trẻ (đủ 7 ngày), K-Means chưa chia nhóm (cần ≥ 6 trẻ).
-Nhắc nhóm test để máy trẻ chạy liên tục và nhập ngày sinh cho bé.
+Việc tiếp theo (theo thứ tự, cập nhật 16/11):
+1. **Build APK trẻ + phụ huynh** từ `develop`, gửi người test **flowtest 15** (YouTube @handle) và **16** (hồi quy
+   đợt 16/11). Đang đo pin flowtest 14 phần B thì đo xong mới cài APK mới.
+2. Sáng 17/11: Khanh xem log `thesis-nightly` (gói `xgb_rel+xgb_hit_platt@2026-11-16`, flowtest 16 bước 3).
+3. Gửi phiếu khảo sát T8.5 cho 5–10 phụ huynh; nhập câu trả lời rồi `python -m models.survey --score`.
+4. ~23/11 (dữ liệu thật đủ 7 ngày): **hỏi Khanh** rồi chạy `python -m models.real_eval --url … --save-pages` (T8.3).
+5. Khi flowtest 14 có file đầu tiên: viết script phân tích độ trễ / pin (T8.1.3–T8.1.4, T8.2.2).
+6. Sau khi flowtest 14 đo xong: refactor `childController.js` → `sessionService` (roadmap V2 giai đoạn B).
+7. Tuần 8–9: **T9.1** viết báo cáo; T9.3.3–T9.3.4 quay video dự phòng, chạy thử demo.
+
+Dữ liệu thật: trẻ thật bắt đầu tháng 10–11 (mùa ít dùng hết giờ trên mô phỏng) nên có thể ít cảnh báo M1 — đúng thiết
+kế, xem lại ở T8.3. Nhắc nhóm test để máy trẻ chạy liên tục và nhập ngày sinh cho bé.
 
 ## Quy ước
 

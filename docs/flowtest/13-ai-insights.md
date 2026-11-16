@@ -42,7 +42,7 @@ tuổi). Bé không có ngày sinh vẫn chạy nhưng bị coi là thiếu tu�
 
 | # | Làm | Mong đợi |
 |---|---|---|
-| 4.1 | Sau khi Khánh gửi dự đoán, làm mới màn | Thẻ hiện "1 giờ 35 phút / giới hạn 2 giờ", "Khả năng vượt giới hạn: 72%" màu đỏ, câu giải thích bắt đầu "[Thử nghiệm]" |
+| 4.1 | Sau khi Khánh gửi dự đoán, làm mới màn | Thẻ hiện "1 giờ 35 phút / giới hạn 2 giờ", **"Khả năng dùng hết giờ: 72%" màu vàng/cam** (từ 16/11, PR #372: đỏ chỉ từ 80%), câu giải thích bắt đầu "[Thử nghiệm]" |
 | 4.2 | Hồ sơ đủ ≥ 7 ngày nhưng chưa có dự đoán cho hôm nay lẫn ngày mai | "Dự đoán thời gian dùng máy của bé sẽ có sau lần phân tích ban đêm (thường xong trước sáng mai)." — không còn nhắc "21:00" |
 | 4.3 | Sáng hôm sau (tác vụ ban đêm đã chạy, thường xong 01:00–07:00 sáng), mở lại màn | Tiêu đề thẻ đổi thành **"Dự đoán hôm nay"**, hiện số phút dự đoán cho hôm nay. (Hôm nào tác vụ chạy kịp trước nửa đêm thì tối đó thẻ hiện "Dự đoán ngày mai" luôn — cả hai đều đúng) |
 
@@ -70,7 +70,8 @@ GitHub → Actions → `thesis-nightly` → run mới nhất (có thể chạy t
 
 ### Dành cho Khánh — gửi dự đoán thử
 
-`pOverLimit` 0,72 ≥ 0,6 nên server cũng tạo thêm một cảnh báo M1 kèm thông báo (xoá sau khi test nếu cần):
+`pOverLimit` 0,72 < 0,8 nên server **không** tạo cảnh báo M1 (từ 16/11 ngưỡng là 0,8 và `pOverLimit` là khả năng *dùng hết
+giờ*). Muốn thử cả cảnh báo thì dùng [Luồng 16](16-hoi-quy-dot-16-11.md) bước 2 (gửi 0,85):
 
 ```bash
 TOMORROW=$(TZ=Asia/Ho_Chi_Minh date -d tomorrow +%F)
