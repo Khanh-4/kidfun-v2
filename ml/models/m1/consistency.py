@@ -3,7 +3,8 @@
 Gói M1 dùng hai mô hình học riêng: xgb_rel (số phút) và xgb_clf_iso (xác suất). So ba cách trên dữ liệu mô phỏng,
 walk-forward như round 2:
   - xgb_clf_iso: như production cũ — đo tỷ lệ ngày mâu thuẫn (phút > giới hạn mà p < 0,5 hoặc ngược lại);
-  - xgb_clf_iso_clip: kẹp p về 0,5 ở các ngày mâu thuẫn (cách gói M1 dùng từ 16/11);
+  - xgb_clf_iso_clip: kẹp p về 0,5 ở các ngày mâu thuẫn;
+  - xgb_clf_platt / xgb_clf_platt_clip: hiệu chỉnh Platt (+ kẹp) — gói M1 dùng platt_clip từ 16/11;
   - reg_resid: suy p từ phân phối sai số của bộ hồi quy (nhất quán theo cấu trúc).
 
     .venv/bin/python -m models.m1.consistency --sim data/sim --out reports    # ~2 phút
@@ -17,7 +18,7 @@ import pandas as pd
 
 from .data import sim_daily_features
 from .models import XGBRelative
-from .over_limit import RegResidual, XGBClassifierIsotonic, proba_metrics, walk_forward_proba
+from .over_limit import RegResidual, XGBClassifierIsotonic, XGBClassifierPlatt, proba_metrics, walk_forward_proba
 
 
 def clip_to_minutes(p: np.ndarray, minutes: np.ndarray, limit: np.ndarray) -> np.ndarray:
@@ -30,44 +31,61 @@ def conflicts(p: np.ndarray, minutes: np.ndarray, limit: np.ndarray) -> np.ndarr
     return ((minutes > limit) & (p < 0.5)) | ((minutes < limit) & (p > 0.5))
 
 
-class IsoClipped:
-    name = "xgb_clf_iso_clip"
-    seen = {"rows": 0, "conflicts": 0}
+class _Clipped:
+    """Bộ phân loại `base` + kẹp theo số phút của xgb_rel; đếm số ngày mâu thuẫn TRƯỚC khi kẹp."""
+
+    base = None
+    seen = None
 
     def fit(self, train):
-        self.iso = XGBClassifierIsotonic().fit(train)
+        self.clf = self.base().fit(train)
         self.reg = XGBRelative().fit(train[train["y_next"].notna()])
         return self
 
     def predict_proba(self, test):
-        p = self.iso.predict_proba(test)
+        p = self.clf.predict_proba(test)
         minutes = np.clip(self.reg.predict(test), 0, None)
         limit = test["limit_tomorrow"].to_numpy(dtype=float)
-        IsoClipped.seen["rows"] += len(p)
-        IsoClipped.seen["conflicts"] += int(conflicts(p, minutes, limit).sum())
+        self.seen["rows"] += len(p)
+        self.seen["conflicts"] += int(conflicts(p, minutes, limit).sum())
         return clip_to_minutes(p, minutes, limit)
 
 
+class IsoClipped(_Clipped):
+    name = "xgb_clf_iso_clip"
+    base = XGBClassifierIsotonic
+    seen = {"rows": 0, "conflicts": 0}
+
+
+class PlattClipped(_Clipped):
+    name = "xgb_clf_platt_clip"
+    base = XGBClassifierPlatt
+    seen = {"rows": 0, "conflicts": 0}
+
+
 def report(daily: pd.DataFrame, start: pd.Timestamp) -> str:
-    IsoClipped.seen.update(rows=0, conflicts=0)
-    models = (XGBClassifierIsotonic, IsoClipped, RegResidual)
+    for c in (IsoClipped, PlattClipped):
+        c.seen.update(rows=0, conflicts=0)
+    models = (XGBClassifierIsotonic, IsoClipped, XGBClassifierPlatt, PlattClipped, RegResidual)
     preds = walk_forward_proba(daily, models, start, daily["target_date"].max())
     names = [m.name for m in models]
     table = proba_metrics(preds, names)
     table["số mức p khác nhau"] = [preds[n].round(4).nunique() for n in names]
-    rate = IsoClipped.seen["conflicts"] / max(IsoClipped.seen["rows"], 1)
+    rate = {c.name: c.seen["conflicts"] / max(c.seen["rows"], 1) for c in (IsoClipped, PlattClipped)}
     return "\n".join([
         "# M1 — số phút và xác suất vượt giới hạn có khớp nhau không",
         "",
         f"Dữ liệu mô phỏng, walk-forward từ {start.date()}: {len(preds):,} ngày có giới hạn, "
         f"tỷ lệ vượt thực tế {preds['over_limit_next'].astype(float).mean():.1%}.",
         "",
-        f"**Mâu thuẫn ở `xgb_clf_iso`: {IsoClipped.seen['conflicts']:,}/{IsoClipped.seen['rows']:,} ngày "
-        f"= {rate:.1%}** (số phút dự đoán vượt giới hạn mà p < 0,5, hoặc ngược lại).",
+        f"**Ngày mâu thuẫn trước khi kẹp** (số phút dự đoán vượt giới hạn mà p < 0,5, hoặc ngược lại): "
+        f"`xgb_clf_iso` {rate['xgb_clf_iso_clip']:.1%}, `xgb_clf_platt` {rate['xgb_clf_platt_clip']:.1%}.",
         "",
         table.round(3).to_markdown(),
         "",
-        "- `xgb_clf_iso_clip` (gói M1 dùng từ 16/11): hết mâu thuẫn, Brier gần như giữ nguyên, ECE tăng nhẹ.",
+        "- Kẹp: hết mâu thuẫn, Brier gần như giữ nguyên, ECE tăng nhẹ.",
+        "- Platt thay isotonic: Brier như nhau, xác suất liên tục thay vì ~26 mức. **Gói M1 dùng `xgb_clf_platt_clip`"
+        " từ 16/11.**",
         "- `reg_resid`: nhất quán và mịn nhưng hiệu chỉnh kém hơn — một phân phối sai số chung cho mọi trẻ không",
         "  bắt được việc độ dao động khác nhau giữa các trẻ (bỏ dời trung vị cũng không khá hơn: ECE ~0,10).",
         "",

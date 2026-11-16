@@ -60,6 +60,16 @@ def test_probability_never_contradicts_predicted_minutes(saved, daily):
     assert (p[minutes < limit] <= 0.5).all()
 
 
+def test_probability_is_smooth_not_a_handful_of_steps(saved, daily):
+    m1 = bundle.load(saved[1])
+    rows = daily[limited(daily) & (daily["mean7"] > 0)]
+    minutes, p = m1.predict_minutes(rows), m1.predict_over_limit(rows)
+    limit = rows["limit_tomorrow"].to_numpy()
+    free = p[(minutes != limit) & (p != 0.5)]  # bỏ các giá trị bị kẹp đúng 0,5
+    # isotonic chỉ cho ~26 mức (2 trẻ khác hẳn nhau cùng ra 0,362); Platt liên tục theo điểm của bộ phân loại
+    assert len(np.unique(np.round(free, 4))) > 0.5 * len(free)
+
+
 def test_minutes_are_never_negative_and_nan_only_without_history(saved, daily):
     minutes = bundle.load(saved[1]).predict_minutes(daily)
     no_history = ~(daily["mean7"] > 0) & daily["y_lag1"].isna()
@@ -90,4 +100,4 @@ def test_wrong_format_version_is_rejected(saved, tmp_path):
 
 
 def test_model_version_doc_tu_meta(saved):
-    assert bundle.model_version(saved[1]) == f"xgb_rel+xgb_clf_iso@{date.today().isoformat()}"
+    assert bundle.model_version(saved[1]) == f"xgb_rel+xgb_clf_platt@{date.today().isoformat()}"

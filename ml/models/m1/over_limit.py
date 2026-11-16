@@ -4,6 +4,8 @@ Chỉ chấm các ngày trẻ có giới hạn cho ngày t+1. Ba cách:
   - normal_ma7: giả sử y_next ~ N(mean7, std7) -> P = 1 − Φ((L − mean7) / std7)  (mô hình cơ sở);
   - xgb_clf: XGBoost phân loại trên bộ đặc trưng ngày;
   - xgb_clf_iso: như trên + hiệu chỉnh isotonic trên 20% cuối (theo thời gian) của tập huấn luyện.
+  - xgb_clf_platt: như trên nhưng hiệu chỉnh Platt (gói M1 dùng từ 16/11);
+  - reg_resid: xác suất suy từ bộ hồi quy số phút (ứng viên nhất quán theo cấu trúc).
 Cảnh báo cho phụ huynh dựa vào xác suất, nên xác suất phải đáng tin (Brier, ECE) chứ không chỉ xếp hạng đúng (ROC-AUC).
 """
 
@@ -12,6 +14,7 @@ import pandas as pd
 import xgboost as xgb
 from scipy.stats import norm
 from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
 from .models import XGB_PARAMS, XGBRelative, _matrix, feature_columns
@@ -65,6 +68,38 @@ class XGBClassifierIsotonic:
         return self.iso.predict(self.base.predict_proba(test))
 
 
+def _logit(raw: np.ndarray) -> np.ndarray:
+    raw = np.clip(np.asarray(raw, dtype=float), 1e-6, 1 - 1e-6)
+    return np.log(raw / (1 - raw))
+
+
+def fit_platt(raw: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+    """Platt scaling: p = σ(a·logit(raw) + b), học trên tập hiệu chỉnh. Trả (a, b)."""
+    lr = LogisticRegression().fit(_logit(raw).reshape(-1, 1), np.asarray(y, dtype=int))
+    return float(lr.coef_[0, 0]), float(lr.intercept_[0])
+
+
+def apply_platt(raw: np.ndarray, a: float, b: float) -> np.ndarray:
+    return 1 / (1 + np.exp(-(a * _logit(raw) + b)))
+
+
+class XGBClassifierPlatt:
+    """Như xgb_clf_iso nhưng hiệu chỉnh bằng Platt: Brier như nhau, ECE 0,006 → 0,014, đổi lại xác suất liên tục
+    (isotonic gộp khối nên chỉ ~26 mức — hai trẻ khác hẳn nhau cùng ra 0,362). Gói M1 dùng cách này từ 16/11."""
+
+    name = "xgb_clf_platt"
+
+    def fit(self, train):
+        cut = train["target_date"].quantile(1 - CALIBRATION_SHARE)
+        fit_part, cal_part = train[train["target_date"] < cut], train[train["target_date"] >= cut]
+        self.base = XGBClassifier().fit(fit_part)
+        self.a, self.b = fit_platt(self.base.predict_proba(cal_part), cal_part["over_limit_next"])
+        return self
+
+    def predict_proba(self, test):
+        return apply_platt(self.base.predict_proba(test), self.a, self.b)
+
+
 class RegResidual:
     """Xác suất suy từ CHÍNH bộ hồi quy số phút (xgb_rel) + phân phối sai số thực nghiệm, thay vì một bộ phân
     loại học riêng — để số phút dự đoán và xác suất không mâu thuẫn (vd 76 phút > giới hạn 67 mà p = 0).
@@ -97,7 +132,7 @@ class RegResidual:
         return 1 - cdf
 
 
-ALL_CLASSIFIERS = (NormalMA7, XGBClassifier, XGBClassifierIsotonic, RegResidual)
+ALL_CLASSIFIERS = (NormalMA7, XGBClassifier, XGBClassifierIsotonic, XGBClassifierPlatt, RegResidual)
 
 
 def walk_forward_proba(daily, models, test_start, test_end, fold_days=7, min_history=7) -> pd.DataFrame:
