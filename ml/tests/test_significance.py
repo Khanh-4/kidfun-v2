@@ -80,3 +80,11 @@ def test_cluster_bootstrap_resamples_whole_subjects():
     assert point[0] == pytest.approx(2.0)
     assert 1.0 <= lo[0] <= hi[0] <= 3.0
     assert max(seen) == 1
+
+
+def test_conclusion_states_the_direction():
+    from models.significance import conclusion
+
+    assert conclusion(0.01, -2.0) == "tốt hơn ma7 có ý nghĩa"
+    assert conclusion(0.01, 1.4) == "KÉM hơn ma7 có ý nghĩa"  # LSApp: xgb_rel sai nhiều hơn MA7
+    assert conclusion(0.2, -5.0) == "chưa đủ bằng chứng"

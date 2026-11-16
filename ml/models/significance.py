@@ -88,12 +88,19 @@ def _fmt_p(p: float) -> str:
     return "< 0,001" if p < 0.001 else f"{p:.3f}".replace(".", ",")
 
 
+def conclusion(p_adj: float, median_diff: float) -> str:
+    """Kết luận có CHIỀU: "khác biệt có ý nghĩa" trơn dễ bị đọc nhầm là mô hình tốt hơn (LSApp: xgb_rel kém hơn)."""
+    if p_adj >= ALPHA:
+        return "chưa đủ bằng chứng"
+    return f"tốt hơn {BASELINE} có ý nghĩa" if median_diff < 0 else f"KÉM hơn {BASELINE} có ý nghĩa"
+
+
 def m1_tests(preds: pd.DataFrame, names: list[str]) -> pd.DataFrame:
     table = per_subject_mae(preds, names)
     rows = [{"so sánh": f"{m} vs {BASELINE}", **paired_wilcoxon(table, m, BASELINE)} for m in CHALLENGERS]
     for row, p_adj in zip(rows, holm([r["p"] for r in rows])):
         row["p (Holm)"] = p_adj
-        row["kết luận"] = "khác biệt có ý nghĩa" if p_adj < ALPHA else "chưa đủ bằng chứng"
+        row["kết luận"] = conclusion(p_adj, row["median_diff"])
     out = pd.DataFrame(rows).set_index("so sánh")
     out["thắng/tổng"] = out["wins"].astype(str) + "/" + out["n"].astype(str)
     out["p"] = out["p"].map(_fmt_p)
