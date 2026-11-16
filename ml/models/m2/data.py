@@ -38,12 +38,17 @@ def hour_labels(labels: pd.DataFrame) -> pd.DataFrame:
 
 
 def attach_labels(hours: pd.DataFrame, days: pd.DataFrame, labels: pd.DataFrame):
-    """Gắn nhãn đã làm sạch vào bảng giờ / ngày. Trả về (hours, days, thống kê)."""
+    """Gắn nhãn đã làm sạch vào bảng giờ / ngày. Trả về (hours, days, thống kê).
+    Làm sạch: nhãn giờ chỉ giữ ở giờ còn dùng máy; binge_day chỉ giữ khi còn thấy được sau giới hạn (cột
+    `observable` của bộ mô phỏng, 16/11) — máy chặn thì ngày đó trông bình thường, không phải lỗi bỏ sót của mô hình."""
+    blocked = (labels["kind"] == "binge_day") & ~labels.get("observable", pd.Series(True, index=labels.index)).astype(bool)
+    all_labels, labels = labels, labels[~blocked]
     hl = hour_labels(labels)
     hours = hours.merge(hl, on=["profileId", "date", "hour"], how="left")
     hours["label"] = hours["kind"].notna() & (hours["hour_min"] > 0)
     # Ngày bất thường cả ngày (binge/danger) mơ hồ ở mức giờ -> loại khỏi đánh giá theo giờ
-    day_only = labels[labels["kind"].isin(DAY_ONLY_KINDS)][["profileId", "date"]].assign(day_only=True)
+    # Mức giờ loại MỌI ngày binge/danger, kể cả binge bị chặn (vài giờ trước khi chạm giới hạn vẫn cao bất thường)
+    day_only = all_labels[all_labels["kind"].isin(DAY_ONLY_KINDS)][["profileId", "date"]].assign(day_only=True)
     hours = hours.merge(day_only, on=["profileId", "date"], how="left")
     hours = hours[hours["day_only"].isna()].drop(columns="day_only")
 
@@ -56,7 +61,8 @@ def attach_labels(hours: pd.DataFrame, days: pd.DataFrame, labels: pd.DataFrame)
     stats = {
         "nhãn giờ cài vào": len(hl),
         "nhãn giờ còn dùng máy (giữ)": int(hours["label"].sum()),
-        "nhãn ngày cài vào": len(labels),
+        "nhãn ngày cài vào": len(labels) + int(blocked.sum()),
+        "nhãn binge_day bị giới hạn chặn (bỏ)": int(blocked.sum()),
         "nhãn ngày giữ": int(keep.sum()),
     }
     return hours, days, stats

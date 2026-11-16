@@ -6,10 +6,10 @@
 
 Wilcoxon cặp trên MAE theo từng người (hai phía; ΔMAE < 0 là mô hình sai ít hơn MA7):
 
-| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p       | p (Holm)   | kết luận             |
-|:---------------|:-------------|-----------------------:|----:|:--------|:-----------|:---------------------|
-| xgb_rel vs ma7 | 100/100 | -12.87 | 0 | < 0,001 | < 0,001 | tốt hơn ma7 có ý nghĩa |
-| lstm vs ma7 | 100/100 | -10.29 | 0 | < 0,001 | < 0,001 | tốt hơn ma7 có ý nghĩa |
+| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p       | p (Holm)   | kết luận               |
+|:---------------|:-------------|-----------------------:|----:|:--------|:-----------|:-----------------------|
+| xgb_rel vs ma7 | 100/100      |                 -12.87 |   0 | < 0,001 | < 0,001    | tốt hơn ma7 có ý nghĩa |
+| lstm vs ma7    | 100/100      |                 -10.29 |   0 | < 0,001 | < 0,001    | tốt hơn ma7 có ý nghĩa |
 
 MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
@@ -26,10 +26,10 @@ MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
 Wilcoxon cặp trên MAE theo từng người (hai phía; ΔMAE < 0 là mô hình sai ít hơn MA7):
 
-| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |    W | p     | p (Holm)   | kết luận             |
-|:---------------|:-------------|-----------------------:|-----:|:------|:-----------|:---------------------|
-| xgb_rel vs ma7 | 36/89 | 1.42 | 1311 | 0,007 | 0,014 | KÉM hơn ma7 có ý nghĩa |
-| lstm vs ma7 | 45/89 | -0.15 | 1907 | 0,696 | 0,696 | chưa đủ bằng chứng |
+| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |    W | p     | p (Holm)   | kết luận               |
+|:---------------|:-------------|-----------------------:|-----:|:------|:-----------|:-----------------------|
+| xgb_rel vs ma7 | 36/89        |                   1.42 | 1311 | 0,007 | 0,014      | KÉM hơn ma7 có ý nghĩa |
+| lstm vs ma7    | 45/89        |                  -0.15 | 1907 | 0,696 | 0,696      | chưa đủ bằng chứng     |
 
 MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
@@ -46,10 +46,10 @@ MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
 Wilcoxon cặp trên MAE theo từng người (hai phía; ΔMAE < 0 là mô hình sai ít hơn MA7):
 
-| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p     | p (Holm)   | kết luận             |
-|:---------------|:-------------|-----------------------:|----:|:------|:-----------|:---------------------|
-| xgb_rel vs ma7 | 23/46 | -0.47 | 457 | 0,657 | 0,657 | chưa đủ bằng chứng |
-| lstm vs ma7 | 29/46 | -6.41 | 335 | 0,024 | 0,048 | tốt hơn ma7 có ý nghĩa |
+| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p     | p (Holm)   | kết luận               |
+|:---------------|:-------------|-----------------------:|----:|:------|:-----------|:-----------------------|
+| xgb_rel vs ma7 | 23/46        |                  -0.47 | 457 | 0,657 | 0,657      | chưa đủ bằng chứng     |
+| lstm vs ma7    | 29/46        |                  -6.41 | 335 | 0,024 | 0,048      | tốt hơn ma7 có ý nghĩa |
 
 MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
@@ -66,10 +66,10 @@ MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
 Wilcoxon cặp trên MAE theo từng người (hai phía; ΔMAE < 0 là mô hình sai ít hơn MA7):
 
-| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p       | p (Holm)   | kết luận             |
-|:---------------|:-------------|-----------------------:|----:|:--------|:-----------|:---------------------|
-| xgb_rel vs ma7 | 32/34 | -2.68 | 11 | < 0,001 | < 0,001 | tốt hơn ma7 có ý nghĩa |
-| lstm vs ma7 | 31/34 | -2.82 | 12 | < 0,001 | < 0,001 | tốt hơn ma7 có ý nghĩa |
+| so sánh        | thắng/tổng   |   trung vị ΔMAE (phút) |   W | p       | p (Holm)   | kết luận               |
+|:---------------|:-------------|-----------------------:|----:|:--------|:-----------|:-----------------------|
+| xgb_rel vs ma7 | 32/34        |                  -2.68 |  11 | < 0,001 | < 0,001    | tốt hơn ma7 có ý nghĩa |
+| lstm vs ma7    | 31/34        |                  -2.82 |  12 | < 0,001 | < 0,001    | tốt hơn ma7 có ý nghĩa |
 
 MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
@@ -94,13 +94,13 @@ MAE và khoảng tin cậy 95% (bootstrap 2000 lần theo người):
 
 ## M2 tầng 2 — mức ngày
 
-17,854 dòng kiểm tra, 845 dòng bất thường, 100 trẻ. Bootstrap 1000 lần theo trẻ:
+17,854 dòng kiểm tra, 717 dòng bất thường, 100 trẻ. Bootstrap 1000 lần theo trẻ:
 
 | bộ phát hiện                |   PR-AUC | KTC 95%        |
 |:----------------------------|---------:|:---------------|
-| luật tầng 1                 |    0.181 | [0.152; 0.220] |
-| z-score                     |    0.134 | [0.112; 0.163] |
-| isolation forest            |    0.597 | [0.523; 0.669] |
-| dbscan                      |    0.704 | [0.651; 0.755] |
-| autoencoder                 |    0.507 | [0.466; 0.550] |
-| Δ dbscan − isolation forest |    0.107 | [0.073; 0.137] |
+| luật tầng 1                 |    0.186 | [0.153; 0.230] |
+| z-score                     |    0.13  | [0.103; 0.164] |
+| isolation forest            |    0.649 | [0.566; 0.732] |
+| dbscan                      |    0.767 | [0.711; 0.820] |
+| autoencoder                 |    0.54  | [0.499; 0.582] |
+| Δ dbscan − isolation forest |    0.117 | [0.076; 0.155] |

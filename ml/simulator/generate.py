@@ -42,6 +42,8 @@ ASK_MORE_PROB = 0.6
 WARMUP_DAYS = 28  # không cài bất thường trong 28 ngày đầu (để có mức thường ngày)
 ANOMALY_RATE = 1 / 20  # trung bình 1 bất thường / 20 ngày / trẻ
 ANOMALY_KINDS = ("night_use", "spike", "new_app", "binge_day", "danger_content")
+BINGE_MULT = 2.5
+BINGE_VISIBLE_RATIO = 1.5  # binge_day còn "thấy được" sau giới hạn nếu dùng thật ≥ 1,5 lần ngày bình thường
 DANGER_LEVEL_P = (0.7, 0.2, 0.08, 0.015, 0.005)  # dangerLevel 1..5 của video bình thường
 
 
@@ -121,7 +123,7 @@ def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: C
                 continue  # máy tắt / mất quyền: không có dòng nào
             f = flags.loc[day]
             kind = str(rng.choice(ANOMALY_KINDS)) if i >= WARMUP_DAYS and rng.random() < ANOMALY_RATE else None
-            hours, marked = _plan_day(child, f, noise, kind, rng)
+            hours, marked, normal_total = _plan_day(child, f, noise, kind, rng)
             hours, requests = _apply_limit(child, f, day, hours, rng)
             danger_hour = int(rng.integers(16, 22)) if kind == "danger_content" else None
             ext += requests
@@ -131,7 +133,11 @@ def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: C
                 geo += _geofence_day(child, zone, f, day, hours, geo_rng)
             if kind:
                 marked = [danger_hour] if danger_hour is not None else marked
-                anomalies.append((child.profile_id, day.date().isoformat(), kind, " ".join(map(str, sorted(marked)))))
+                # binge_day cài TRƯỚC khi áp giới hạn: máy chặn thì ngày "định dùng gấp 2,5 lần" trông như ngày bình
+                # thường → chỉ coi là thấy được nếu dùng thật ≥ 1,5 lần ngày bình thường (16/11).
+                observable = kind != "binge_day" or sum(hours.values()) >= BINGE_VISIBLE_RATIO * normal_total
+                anomalies.append((child.profile_id, day.date().isoformat(), kind, " ".join(map(str, sorted(marked))),
+                                  bool(observable)))
 
     return {
         "profiles": pd.DataFrame(
@@ -146,17 +152,20 @@ def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: C
             yt, columns=["profileId", "deviceId", "videoTitle", "watchedAt", "durationSeconds", "dangerLevel"]
         ),
         "geofence_events": pd.DataFrame(geo, columns=GEOFENCE_COLS),
-        "anomalies": pd.DataFrame(anomalies, columns=["profileId", "date", "kind", "hours"]),
+        "anomalies": pd.DataFrame(anomalies, columns=["profileId", "date", "kind", "hours", "observable"]),
     }
 
 
-def _plan_day(child: Child, f, noise: float, kind, rng) -> tuple[dict, list]:
-    """Phút theo (giờ, nhóm, app) mà trẻ MUỐN dùng trong ngày (trước khi áp giới hạn) + các giờ bị cài bất thường."""
+def _plan_day(child: Child, f, noise: float, kind, rng) -> tuple[dict, list, float]:
+    """Phút theo (giờ, nhóm, app) mà trẻ MUỐN dùng trong ngày (trước khi áp giới hạn) + các giờ bị cài bất thường
+    + tổng phút của một ngày BÌNH THƯỜNG cùng điều kiện (không nhân BINGE_MULT, không tốn số ngẫu nhiên)."""
     day_type = f["day_type"]
     mult = 1.0 if day_type == "school" else DAY_MULTIPLIER[day_type] * child.weekend_mult / DAY_MULTIPLIER["weekend"]
     mult *= EXAM_MULTIPLIER if f["is_exam_period"] else 1.0
-    mult *= 2.5 if kind == "binge_day" else 1.0
-    per_hour = np.minimum(child.base_minutes * mult * np.exp(noise) * hour_weights(day_type, child.bedtime), 60)
+    weights = hour_weights(day_type, child.bedtime)
+    normal_total = float(np.minimum(child.base_minutes * mult * np.exp(noise) * weights, 60).sum())
+    mult *= BINGE_MULT if kind == "binge_day" else 1.0
+    per_hour = np.minimum(child.base_minutes * mult * np.exp(noise) * weights, 60)
 
     hours = {}
     for hour in np.nonzero(per_hour)[0]:
@@ -165,7 +174,7 @@ def _plan_day(child: Child, f, noise: float, kind, rng) -> tuple[dict, list]:
             if minutes >= 1:
                 hours[(int(hour), cat, child.apps[cat])] = minutes
     marked = sorted({h for h, _c, _a in hours}) if kind == "binge_day" else _inject(hours, child, kind, rng)
-    return _cap_hours(hours), marked
+    return _cap_hours(hours), marked, normal_total
 
 
 def _cap_hours(hours: dict) -> dict:

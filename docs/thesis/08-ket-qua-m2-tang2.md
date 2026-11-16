@@ -111,3 +111,20 @@ Ghi chú:
   tức thì.
 - Vòng phản hồi: bảng phản hồi, điều chỉnh ngưỡng, thực nghiệm "phụ huynh mô phỏng".
 - M3, M4 ở mức gọn.
+
+## Bổ sung 16/11 — làm sạch nhãn `binge_day`
+
+Mục 3 ghi "cả ngày dùng gấp nhiều lần" có recall < 0,3 vì giới hạn chặn bớt. Kiểm tra lại: đó phần lớn là **lỗi chấm**.
+Bất thường được cài *trước* khi áp giới hạn, nên ngày "định dùng gấp 2,5 lần" của trẻ có giới hạn trông như một ngày
+bình thường mà nhãn vẫn còn — mô hình bị tính "bỏ sót" một bất thường dữ liệu không hề thể hiện. Bộ mô phỏng nay ghi
+cột `observable` (dùng thật ≥ 1,5 lần ngày bình thường của trẻ); trên data/sim chỉ 11% ngày binge của trẻ có giới hạn
+còn thấy được (trẻ không giới hạn: 73%). Đánh giá mức ngày bỏ 231 nhãn binge "vô hình" — cùng nguyên tắc với nhãn mức
+giờ (chỉ giữ giờ còn dùng máy); mức giờ vẫn loại mọi ngày binge như cũ nên số liệu mức giờ không đổi.
+
+| Mức ngày (cảnh báo 5%) | recall binge_day | Recall | PR-AUC |
+|---|---|---|---|
+| DBSCAN | 0,269 → **0,489** | 0,760 → 0,862 | 0,704 → 0,767 |
+| Isolation Forest | 0,183 → 0,447 | 0,614 → 0,709 | 0,597 → 0,649 |
+| z-score | 0,234 → 0,702 | | |
+
+DBSCAN vẫn tốt nhất (PR-AUC 0,767, KTC 95% [0,711; 0,820]; hơn Isolation Forest 0,117 [0,076; 0,155]).
