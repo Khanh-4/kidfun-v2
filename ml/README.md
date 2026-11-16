@@ -30,6 +30,12 @@ cd ml/data && unzip dataset_rds.zip 'dataset_rds/other/app_usage.Rds' 'dataset_r
 ml/.venv/bin/python ml/eda/studentlife_eda.py ml/data/dataset_rds ml/reports
 ```
 
+## Vùng an toàn trong bộ mô phỏng (thêm 16/11)
+
+`simulate()` sinh thêm bảng `geofence_events` (cột như Prisma `GeofenceEvent`) bằng luồng ngẫu nhiên riêng — tắt bằng
+`geofence=False`, các bảng khác không đổi. `sim_daily_features(..., with_geofence=True)` chỉ dùng cho phân tích loại
+bỏ đặc trưng; gói M1 học KHÔNG có vị trí vì tác vụ ban đêm production chưa nhận dữ liệu này.
+
 ## Dữ liệu LiveLab (thêm 16/11)
 
 34 sinh viên Rice / Houston Community College dùng iPhone, 02/2010 → 04/2011; bảng `appusage` có thời lượng từng

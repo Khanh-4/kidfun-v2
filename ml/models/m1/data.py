@@ -21,8 +21,14 @@ def load_sim(sim_dir: Path) -> dict[str, pd.DataFrame]:
     return tables
 
 
-def sim_daily_features(sim_dir: Path) -> pd.DataFrame:
+def sim_daily_features(sim_dir: Path, with_geofence: bool = False) -> pd.DataFrame:
+    """with_geofence chỉ dùng cho phân tích loại bỏ đặc trưng (nhóm vị trí): tác vụ ban đêm production KHÔNG nhận dữ
+    liệu vùng an toàn, nên gói M1 phải học với outside_zone_min_7d = 0 như lúc chạy thật."""
     t = load_sim(sim_dir)
+    geo = None
+    if with_geofence:
+        geo = pd.read_csv(sim_dir / "geofence_events.csv")
+        geo["createdAt"] = pd.to_datetime(geo["createdAt"], utc=True)
     daily = build_daily_features(
         t["app_usage_hourly"],
         calendar=Calendar.load(),
@@ -30,6 +36,7 @@ def sim_daily_features(sim_dir: Path) -> pd.DataFrame:
         limits=t["time_limits"],
         ext_requests=t["time_extension_requests"],
         youtube=t["youtube_logs"],
+        geofence=geo,
     )
     return daily.merge(t["profiles"][["profileId", "ageGroup"]], on="profileId")
 

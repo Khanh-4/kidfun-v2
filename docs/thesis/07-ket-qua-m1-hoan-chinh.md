@@ -149,3 +149,11 @@ Kiểm định T8.4 chạy lại (`t8_significance.md`, cột kết luận nay g
 mô phỏng (ΔMAE −12,9 phút) và LiveLab (−2,7, thắng 32/34 người); **kém hơn MA7 có ý nghĩa trên LSApp** (+1,4 phút,
 p Holm 0,014 — trước đó cũng kém, +2,1, nhưng chưa đủ ý nghĩa); StudentLife chưa đủ bằng chứng. LSApp có trung vị 5
 ngày dữ liệu/người nên chuỗi quá ngắn cho mô hình dùng đặc trưng lịch sử.
+
+## Bổ sung 16/11 — nhóm đặc trưng vị trí (GeofenceEvent mô phỏng)
+
+Bộ mô phỏng nay sinh `GeofenceEvent`: 60% trẻ có vùng Nhà và Trường; ngày đi học rời Nhà ~6h30 → vào Trường → rời
+Trường ~16h30 → về Nhà; đi chơi buổi chiều tối (cuối tuần nhiều hơn, tùy tính cách trẻ) chỉ vào quãng ≥ 2 giờ dùng máy
+≤ 10 phút/giờ. Sự kiện dùng luồng ngẫu nhiên riêng nên dữ liệu dùng máy không đổi. Phân tích loại bỏ (XGBoost, mô
+phỏng): bỏ nhóm "I. Vị trí" (`outside_zone_min_7d`) ΔMAE −0,1 phút — **không giúp**. Với giả định "ra ngoài vào giờ ít
+dùng máy", thời gian ngoài vùng an toàn không thêm thông tin so với lịch sử dùng máy; cần dữ liệu thật để kết luận.

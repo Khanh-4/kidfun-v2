@@ -37,6 +37,7 @@ FEATURE_GROUPS = {  # đặc tả 05 mục 1.2
     "F. Khuya": ("night_min_last", "night_min_7d", "late_nights_7d"),
     "G. Giấc ngủ": ("last_active_hour", "sleep_gap_hours"),
     "H. Nội dung": ("yt_danger_mean_7d", "yt_danger_high_7d"),
+    "I. Vị trí": ("outside_zone_min_7d",),  # từ 16/11: bộ mô phỏng sinh GeofenceEvent
 }
 
 
@@ -99,7 +100,7 @@ def main() -> None:
     sections = [
         report("Dự đoán số phút — dữ liệu mô phỏng", sim_preds, names),
         over_limit_section(sim, start),
-        ablation_section(sim, start),
+        ablation_section(sim_daily_features(args.sim, with_geofence=True), start),
     ]
 
     public = {
