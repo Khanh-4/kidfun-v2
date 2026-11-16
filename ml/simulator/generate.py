@@ -98,17 +98,22 @@ def hour_weights(day_type: str, bedtime: int) -> np.ndarray:
     return w / w.sum()
 
 
-def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: Calendar | None = None) -> dict:
+def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: Calendar | None = None,
+             geofence: bool = True) -> dict:
     """Trả về dict DataFrame: profiles, app_usage_hourly, time_limits, time_extension_requests,
-    youtube_logs, anomalies (nhãn bất thường đã cài)."""
+    youtube_logs, anomalies (nhãn bất thường đã cài), geofence_events.
+    Sự kiện vùng an toàn dùng luồng ngẫu nhiên RIÊNG (seed + 1) và chỉ đọc giờ dùng máy đã sinh, nên bật/tắt
+    geofence không đổi bất kỳ bảng nào khác."""
     rng = np.random.default_rng(seed)
+    geo_rng = np.random.default_rng(seed + 1)
     calendar = calendar or Calendar.load()
     dates = pd.date_range(start, periods=days, freq="D")
     flags = calendar.day_flags(dates)
     children = make_children(n_children, rng)
 
-    usage, ext, yt, anomalies = [], [], [], []
+    usage, ext, yt, anomalies, geo = [], [], [], [], []
     for child in children:
+        zone = _zone_profile(child, geo_rng) if geofence else None
         noise = 0.0
         for i, day in enumerate(dates):
             noise = AR_PHI * noise + rng.normal(0, AR_SIGMA)
@@ -122,6 +127,8 @@ def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: C
             ext += requests
             usage += _to_rows(child, day, hours)
             yt += _youtube(child, day, hours, danger_hour, rng)
+            if zone:
+                geo += _geofence_day(child, zone, f, day, hours, geo_rng)
             if kind:
                 marked = [danger_hour] if danger_hour is not None else marked
                 anomalies.append((child.profile_id, day.date().isoformat(), kind, " ".join(map(str, sorted(marked)))))
@@ -138,6 +145,7 @@ def simulate(n_children: int, start: str, days: int, seed: int = 42, calendar: C
         "youtube_logs": pd.DataFrame(
             yt, columns=["profileId", "deviceId", "videoTitle", "watchedAt", "durationSeconds", "dangerLevel"]
         ),
+        "geofence_events": pd.DataFrame(geo, columns=GEOFENCE_COLS),
         "anomalies": pd.DataFrame(anomalies, columns=["profileId", "date", "kind", "hours"]),
     }
 
@@ -245,6 +253,55 @@ def _youtube(child: Child, day, hours: dict, danger_hour, rng) -> list:
             for k in range(3)
         ]
     return logs
+
+
+GEOFENCE_COLS = ["geofenceId", "profileId", "type", "latitude", "longitude", "createdAt"]
+ZONE_PROB = 0.6  # tỷ lệ phụ huynh đặt vùng an toàn (nhà + trường)
+OUTING_PROB = {"weekend": 0.6, "weekday": 0.25}  # xác suất đi chơi khi có quãng phù hợp, nhân với tính cách trẻ
+OUTING_HOURS = range(14, 21)  # đi chơi buổi chiều tối
+OUTING_MAX_USE_MIN = 10  # chỉ vào giờ dùng máy ≤ 10 phút (ra ngoài vẫn có thể xem lướt); giờ trống hẳn chỉ ~4% ngày
+HOME_LAT, HOME_LON = 10.7769, 106.7009  # TP.HCM, tọa độ chỉ để đủ cột
+
+
+def _zone_profile(child: Child, rng) -> dict | None:
+    """Mỗi trẻ (nếu phụ huynh đặt vùng) có vùng Nhà (2·id) và Trường (2·id + 1), cùng mức "hay ra ngoài"."""
+    if rng.random() >= ZONE_PROB:
+        return None
+    lat, lon = HOME_LAT + rng.normal(0, 0.02), HOME_LON + rng.normal(0, 0.02)
+    return {"home": 2 * child.profile_id, "school": 2 * child.profile_id + 1, "lat": lat, "lon": lon,
+            "outdoor": rng.uniform(0.5, 1.5)}
+
+
+def _geofence_day(child: Child, zone: dict, f, day, hours: dict, rng) -> list:
+    """Ngày đi học: rời Nhà → vào Trường, rời Trường → về Nhà. Đi chơi: rời Nhà rồi về, đặt trong một quãng ≥ 2 giờ
+    liền dùng máy ÍT (≤ 10 phút/giờ) buổi chiều tối (14–21h) — không đổi giờ dùng máy đã sinh."""
+    def ev(gid, kind, hour, minute):
+        ts = _utc(day, hour) + pd.Timedelta(minutes=int(minute))
+        return (gid, child.profile_id, kind, zone["lat"], zone["lon"], ts)
+
+    out = []
+    if f["is_school_day"]:
+        out += [ev(zone["home"], "EXIT", 6, rng.integers(25, 45)), ev(zone["school"], "ENTER", 7, rng.integers(0, 15)),
+                ev(zone["school"], "EXIT", 16, rng.integers(30, 55)), ev(zone["home"], "ENTER", 17, rng.integers(5, 40))]
+    per_hour: dict[int, float] = {}
+    for key, minutes in hours.items():
+        per_hour[key[0]] = per_hour.get(key[0], 0.0) + minutes
+    start_after = 18 if f["is_school_day"] else OUTING_HOURS.start
+    idle = [h for h in OUTING_HOURS if h >= start_after and per_hour.get(h, 0.0) <= OUTING_MAX_USE_MIN]
+    runs, run = [], []
+    for h in idle:
+        if run and h != run[-1] + 1:
+            runs.append(run)
+            run = []
+        run.append(h)
+    if run:
+        runs.append(run)
+    runs = [r for r in runs if len(r) >= 2]
+    p = OUTING_PROB["weekend" if f["is_weekend"] else "weekday"] * zone["outdoor"]
+    if runs and rng.random() < p:
+        r = runs[int(rng.integers(len(runs)))]
+        out += [ev(zone["home"], "EXIT", r[0], rng.integers(0, 20)), ev(zone["home"], "ENTER", r[-1], rng.integers(30, 59))]
+    return out
 
 
 def _limits(children: list[Child]) -> pd.DataFrame:

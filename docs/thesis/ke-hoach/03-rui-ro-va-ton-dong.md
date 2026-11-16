@@ -46,7 +46,10 @@
   liệu thật ở T8.3. Kết quả đáng chú ý: StudentLife LSTM hơn MA7 chỉ sát ngưỡng (p Holm 0,048); mức giờ M2 chưa phân
   biệt được z-score và Isolation Forest.
 - LSTM chưa dò siêu tham số (14 ngày, 32 nút ẩn, 12 epoch).
-- Bộ mô phỏng chưa sinh `GeofenceEvent`, nên nhóm đặc trưng vị trí chưa đánh giá được.
+- ~~Bộ mô phỏng chưa sinh `GeofenceEvent`~~ — xong 16/11: sinh vùng Nhà/Trường (60% trẻ), đi học và đi chơi buổi
+  chiều tối vào giờ dùng máy ≤ 10 phút (luồng ngẫu nhiên riêng, mọi bảng cũ giữ nguyên từng byte). Nhóm "I. Vị trí"
+  KHÔNG giúp M1 (bỏ đi ΔMAE −0,1 phút) — kết quả âm, ghi vào chương 5. Tác vụ ban đêm production chưa nhận dữ liệu
+  vị trí nên gói M1 vẫn học với đặc trưng này = 0.
 - Lịch học VN trong `ml/config/vn_school_calendar.csv` có nhiều ngày ước lượng (xem cột `note`).
 - Bất thường `binge_day` có recall < 0,3 vì giới hạn chặn bớt (`docs/thesis/08`).
 - ~~Chưa dùng bộ dữ liệu Tsinghua App Usage dù đã nêu trong PDF~~ — thẩm định 16/11: **loại**, chỉ có 1 tuần/người

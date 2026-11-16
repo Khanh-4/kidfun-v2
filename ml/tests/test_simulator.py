@@ -95,3 +95,28 @@ def test_feature_pipeline_runs_on_simulated_data(sim):
         sim["app_usage_hourly"], calendar=CAL, categories=cats, youtube=sim["youtube_logs"]
     )
     assert days["day_ratio"].notna().mean() > 0.5
+
+
+def test_geofence_events_do_not_change_other_tables():
+    with_geo = simulate(8, "2025-11-03", 21, seed=5)
+    without = simulate(8, "2025-11-03", 21, seed=5, geofence=False)
+    for name in ("app_usage_hourly", "time_limits", "time_extension_requests", "youtube_logs", "anomalies"):
+        pd.testing.assert_frame_equal(with_geo[name], without[name])
+    assert without["geofence_events"].empty
+
+
+def test_geofence_events_alternate_and_outings_fall_in_idle_hours():
+    s = simulate(12, "2025-11-03", 42, seed=5)
+    geo = s["geofence_events"]
+    assert list(geo.columns) == ["geofenceId", "profileId", "type", "latitude", "longitude", "createdAt"]
+    assert not geo.empty and set(geo["type"]) == {"EXIT", "ENTER"}
+    for _, g in geo.sort_values("createdAt").groupby("profileId"):
+        kinds = g["type"].tolist()
+        assert all(a != b for a, b in zip(kinds, kinds[1:]))  # EXIT/ENTER xen kẽ
+    # Lượt đi chơi (ra khỏi vùng NHÀ buổi chiều tối) chỉ nằm trong giờ trẻ dùng máy ≤ 10 phút
+    usage = s["app_usage_hourly"].assign(h=lambda d: d["hourStart"].dt.floor("h"))
+    minutes = (usage.groupby(["profileId", "h"])["usageSeconds"].sum() / 60).to_dict()
+    home = geo["geofenceId"] % 2 == 0  # vùng Nhà = 2·id, Trường = 2·id + 1
+    outings = geo[home & (geo["type"] == "EXIT") & ((geo["createdAt"] + pd.Timedelta(hours=7)).dt.hour >= 14)]
+    assert not outings.empty
+    assert all(minutes.get((p, t.floor("h")), 0) <= 10 for p, t in zip(outings["profileId"], outings["createdAt"]))

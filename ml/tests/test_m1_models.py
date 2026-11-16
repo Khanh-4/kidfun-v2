@@ -110,3 +110,15 @@ def test_ablation_variants_drop_exactly_their_group(daily):
     for variant in ablation_models(cols)[1:3]:
         model = variant().fit(rows)
         assert not set(model.cols) & variant.DROP
+
+
+def test_sim_daily_features_reads_geofence_only_when_asked(tmp_path):
+    from models.m1.data import sim_daily_features
+
+    for name, df in simulate(6, "2025-11-03", 35, seed=5, calendar=Calendar.load()).items():
+        df.to_csv(tmp_path / f"{name}.csv", index=False)
+    plain = sim_daily_features(tmp_path)
+    with_geo = sim_daily_features(tmp_path, with_geofence=True)
+
+    assert (plain["outside_zone_min_7d"] == 0).all()  # như production: tác vụ ban đêm không có dữ liệu vị trí
+    assert (with_geo["outside_zone_min_7d"] > 0).any()
