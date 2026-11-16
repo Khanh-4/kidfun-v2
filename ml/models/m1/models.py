@@ -9,7 +9,9 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-NON_FEATURES = {"profileId", "date", "target_date", "y_next", "over_limit_next", "hit_limit_next", "ageGroup"}
+# history_days chỉ để lọc (≥ 7 ngày): trong bộ mô phỏng mọi trẻ bắt đầu 01/09 nên nó trùng với mùa — bỏ khỏi đặc trưng
+# giảm ECE trên trẻ mới 0,037–0,071 → 0,032–0,050, AUC không đổi (16/11, docs/thesis/07 mục bổ sung).
+NON_FEATURES = {"profileId", "date", "target_date", "y_next", "over_limit_next", "hit_limit_next", "ageGroup", "history_days"}
 AGE_MID = {"3-5": 4.0, "6-10": 8.0, "11-14": 12.5, "15-17": 16.0}
 
 

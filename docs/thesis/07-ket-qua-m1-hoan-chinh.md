@@ -136,3 +136,16 @@ Cột `pOverLimit` giữ tên (tránh migration) nhưng mang nghĩa mới; ngư�
 
 Tỷ lệ dùng hết giờ thực tế 62,8%. Ngưỡng 0,8: báo ~39% số ngày có giới hạn, precision 0,92, recall 0,57, ~2,7 cảnh
 báo/trẻ/tuần (0,9: precision 0,955, ~1,9/tuần). Số liệu đầy đủ: `ml/reports/m1_round2.md`, `m1_consistency.md`.
+
+## Bổ sung 16/11 — bỏ `history_days` khỏi đặc trưng M1
+
+Trong bộ mô phỏng mọi trẻ bắt đầu 01/09/2025 nên số ngày lịch sử trùng với mùa. Chấm gói M1 trên 3 nhóm trẻ MỚI
+(lịch sử ngắn, bắt đầu 01, 04 và 10/2026 — `ml/reports/m1_fresh_children.md`): bỏ đặc trưng này giảm ECE ở cả 3 nhóm
+(0,037 → 0,032; 0,071 → 0,048; 0,068 → 0,050), ROC-AUC và MAE gần như không đổi. Tần suất p ≥ 0,8 phụ thuộc mạnh vào
+mùa (20–26% số ngày với nhóm bắt đầu tháng 1/4, chỉ ~6% với nhóm tháng 10, khi trẻ dùng hết giờ ít hơn: 45% so với
+52–57%), precision ở ngưỡng 0,8 giữ 0,88–0,93 — trẻ thật hiện nay (bắt đầu tháng 10–11) sẽ ít cảnh báo M1.
+
+Kiểm định T8.4 chạy lại (`t8_significance.md`, cột kết luận nay ghi rõ chiều): XGBoost tốt hơn MA7 có ý nghĩa trên
+mô phỏng (ΔMAE −12,9 phút) và LiveLab (−2,7, thắng 32/34 người); **kém hơn MA7 có ý nghĩa trên LSApp** (+1,4 phút,
+p Holm 0,014 — trước đó cũng kém, +2,1, nhưng chưa đủ ý nghĩa); StudentLife chưa đủ bằng chứng. LSApp có trung vị 5
+ngày dữ liệu/người nên chuỗi quá ngắn cho mô hình dùng đặc trưng lịch sử.

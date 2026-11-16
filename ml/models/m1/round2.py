@@ -25,7 +25,7 @@ PRODUCTION_PROBA = PlattClipped.name  # = M1Bundle.predict_over_limit (Platt + k
 FEATURE_GROUPS = {  # đặc tả 05 mục 1.2
     "A. Lịch sử": (
         "y_lag1", "y_lag7", "y_same_dow_last_week", "mean7", "std7", "mean14", "today_until_cutoff",
-        "today_until_cutoff_ratio", "lag1_ratio", "same_dow_ratio", "history_days", "today_missing",
+        "today_until_cutoff_ratio", "lag1_ratio", "same_dow_ratio", "today_missing",
     ),
     "B. Lịch": (
         "dow_sin", "dow_cos", "is_weekend", "is_holiday", "is_school_day", "is_exam_period", "is_summer",

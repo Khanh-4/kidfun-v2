@@ -121,6 +121,15 @@ def test_labels_never_leak_into_m1_features():
     assert not {"y_next", "over_limit_next", "hit_limit_next"} & set(feature_columns(df))
 
 
+def test_history_days_is_a_filter_not_a_feature():
+    # Trong bộ mô phỏng mọi trẻ bắt đầu cùng ngày nên history_days trùng với mùa (16/11): chỉ dùng để lọc ≥ 7 ngày.
+    from models.m1.models import feature_columns
+
+    df = build(hourly(("2026-10-10 10:00", 30), ("2026-10-11 10:00", 90)))
+    assert "history_days" in df.columns
+    assert "history_days" not in feature_columns(df)
+
+
 def test_outside_zone_minutes():
     geo = pd.DataFrame(
         {
