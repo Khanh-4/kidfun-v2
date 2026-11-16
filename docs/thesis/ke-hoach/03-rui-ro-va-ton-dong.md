@@ -55,5 +55,5 @@
 - M1 hai mô hình có lúc mâu thuẫn: trong E2E 07/11 trẻ "thap" được dự đoán 76 phút > giới hạn 67 nhưng p vượt = 0,000
   (bộ phân loại và bộ hồi quy học riêng). App phụ huynh (T7.4/T7.5) nên hiện cả hai cho nhất quán hoặc ghi chú; xem
   lại ở T8.3.
-- Test `backend/tests/integration/todayLimitReboot.test.js` fail nếu chạy trong 06:00–06:40 giờ VN (log tạo lúc
-  now − 40 phút rơi sang ngày hạn mức trước, mốc 06:00 từ PR #333). Không phải lỗi sản phẩm; sửa test cho cố định giờ.
+- ~~Test `backend/tests/integration/todayLimitReboot.test.js` fail nếu chạy trong 06:00–06:40 giờ VN~~ — xong 16/11:
+  test cố định đồng hồ ở 12:00 VN (chỉ giả `Date`).

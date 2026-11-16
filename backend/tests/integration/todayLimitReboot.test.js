@@ -7,10 +7,24 @@ const prisma = require('../../src/utils/prisma');
 
 const STAMP = Date.now();
 const MIN = 60 * 1000;
+// Cố định đồng hồ: log tạo lúc now − 40 phút phải cùng "ngày hạn mức" (mốc 06:00 VN,
+// PR #333). Chạy thật trong 06:00–06:40 VN thì log rơi sang ngày trước → usedMinutes = 0.
+// Giữa trưa để cả log lẫn lastSeen nằm gọn trong một ngày hạn mức.
+const FROZEN_NOW = new Date('2026-11-16T12:00:00+07:00');
+// Chỉ giả Date; timer/microtask thật để Prisma và supertest vẫn chạy bình thường.
+const REAL_TIMER_APIS = [
+  'nextTick', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval',
+  'setTimeout', 'clearTimeout', 'queueMicrotask', 'hrtime', 'performance',
+];
 let owner;
 
 describe('GET /api/child/today-limit sau khi khởi động lại', () => {
+  beforeAll(() => {
+    jest.useFakeTimers({ now: FROZEN_NOW, doNotFake: REAL_TIMER_APIS });
+  });
+
   afterAll(async () => {
+    jest.useRealTimers();
     await prisma.usageLog.deleteMany({ where: { profile: { userId: owner.id } } });
     await prisma.user.deleteMany({ where: { id: owner.id } });
   });
