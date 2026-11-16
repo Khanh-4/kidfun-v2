@@ -22,6 +22,9 @@
 ## T8.3 Đánh giá trên dữ liệu thật
 
 - [ ] T8.3.1 Xuất dữ liệu thật đã ẩn danh từ production (hỏi Khánh trước khi truy vấn production).
+  Công cụ đã sẵn (16/11): `python -m models.real_eval --url … --save-pages data/real/snapshot.json` (chỉ đọc qua
+  `thesis-data`, lưu snapshot một lần, báo cáo chỉ in "trẻ k") → `ml/reports/t83_real_data.md`; chạy thử trên DB test OK.
+  Thiếu: API chỉ trả phản hồi ALLOWED_* của tầng 1 → chưa tính được tỷ lệ phụ huynh xác nhận đúng (T8.3.3).
 - [ ] T8.3.2 Chạy lại M1 trên dữ liệu thật: MAE so với MA7 (biết trước là ít dữ liệu, báo cáo trung thực).
 - [ ] T8.3.3 Chạy lại M2 tầng 2 và tầng 1: số cảnh báo/trẻ/tuần, tỷ lệ phụ huynh xác nhận đúng.
 - [ ] T8.3.4 RQ5 trên phản hồi thật: số báo nhầm trước và sau khi nới ngưỡng theo phản hồi.
