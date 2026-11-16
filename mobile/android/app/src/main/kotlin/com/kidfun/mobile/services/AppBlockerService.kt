@@ -234,8 +234,11 @@ class AppBlockerService : AccessibilityService() {
             return
         }
 
-        // Same video — no action needed
-        if (YouTubeTracker.currentVideo?.title == info.title) return
+        // Same video — only fill in a channel that was not loaded yet
+        if (YouTubeTracker.currentVideo?.title == info.title) {
+            YouTubeTracker.backfillChannel(info)
+            return
+        }
 
         // New video → stop previous, start new
         YouTubeTracker.stopCurrentVideo()
@@ -311,6 +314,8 @@ class AppBlockerService : AccessibilityService() {
             android.util.Log.d("YouTubeTracker", "▶️ Started (navigation): ${info.title} | ${info.channelName}")
             return
         }
+
+        if (info != null) YouTubeTracker.backfillChannel(info)
 
         // Same video — detect pause/resume via play/pause button state
         // Tri-state: true=paused, false=playing, null=controls hidden (keep current state)
