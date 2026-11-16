@@ -34,9 +34,6 @@
 
 ## Tồn đọng kỹ thuật (đã biết, chưa làm)
 
-- **Bộ phân loại M1 gần như không phản ứng với giới hạn thấp** (phát hiện 16/11 khi dựng demo): giới hạn 126 → 38
-  phút mà p gốc chỉ 0,18 → 0,24 — XGBoost không ngoại suy ra ngoài vùng giới hạn của bộ mô phỏng (giới hạn luôn gần
-  mức dùng). Hệ quả: trẻ có giới hạn đặt thấp không bao giờ có cảnh báo M1 (kẹp chỉ đưa p lên 0,5 < ngưỡng 0,6).
 - ~~Chưa kiểm định thống kê~~ — xong 12/11 (T8.4, #361) trên mô phỏng + LSApp + StudentLife. Còn chạy lại trên dữ
   liệu thật ở T8.3. Kết quả đáng chú ý: StudentLife LSTM hơn MA7 chỉ sát ngưỡng (p Holm 0,048); mức giờ M2 chưa phân
   biệt được z-score và Isolation Forest.

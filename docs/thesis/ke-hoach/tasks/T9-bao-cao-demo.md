@@ -26,6 +26,6 @@
 - [ ] T9.3.1 Kịch bản demo 5–7 phút: trẻ dùng máy lúc khuya → phụ huynh nhận cảnh báo kèm giải thích → bấm "được
   phép" → mở tab AI Insights xem dự đoán ngày mai.
 - [x] T9.3.2 Tài khoản demo có sẵn dữ liệu đẹp (nạp từ bộ mô phỏng vào DB test, **không** vào production) —
-  `bash ml/e2e/run_demo.sh`, hướng dẫn ở [demo-bao-ve.md](../../demo-bao-ve.md). Còn thiếu cảnh báo M1 (xem mục 4 ở đó).
+  `bash ml/e2e/run_demo.sh`, hướng dẫn ở [demo-bao-ve.md](../../demo-bao-ve.md). Cảnh báo M1 cần #372.
 - [ ] T9.3.3 Quay video dự phòng phòng khi mạng hoặc máy lỗi lúc bảo vệ.
 - [ ] T9.3.4 Chạy thử toàn bộ demo ít nhất 2 lần trước ngày bảo vệ.

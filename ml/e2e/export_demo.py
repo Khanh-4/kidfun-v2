@@ -2,10 +2,8 @@
 
 Mô phỏng 28 ngày kết thúc HÔM NAY (heatmap thói quen lấy trung bình 4 tuần), rồi chọn:
   - 2 bé của phụ huynh demo (hiện trên app):
-      "Minh": dùng sát giới hạn nhất; giới hạn được ĐẶT LẠI = 75% mức dùng trung bình 7 ngày gần nhất (dữ liệu demo)
-              để dự đoán ngày mai vượt giới hạn (thẻ "Ngày mai" hiện số phút > giới hạn, p = 0,5 sau khi kẹp).
-              LƯU Ý (16/11): bộ phân loại M1 gần như không phản ứng khi giới hạn thấp hơn hẳn mức dùng (p gốc ~0,24
-              dù giới hạn chỉ bằng 1/3) nên chưa tới ngưỡng cảnh báo 0,6 — xem docs/thesis/demo-bao-ve.md;
+      "Minh": có giới hạn, chạm giới hạn thường xuyên nhất → khả năng DÙNG HẾT GIỜ ngày mai cao, có cảnh báo M1
+              (cần nhãn "dùng hết giờ" của #372; với nhãn "vượt giới hạn" cũ p không tới ngưỡng);
       "An":   có giới hạn, mức dùng trung bình; HÔM QUA cài một đêm bất thường (dùng 0h–4h + chiều tối dài)
               → M2 mức ngày đánh dấu, có cảnh báo kèm giải thích để bấm "Đúng là bất thường" / "Được phép".
   - 6 bé "nền" ở một tài khoản khác: M3 K-Means chỉ chia nhóm khi ≥ 6 trẻ đủ 7 ngày, nên cần thêm trẻ để thẻ
@@ -30,8 +28,6 @@ SEED = 11
 BACKGROUND = 6
 DEMO_CHILDREN = (("Minh", "cao"), ("An", "vua"))
 ANOMALY_CHILD = "An"
-TIGHT_LIMIT_CHILD = "Minh"
-TIGHT_LIMIT_SHARE = 0.75  # giới hạn demo của Minh = 75% mức dùng trung bình tuần, làm tròn 5 phút
 AGE_YEARS = {"3-5": 4, "6-10": 8, "11-14": 12, "15-17": 16}
 HOURLY_COLS = ["packageName", "appName", "hourStart", "usageSeconds", "launchCount"]
 LIMIT_COLS = ["dayOfWeek", "dailyLimitMinutes", "isActive", "isGradual"]
@@ -56,15 +52,6 @@ def _pick(sim: dict, today: pd.Timestamp) -> tuple[dict[str, int], list[int]]:
     return picked, background[:BACKGROUND]
 
 
-def _tight_limits(hourly: pd.DataFrame, pid: int, today: pd.Timestamp) -> list[dict]:
-    rows = hourly[hourly["profileId"] == pid]
-    vn_date = (rows["hourStart"] + pd.Timedelta(hours=7)).dt.tz_localize(None).dt.normalize()
-    week = rows[(vn_date > today - pd.Timedelta(days=7)) & (vn_date <= today)]
-    week_mean = week["usageSeconds"].sum() / 60 / 7
-    minutes = max(15, int(round(week_mean * TIGHT_LIMIT_SHARE / 5) * 5))
-    return [{"dayOfWeek": d, "dailyLimitMinutes": minutes, "isActive": True, "isGradual": False} for d in range(7)]
-
-
 def _birth_date(age_group: str, today: pd.Timestamp) -> str:
     years = AGE_YEARS.get(age_group, 8)
     return (today - pd.DateOffset(years=years) - pd.Timedelta(days=100)).date().isoformat()
@@ -82,8 +69,7 @@ def _child(sim: dict, pid: int, name: str, demo: bool, today: pd.Timestamp) -> d
         "dateOfBirth": _birth_date(age_group, today),
         "dayAnomalyInjected": anomaly,
         "hourly": _inject_anomaly(hourly, today) if anomaly else hourly,
-        "limits": (_tight_limits(sim["app_usage_hourly"], pid, today) if name == TIGHT_LIMIT_CHILD
-                   else _records(sim["time_limits"], pid, LIMIT_COLS)),
+        "limits": _records(sim["time_limits"], pid, LIMIT_COLS),
         "extRequests": _records(sim["time_extension_requests"], pid, EXT_COLS),
     }
 

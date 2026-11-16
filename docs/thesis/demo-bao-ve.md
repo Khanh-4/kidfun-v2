@@ -17,7 +17,7 @@ Script làm: mô phỏng 28 ngày → nạp 2 bé demo + 6 bé nền → bật b
 | Bé | Hiện gì trên app |
 |---|---|
 | **An** (11–14 tuổi) | Cảnh báo M2 hôm qua kèm giải thích ("dùng một ứng dụng mới trong 9 giờ 30 phút") → bấm "Đúng là bất thường" / "Được phép"; heatmap 4 tuần; nhóm thói quen + gợi ý |
-| **Minh** (11–14 tuổi) | Thẻ "Ngày mai": dự đoán vượt giới hạn (vd 111 phút / giới hạn 95, khả năng vượt 50%); heatmap; nhóm thói quen |
+| **Minh** (11–14 tuổi) | Thẻ "Ngày mai": dự đoán + khả năng dùng hết giờ; cảnh báo M1 kèm câu giải thích (cần #372); heatmap; nhóm thói quen |
 | 6 bé nền | Ở tài khoản khác, chỉ để K-Means có đủ ≥ 6 trẻ và chia được 3 nhóm |
 
 ## 2. Build APK phụ huynh trỏ vào laptop
@@ -48,6 +48,5 @@ Không truyền `--dart-define` thì app vẫn trỏ production như cũ.
 - Realtime (Supabase) gắn với DB production nên **không** cập nhật tức thời cho dữ liệu demo — kéo xuống để làm mới.
 - Thông báo đẩy: chưa thử với backend demo. Phần "phụ huynh nhận thông báo" trong kịch bản T9.3.1 nên quay sẵn
   bằng app thật.
-- **Chưa có cảnh báo M1 trong demo** (16/11): bộ phân loại M1 gần như không phản ứng khi giới hạn thấp hơn hẳn
-  mức dùng — với Minh, hạ giới hạn từ 126 xuống 38 phút mà p gốc chỉ từ 0,18 lên 0,24 (cây quyết định không ngoại
-  suy ra ngoài vùng giới hạn của bộ mô phỏng). Sau khi kẹp p = 0,5 < ngưỡng cảnh báo 0,6. Đang chờ chọn hướng xử lý.
+- Cảnh báo M1 của Minh cần nhãn "dùng hết giờ" (#372). Với nhãn "vượt giới hạn" cũ, p bị chặn trên ~0,5 vì máy
+  bị chặn khi hết giờ (vượt chỉ khi xin thêm giờ được duyệt) nên không tới ngưỡng cảnh báo.

@@ -30,14 +30,3 @@ def test_night_anomaly_only_on_the_designated_child():
 
     assert flagged == ["An"]
 
-
-def test_minh_limit_is_set_well_below_his_usual_use():
-    demo = build_demo(pd.Timestamp("2026-11-16"))
-    minh = next(c for c in demo["children"] if c["name"] == "Minh")
-    vn = pd.to_datetime([h["hourStart"] for h in minh["hourly"]], utc=True).tz_localize(None) + pd.Timedelta(hours=7)
-    minutes = pd.Series([h["usageSeconds"] / 60 for h in minh["hourly"]], index=vn.normalize())
-    week_mean = minutes[minutes.index > pd.Timestamp("2026-11-09")].groupby(level=0).sum().mean()
-
-    limits = {l["dailyLimitMinutes"] for l in minh["limits"]}
-    assert len(minh["limits"]) == 7 and all(l["isActive"] for l in minh["limits"])
-    assert max(limits) <= 0.8 * week_mean
