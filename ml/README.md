@@ -30,6 +30,20 @@ cd ml/data && unzip dataset_rds.zip 'dataset_rds/other/app_usage.Rds' 'dataset_r
 ml/.venv/bin/python ml/eda/studentlife_eda.py ml/data/dataset_rds ml/reports
 ```
 
+## T8.3 — đánh giá trên dữ liệu thật (thêm 16/11)
+
+Chỉ đọc qua `GET /api/cron/thesis-data`; **hỏi Khanh trước khi gọi production**. Gọi một lần, lưu snapshot (dữ liệu
+thật → `ml/data/real/`, không commit), các lần sau đọc snapshot:
+
+```bash
+CRON_SECRET=... .venv/bin/python -m models.real_eval --url https://kidfun-backend.vercel.app --days 90 \
+    --save-pages data/real/snapshot.json --out reports
+.venv/bin/python -m models.real_eval --pages data/real/snapshot.json --out reports
+```
+
+Ra `reports/t83_real_data.md`: M1 (gói production so với MA7, MAE theo trẻ, Wilcoxon khi ≥ 6 trẻ; Brier/ROC-AUC và % ngày
+p ≥ 0,8 của "dùng hết giờ"), M2 mức ngày (cảnh báo/trẻ/tuần), phản hồi tầng 1. Báo cáo chỉ in "trẻ k".
+
 ## Vùng an toàn trong bộ mô phỏng (thêm 16/11)
 
 `simulate()` sinh thêm bảng `geofence_events` (cột như Prisma `GeofenceEvent`) bằng luồng ngẫu nhiên riêng — tắt bằng
