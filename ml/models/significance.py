@@ -9,7 +9,7 @@ Giao thức huấn luyện/kiểm tra giữ nguyên tuần 4–5 (`m1.evaluate.w
 
 Chạy từ thư mục ml/ (khoảng 10 phút):
     .venv/bin/python -m models.significance --sim data/sim --lsapp data/lsapp.tsv.gz \
-        --studentlife data/dataset_rds --out reports
+        --studentlife data/dataset_rds --livelab data/livelab/appusage.sql --out reports
 """
 
 import argparse
@@ -207,7 +207,7 @@ def m2_sections(sim_dir: Path, n_boot: int) -> list[str]:
 
 
 def main() -> None:
-    from .m1.data import lsapp_daily_features, sim_daily_features, studentlife_daily_features
+    from .m1.data import livelab_daily_features, lsapp_daily_features, sim_daily_features, studentlife_daily_features
     from .m1.evaluate import walk_forward
     from .m1.lstm import LSTMGlobal
     from .m1.models import MovingAverage7, XGBAbsolute, XGBRelative
@@ -216,6 +216,7 @@ def main() -> None:
     p.add_argument("--sim", type=Path, required=True)
     p.add_argument("--lsapp", type=Path)
     p.add_argument("--studentlife", type=Path)
+    p.add_argument("--livelab", type=Path)
     p.add_argument("--sim-test-start", default="2026-03-02")
     p.add_argument("--n-boot-m1", type=int, default=N_BOOT_M1)
     p.add_argument("--n-boot-m2", type=int, default=N_BOOT_M2)
@@ -230,6 +231,8 @@ def main() -> None:
         datasets.append(("LSApp (người lớn)", args.lsapp, lsapp_daily_features, None))
     if args.studentlife:
         datasets.append(("StudentLife (sinh viên)", args.studentlife, studentlife_daily_features, None))
+    if args.livelab:
+        datasets.append(("LiveLab (sinh viên, iPhone)", args.livelab, livelab_daily_features, None))
 
     lines = ["# T8.4 — Kiểm định thống kê M1 và M2 tầng 2", ""]
     for title, path, loader, start in datasets:

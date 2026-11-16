@@ -1,9 +1,9 @@
 """M1 — bảng so sánh hoàn chỉnh (tuần 4): hồi quy (thêm LSTM), xác suất vượt giới hạn, phân tích loại bỏ nhóm
-đặc trưng; trên dữ liệu mô phỏng, LSApp và StudentLife.
+đặc trưng; trên dữ liệu mô phỏng, LSApp, StudentLife và LiveLab (thêm 16/11).
 
 Chạy từ thư mục ml/:
     .venv/bin/python -m models.m1.round2 --sim data/sim --lsapp data/lsapp.tsv.gz \
-        --studentlife data/dataset_rds --out reports
+        --studentlife data/dataset_rds --livelab data/livelab/appusage.sql --out reports
 """
 
 import argparse
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .data import lsapp_daily_features, sim_daily_features, studentlife_daily_features
+from .data import livelab_daily_features, lsapp_daily_features, sim_daily_features, studentlife_daily_features
 from .evaluate import metrics, report, walk_forward
 from .lstm import LSTMGlobal
 from .models import ALL_MODELS, XGBAbsolute, feature_columns
@@ -83,6 +83,7 @@ def main() -> None:
     p.add_argument("--sim", type=Path, required=True)
     p.add_argument("--lsapp", type=Path)
     p.add_argument("--studentlife", type=Path)
+    p.add_argument("--livelab", type=Path, help="appusage.sql (giải nén từ traces/apps.tar.gz)")
     p.add_argument("--sim-test-start", default="2026-03-02")
     p.add_argument("--out", type=Path, default=Path("reports"))
     args = p.parse_args()
@@ -101,6 +102,7 @@ def main() -> None:
     public = {
         "LSApp (người lớn)": (args.lsapp, lsapp_daily_features),
         "StudentLife (sinh viên)": (args.studentlife, studentlife_daily_features),
+        "LiveLab (sinh viên, iPhone)": (args.livelab, livelab_daily_features),
     }
     for title, (path, loader) in public.items():
         if path is None:

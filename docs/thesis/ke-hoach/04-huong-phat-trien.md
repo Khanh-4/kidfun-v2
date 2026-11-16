@@ -9,7 +9,7 @@ Chỉ làm sau khi T7 và T8 đã chạy, theo thứ tự ưu tiên:
 | A1 | Kiểm định Wilcoxon / Diebold–Mariano cho M1 (nếu T8.4 chưa đủ) | Kết luận RQ1 có ý nghĩa thống kê | Nhỏ |
 | A2 | Dò siêu tham số LSTM (cửa sổ, số nút, dropout) | Trả lời RQ1 công bằng hơn | Nhỏ |
 | A3 | Thêm `GeofenceEvent` vào bộ mô phỏng, đánh giá nhóm đặc trưng vị trí | Hoàn thiện phân tích loại bỏ | Vừa |
-| A4 | Chạy M1 trên Tsinghua App Usage | Thêm một bộ dữ liệu công khai | Vừa |
+| ~~A4~~ | ~~Chạy M1 trên Tsinghua App Usage~~ — loại 16/11 (1 tuần/người), đã thay bằng LiveLab | Thêm một bộ dữ liệu công khai | Xong |
 | A5 | Huấn luyện lại M2 bằng nhãn phản hồi thật (bán giám sát) | Mở rộng RQ5 | Vừa |
 | A6 | Apriori cho M3 (đã bỏ khỏi bản gọn) | Đủ phạm vi M3 như đề xuất gốc | Vừa |
 
