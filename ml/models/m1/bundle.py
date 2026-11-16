@@ -21,7 +21,9 @@ import pandas as pd
 import xgboost as xgb
 
 from .models import AGE_MID, XGB_PARAMS, feature_columns
-from .over_limit import CALIBRATION_SHARE, CLF_PARAMS, apply_platt, fit_platt, limited
+from features.daily import HIT_LIMIT_MARGIN_MIN
+
+from .over_limit import CALIBRATION_SHARE, CLF_PARAMS, M1_LABEL, apply_platt, fit_platt, limited
 
 FORMAT_VERSION = 2  # 2: isotonic.json → platt.json (16/11)
 FILES = ("regressor.json", "classifier.json", "platt.json", "meta.json")
@@ -57,8 +59,8 @@ class M1Bundle:
         return np.clip(minutes, 0, None)
 
     def predict_over_limit(self, df: pd.DataFrame) -> np.ndarray:
-        """Xác suất từ bộ phân loại + Platt, rồi KẸP cho khớp số phút dự đoán: phút > giới hạn thì p ≥ 0,5,
-        phút < giới hạn thì p ≤ 0,5. Hai mô hình học riêng nên nói ngược nhau ~27% số ngày trên mô phỏng
+        """Xác suất từ bộ phân loại + Platt, rồi KẸP cho khớp số phút dự đoán: phút ≥ giới hạn − 5 thì p ≥ 0,5,
+        thấp hơn thì p ≤ 0,5 (p = khả năng DÙNG HẾT GIỜ từ 16/11, xem over_limit.M1_LABEL). Hai mô hình học riêng nên nói ngược nhau ~27% số ngày trên mô phỏng
         (vd 76 phút > giới hạn 67 mà p = 0). So với isotonic không kẹp: Brier 0,191 → 0,192, ECE 0,006 → 0,040
         (ml/reports/m1_consistency.md). Server báo khi p ≥ 0,6 nên kẹp chỉ có thể làm BỚT cảnh báo."""
         raw = self.classifier.predict_proba(_matrix(df, self.clf_cols))[:, 1]
@@ -66,7 +68,7 @@ class M1Bundle:
         if "limit_tomorrow" not in df.columns:
             return p
         minutes = self.predict_minutes(df)
-        limit = df["limit_tomorrow"].to_numpy(dtype=float)
+        limit = df["limit_tomorrow"].to_numpy(dtype=float) - HIT_LIMIT_MARGIN_MIN  # "dùng hết giờ"
         p = np.where(minutes > limit, np.maximum(p, 0.5), p)
         return np.where(minutes < limit, np.minimum(p, 0.5), p)
 
@@ -81,15 +83,15 @@ def train(daily: pd.DataFrame, n_estimators: int | None = None) -> M1Bundle:
     regressor = xgb.XGBRegressor(**{**XGB_PARAMS, **override}).fit(_matrix(labelled, reg_cols), ratio)
 
     rows = daily[limited(daily)]
-    if rows["over_limit_next"].nunique() < 2:
+    if rows[M1_LABEL].nunique() < 2:
         raise BundleError("Dữ liệu có giới hạn chỉ có một lớp (toàn vượt hoặc toàn không) — không huấn luyện được")
     cut = rows["target_date"].quantile(1 - CALIBRATION_SHARE)
     fit_part, cal_part = rows[rows["target_date"] < cut], rows[rows["target_date"] >= cut]
     clf_cols = feature_columns(daily)
     classifier = xgb.XGBClassifier(**{**CLF_PARAMS, **override}).fit(
-        _matrix(fit_part, clf_cols), fit_part["over_limit_next"].astype(int)
+        _matrix(fit_part, clf_cols), fit_part[M1_LABEL].astype(int)
     )
-    a, b = fit_platt(classifier.predict_proba(_matrix(cal_part, clf_cols))[:, 1], cal_part["over_limit_next"])
+    a, b = fit_platt(classifier.predict_proba(_matrix(cal_part, clf_cols))[:, 1], cal_part[M1_LABEL])
     return M1Bundle(regressor, reg_cols, classifier, clf_cols, a, b)
 
 
@@ -105,7 +107,7 @@ def save(bundle: M1Bundle, out: Path, trained_on: str) -> None:
         "trained_at": date.today().isoformat(),
         "xgboost": xgb.__version__,
         "regressor": {"model": "xgb_rel", "columns": bundle.reg_cols},
-        "classifier": {"model": "xgb_clf_platt", "columns": bundle.clf_cols},
+        "classifier": {"model": "xgb_hit_platt", "columns": bundle.clf_cols},
     }
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -129,7 +131,7 @@ def load(src: Path = DEFAULT_DIR) -> M1Bundle:
 
 
 def model_version(src: Path = DEFAULT_DIR) -> str:
-    """Chuỗi ghi vào UsagePrediction.modelVersion, vd "xgb_rel+xgb_clf_platt@2026-11-16"."""
+    """Chuỗi ghi vào UsagePrediction.modelVersion, vd "xgb_rel+xgb_hit_platt@2026-11-16" (hit = nhãn "dùng hết giờ")."""
     meta = json.loads((src / "meta.json").read_text(encoding="utf-8"))
     return f"{meta['regressor']['model']}+{meta['classifier']['model']}@{meta['trained_at']}"
 

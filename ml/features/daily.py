@@ -21,6 +21,8 @@ HIGH_DANGER = 4
 HOLIDAY_HORIZON_DAYS = 14  # xa hơn 14 ngày thì "sắp nghỉ" không còn ý nghĩa; để nguyên thành biến chỉ thời gian
 
 
+HIT_LIMIT_MARGIN_MIN = 5  # dùng ≥ giới hạn − 5 phút = "dùng hết giờ" (máy chặn đúng lúc hết giờ, lệch vài phút do làm tròn)
+
 def prepare_hourly(hourly: pd.DataFrame, categories: dict[str, str]) -> pd.DataFrame:
     local = to_vn(hourly["hourStart"])
     return hourly.assign(
@@ -43,7 +45,7 @@ def build_daily_features(
     geofence: pd.DataFrame | None = None,
     cutoff_hour: int = DEFAULT_CUTOFF_HOUR,
 ) -> pd.DataFrame:
-    """Một dòng cho mỗi (profileId, ngày t); kèm nhãn y_next / over_limit_next để huấn luyện."""
+    """Một dòng cho mỗi (profileId, ngày t); kèm nhãn y_next / over_limit_next / hit_limit_next để huấn luyện."""
     h = prepare_hourly(hourly, categories)
     frames = [
         _profile_features(
@@ -85,8 +87,11 @@ def _profile_features(pid, h, *, calendar, limits, ext, yt, geo, cutoff) -> pd.D
     out["outside_zone_min_7d"] = _outside_zone(geo, idx, cutoff)
 
     out["y_next"] = total.shift(-1)
-    over = out["y_next"] > out["limit_tomorrow"]
-    out["over_limit_next"] = over.where(out["has_limit"] & out["y_next"].notna())
+    labelled = out["has_limit"] & out["y_next"].notna()
+    out["over_limit_next"] = (out["y_next"] > out["limit_tomorrow"]).where(labelled)
+    # Nhãn M1 từ 16/11: máy bị chặn khi hết giờ nên "vượt" chỉ xảy ra khi xin thêm giờ được duyệt (p bị chặn trên
+    # ~0,5); "dùng hết giờ" = dùng tới sát giới hạn mới là điều phụ huynh cần biết trước.
+    out["hit_limit_next"] = (out["y_next"] >= out["limit_tomorrow"] - HIT_LIMIT_MARGIN_MIN).where(labelled)
     out["today_missing"] = total.isna()
     return out.rename_axis("date").reset_index()
 

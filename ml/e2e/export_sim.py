@@ -2,7 +2,7 @@
 
 Mô phỏng 21 ngày kết thúc HÔM NAY (giờ VN, đủ 24 giờ như thể tác vụ chạy cuối ngày), rồi chọn 3 trẻ phủ đủ
 các nhánh của tác vụ:
-  - "cao":   có giới hạn, dùng gần/vượt giới hạn nhất  → nhiều khả năng p ≥ 0,6 (server tạo cảnh báo M1);
+  - "cao":   có giới hạn, dùng gần/vượt giới hạn nhất  → nhiều khả năng p ≥ 0,8 (server tạo cảnh báo M1);
   - "thap":  có giới hạn, dùng ít so với giới hạn       → p thấp, không cảnh báo;
   - "khong": không đặt giới hạn                         → pOverLimit = null.
 Ngày HÔM QUA của trẻ "thap" được cài một ngày bất thường rõ rệt (dùng máy 0h–4h sáng bằng một app mới, cộng thêm

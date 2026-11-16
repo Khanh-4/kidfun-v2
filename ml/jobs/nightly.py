@@ -2,7 +2,7 @@
 
 Tải dữ liệu MỘT lần qua /api/cron/thesis-data, rồi:
   1. tính mức thường ngày cho luật tầng 1 → PUT /api/cron/behavior-baselines;
-  2. dự đoán M1 cho ngày mai → POST /api/cron/behavior-results (server tự tạo cảnh báo khi p ≥ 0,6);
+  2. dự đoán M1 cho ngày mai → POST /api/cron/behavior-results (server tự tạo cảnh báo khi p ≥ 0,8);
   3. chấm M2 tầng 2 mức ngày (DBSCAN) cho hôm qua → POST /api/cron/behavior-results, `alerts` (T7.3.2);
   4. nhóm thói quen M3 + gợi ý M4 → PUT /api/cron/habit-insights (T7.5.3).
 

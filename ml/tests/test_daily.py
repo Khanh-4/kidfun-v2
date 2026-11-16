@@ -102,6 +102,25 @@ def test_limit_for_tomorrow_and_over_limit_label():
     assert not bool(df.loc["2026-10-11", "has_limit"])
 
 
+def test_hit_limit_label_counts_using_up_the_time_even_when_blocked():
+    # Máy bị chặn khi hết giờ nên "vượt" hiếm; nhãn M1 từ 16/11 là "dùng hết giờ": dùng ≥ giới hạn − 5 phút.
+    limits = pd.DataFrame(
+        {"profileId": [1], "dayOfWeek": [0], "dailyLimitMinutes": [60], "isActive": [True], "isGradual": [False]}
+    )
+    df = build(hourly(("2026-10-03 10:00", 30), ("2026-10-04 10:00", 56), ("2026-10-10 10:00", 30),
+                      ("2026-10-11 10:00", 50)), limits=limits)
+    assert bool(df.loc["2026-10-03", "hit_limit_next"])  # CN 04/10: 56 ≥ 55 → dùng hết giờ (dù không vượt)
+    assert not bool(df.loc["2026-10-03", "over_limit_next"])
+    assert not bool(df.loc["2026-10-10", "hit_limit_next"])  # CN 11/10: 50 < 55
+
+
+def test_labels_never_leak_into_m1_features():
+    from models.m1.models import feature_columns
+
+    df = build(hourly(("2026-10-10 10:00", 30), ("2026-10-11 10:00", 90)))
+    assert not {"y_next", "over_limit_next", "hit_limit_next"} & set(feature_columns(df))
+
+
 def test_outside_zone_minutes():
     geo = pd.DataFrame(
         {

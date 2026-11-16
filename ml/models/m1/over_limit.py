@@ -1,4 +1,5 @@
-"""M1 — xác suất ngày mai dùng quá giới hạn: P(y_next > limit_tomorrow).
+"""M1 — xác suất ngày mai DÙNG HẾT GIỜ: P(y_next ≥ limit_tomorrow − 5 phút) (từ 16/11; trước đó là P(y_next > limit),
+nhưng máy bị chặn khi hết giờ nên "vượt" chỉ xảy ra khi xin thêm giờ được duyệt — p bị chặn trên ~0,5).
 
 Chỉ chấm các ngày trẻ có giới hạn cho ngày t+1. Ba cách:
   - normal_ma7: giả sử y_next ~ N(mean7, std7) -> P = 1 − Φ((L − mean7) / std7)  (mô hình cơ sở);
@@ -17,15 +18,18 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
+from features.daily import HIT_LIMIT_MARGIN_MIN
+
 from .models import XGB_PARAMS, XGBRelative, _matrix, feature_columns
 
+M1_LABEL = "hit_limit_next"
 CALIBRATION_SHARE = 0.2
 MIN_STD = 10.0
 CLF_PARAMS = {**XGB_PARAMS, "objective": "binary:logistic", "eval_metric": "logloss"}
 
 
 def limited(daily: pd.DataFrame) -> pd.Series:
-    return daily["has_limit"].astype(bool) & daily["over_limit_next"].notna()
+    return daily["has_limit"].astype(bool) & daily[M1_LABEL].notna()
 
 
 class NormalMA7:
@@ -37,7 +41,7 @@ class NormalMA7:
     def predict_proba(self, test):
         std = test["std7"].fillna(MIN_STD).clip(lower=MIN_STD)
         mean = test["mean7"].fillna(test["y_lag1"])
-        return 1 - norm.cdf(((test["limit_tomorrow"] - mean) / std).to_numpy())
+        return 1 - norm.cdf(((test["limit_tomorrow"] - HIT_LIMIT_MARGIN_MIN - mean) / std).to_numpy())
 
 
 class XGBClassifier:
@@ -45,7 +49,7 @@ class XGBClassifier:
 
     def fit(self, train):
         self.cols = feature_columns(train)
-        y = train["over_limit_next"].astype(int)
+        y = train[M1_LABEL].astype(int)
         self.model = xgb.XGBClassifier(**CLF_PARAMS).fit(_matrix(train, self.cols), y)
         return self
 
@@ -61,7 +65,7 @@ class XGBClassifierIsotonic:
         fit_part, cal_part = train[train["target_date"] < cut], train[train["target_date"] >= cut]
         self.base = XGBClassifier().fit(fit_part)
         self.iso = IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1)
-        self.iso.fit(self.base.predict_proba(cal_part), cal_part["over_limit_next"].astype(int))
+        self.iso.fit(self.base.predict_proba(cal_part), cal_part[M1_LABEL].astype(int))
         return self
 
     def predict_proba(self, test):
@@ -93,7 +97,7 @@ class XGBClassifierPlatt:
         cut = train["target_date"].quantile(1 - CALIBRATION_SHARE)
         fit_part, cal_part = train[train["target_date"] < cut], train[train["target_date"] >= cut]
         self.base = XGBClassifier().fit(fit_part)
-        self.a, self.b = fit_platt(self.base.predict_proba(cal_part), cal_part["over_limit_next"])
+        self.a, self.b = fit_platt(self.base.predict_proba(cal_part), cal_part[M1_LABEL])
         return self
 
     def predict_proba(self, test):
@@ -104,7 +108,7 @@ class RegResidual:
     """Xác suất suy từ CHÍNH bộ hồi quy số phút (xgb_rel) + phân phối sai số thực nghiệm, thay vì một bộ phân
     loại học riêng — để số phút dự đoán và xác suất không mâu thuẫn (vd 76 phút > giới hạn 67 mà p = 0).
     Sai số log r = log((y+1)/(m+1)) đo trên 20% cuối theo thời gian, dời cho trung vị = 0, nên
-    m > L ⇔ p ≥ 0,5. p = tỷ lệ sai số r với (m+1)·e^r − 1 > L: mịn theo m và L, không bậc thang như isotonic."""
+    m > L − 5 ⇔ p ≥ 0,5. p = tỷ lệ sai số r với (m+1)·e^r − 1 > L − 5: mịn theo m và L, không bậc thang như isotonic."""
 
     name = "reg_resid"
 
@@ -124,9 +128,9 @@ class RegResidual:
 
     def predict_proba(self, test):
         m = self.predict_minutes(test)
-        threshold = np.log1p(test["limit_tomorrow"].to_numpy()) - np.log1p(m)
+        threshold = np.log1p(test["limit_tomorrow"].to_numpy() - HIT_LIMIT_MARGIN_MIN) - np.log1p(m)
         # Hàm phân phối thực nghiệm nội suy tuyến tính (mốc (i+0.5)/n): liên tục dù tập hiệu chỉnh nhỏ, và vì
-        # trung vị đã dời về 0 nên CDF(0) = 0,5 đúng → giữ m > L ⇔ p ≥ 0,5.
+        # trung vị đã dời về 0 nên CDF(0) = 0,5 đúng → giữ m > L − 5 ⇔ p ≥ 0,5.
         n = len(self.resid)
         cdf = np.interp(threshold, self.resid, (np.arange(n) + 0.5) / n, left=0.0, right=1.0)
         return 1 - cdf
@@ -143,9 +147,9 @@ def walk_forward_proba(daily, models, test_start, test_end, fold_days=7, min_his
         fold_end = fold_start + pd.Timedelta(days=fold_days)
         train = rows[rows["target_date"] < fold_start]
         test = rows[scored & (rows["target_date"] >= fold_start) & (rows["target_date"] < fold_end)]
-        if test.empty or train["over_limit_next"].nunique() < 2:
+        if test.empty or train[M1_LABEL].nunique() < 2:
             continue
-        fold = test[["profileId", "target_date", "over_limit_next"]].copy()
+        fold = test[["profileId", "target_date", M1_LABEL]].copy()
         for model_cls in models:
             fold[model_cls.name] = model_cls().fit(train).predict_proba(test)
         out.append(fold)
@@ -161,7 +165,7 @@ def expected_calibration_error(y: np.ndarray, p: np.ndarray, bins: int = 10) -> 
 
 
 def proba_metrics(preds: pd.DataFrame, names) -> pd.DataFrame:
-    y = preds["over_limit_next"].astype(int).to_numpy()
+    y = preds[M1_LABEL].astype(int).to_numpy()
     rows = [
         {
             "model": n,
@@ -177,7 +181,7 @@ def proba_metrics(preds: pd.DataFrame, names) -> pd.DataFrame:
 def reliability_table(preds: pd.DataFrame, name: str, bins: int = 5) -> pd.DataFrame:
     band = pd.cut(preds[name], np.linspace(0, 1, bins + 1), include_lowest=True)
     return preds.groupby(band, observed=True).agg(
-        so_ngay=("over_limit_next", "size"),
+        so_ngay=(M1_LABEL, "size"),
         xac_suat_du_doan=(name, "mean"),
-        ty_le_vuot_thuc_te=("over_limit_next", lambda s: s.astype(float).mean()),
+        ty_le_thuc_te=(M1_LABEL, lambda s: s.astype(float).mean()),
     )

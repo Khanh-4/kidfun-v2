@@ -6,8 +6,10 @@
  *         usualMinutes? }] }
  *
  * - Mọi dự đoán upsert vào UsagePrediction theo (profileId, date): chạy lại trong ngày thì ghi đè.
- * - pOverLimit ≥ M1_ALERT_THRESHOLD → server tự tạo BehaviorAlert source "M1" (ngưỡng đặt ở MỘT chỗ,
- *   theo docs/thesis/07: ≈ 5% số ngày, đúng ≈ 63%). Cảnh báo tầng 2 gửi kèm trong `alerts` → source "TIER2".
+ * - pOverLimit ≥ M1_ALERT_THRESHOLD → server tự tạo BehaviorAlert source "M1" (ngưỡng đặt ở MỘT chỗ).
+ *   Từ 16/11 pOverLimit là khả năng DÙNG HẾT GIỜ (dùng ≥ giới hạn − 5 phút), giữ tên cột cho khỏi migration:
+ *   máy bị chặn khi hết giờ nên "vượt" chỉ xảy ra khi xin thêm giờ được duyệt. Ngưỡng 0,8 trên mô phỏng: báo
+ *   ≈ 39% ngày có giới hạn, đúng ≈ 92%, ≈ 2,7 cảnh báo/trẻ/tuần (ml/models/m1/consistency.py). Tầng 2 → "TIER2".
  * - Chống trùng bằng khoá unique của BehaviorAlert; chỉ cảnh báo MỚI mới gửi FCM.
  */
 
@@ -17,7 +19,7 @@ const { sendBehaviorAlertPush } = require('../services/fcmService');
 const { parseBehaviorAlerts, buildMessage, formatMinutes } = require('../utils/behaviorAlert');
 const { buildUsageHeatmap, MIN_DAYS_FOR_PREDICTION } = require('../utils/usageHeatmap');
 
-const M1_ALERT_THRESHOLD = 0.6;
+const M1_ALERT_THRESHOLD = 0.8;
 const MAX_PREDICTIONS = 500;
 const MAX_MINUTES = 24 * 60;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,9 +42,9 @@ const formatDay = (date) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 
 const m1Message = (p) => {
   const pct = Math.round(p.pOverLimit * 100);
-  const limit = p.limitMinutes != null ? ` ${formatMinutes(p.limitMinutes)}` : '';
+  const limit = p.limitMinutes != null ? ` (giới hạn ${formatMinutes(p.limitMinutes)})` : '';
   return `Dự đoán ngày ${formatDay(p.date)}: bé dùng khoảng ${formatMinutes(p.predictedMinutes)}, ` +
-    `${pct}% khả năng vượt giới hạn${limit}.`;
+    `${pct}% khả năng dùng hết giờ${limit}.`;
 };
 
 /** Cảnh báo M1 nói về CẢ NGÀY → slotStart = 00:00 giờ VN của ngày được dự đoán. */

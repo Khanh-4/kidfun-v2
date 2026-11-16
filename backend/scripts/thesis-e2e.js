@@ -19,7 +19,7 @@ if (!process.env.DATABASE_URL || /supabase/i.test(process.env.DATABASE_URL)) {
 const prisma = require('../src/utils/prisma');
 
 const EMAIL = 'thesis_e2e@kidfun.test';
-const M1_ALERT_THRESHOLD = 0.6; // = behaviorResultsController.js
+const M1_ALERT_THRESHOLD = 0.8; // = behaviorResultsController.js
 
 const readSim = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -93,7 +93,7 @@ function checkChild(child, profile, tomorrow, failures) {
 
   const pText = p.pOverLimit === null ? '—' : p.pOverLimit.toFixed(3);
   console.log(`${child.label.padStart(5)} | dự đoán ${p.predictedMinutes.toFixed(1)} phút | giới hạn ${expectLimit ?? '—'} `
-    + `| p vượt ${pText} | cảnh báo M1: ${alerts.length}${alerts[0] ? ` "${alerts[0].message}"` : ''} `
+    + `| p hết giờ ${pText} | cảnh báo M1: ${alerts.length}${alerts[0] ? ` "${alerts[0].message}"` : ''} `
     + `| cảnh báo ngày: ${dayAlerts.length}${dayAlerts[0] ? ` "${dayAlerts[0].message}"` : ''}`);
 }
 

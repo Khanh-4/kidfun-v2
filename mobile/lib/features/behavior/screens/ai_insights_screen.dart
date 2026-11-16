@@ -166,17 +166,18 @@ class _AiInsightsScreenState extends State<AiInsightsScreen> {
     ]);
   }
 
+  /// pOverLimit = khả năng DÙNG HẾT GIỜ ngày mai (từ 16/11). Đỏ từ 0,8 = ngưỡng server tạo cảnh báo M1.
   Widget _overLimitChip(double p) {
-    final (color, bg) = p >= 0.6
+    final (color, bg) = p >= 0.8
         ? (AppColors.danger, AppColors.dangerBg)
-        : p >= 0.3
+        : p >= 0.5
             ? (AppColors.warning, AppColors.warningBg)
             : (AppColors.success, AppColors.successBg);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Khả năng vượt giới hạn: ', style: TextStyle(color: AppColors.slate700)),
+        const Text('Khả năng dùng hết giờ: ', style: TextStyle(color: AppColors.slate700)),
         Text('${(p * 100).round()}%', style: TextStyle(color: color, fontWeight: FontWeight.w800)),
       ]),
     );
