@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../network/dio_client.dart';
 import '../network/realtime_service.dart';
-import '../network/socket_service.dart';
 import 'location_service.dart';
 import 'native_service.dart';
 import 'youtube_service.dart';
@@ -116,7 +115,6 @@ class ChildLinkService {
     // 2. Ngắt kênh realtime — token realtime của child gắn với deviceId vừa bị
     //    xoá nên giữ lại cũng vô nghĩa.
     await RealtimeService.instance.disconnect();
-    SocketService.instance.disconnect();
 
     // 3. Xoá dữ liệu liên kết dưới máy. Xoá cả key mốc hết giờ theo deviceCode
     //    (`end_time_epoch_ms_<deviceCode>`) — nếu để lại, lần liên kết sau trên
