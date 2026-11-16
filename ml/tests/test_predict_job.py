@@ -68,6 +68,36 @@ def test_bo_qua_tre_chua_du_7_ngay_lich_su_hoac_khong_co_du_lieu_hom_nay():
     assert sorted(report["skipped"]) == [1, 2, 4]
 
 
+class CapturingBundle(FakeBundle):
+    """Ghi lại bảng đặc trưng được đưa vào mô hình."""
+
+    def predict_minutes(self, df):
+        self.seen = df
+        return super().predict_minutes(df)
+
+
+def test_hom_nay_khong_dung_may_nhung_hom_qua_co_thi_van_du_doan_voi_0_phut():
+    bundle = CapturingBundle()
+    preds, report = run(data_for([1], days_of_usage(1, 14, last="2026-10-19")), bundle=bundle)
+
+    assert [p["profileId"] for p in preds] == [1]
+    assert preds[0]["date"] == "2026-10-21"
+    assert report["skipped"] == []
+    row = bundle.seen.iloc[0]
+    assert row["today_until_cutoff"] == 0.0  # hôm nay = 0 phút, không phải "thiếu" (NaN)
+    assert row["y_lag1"] == 40.0  # hôm qua vẫn giữ nguyên
+
+
+def test_ngay_0_phut_khong_lam_hong_tre_khac_co_du_lieu_hom_nay():
+    rows = days_of_usage(1, 14, last="2026-10-19") + days_of_usage(2, 14)
+    bundle = CapturingBundle()
+    preds, _ = run(data_for([1, 2], rows), bundle=bundle)
+
+    assert sorted(p["profileId"] for p in preds) == [1, 2]
+    today = dict(zip(bundle.seen["profileId"], bundle.seen["today_until_cutoff"]))
+    assert today == {1: 0.0, 2: 40.0}
+
+
 def test_goi_m1_that_chay_duoc_tren_du_lieu_dang_production():
     rows = days_of_usage(1, 21) + [hour_row(1, "2026-10-20 08:00", 30, pkg="com.whatsapp")]
     [p], report = run(data_for([1], rows, limit_rows(1, 60)), bundle=m1_bundle.load())
