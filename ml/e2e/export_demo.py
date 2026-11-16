@@ -2,8 +2,8 @@
 
 Mô phỏng 28 ngày kết thúc HÔM NAY (heatmap thói quen lấy trung bình 4 tuần), rồi chọn:
   - 2 bé của phụ huynh demo (hiện trên app):
-      "Minh": có giới hạn, chạm giới hạn thường xuyên nhất → khả năng DÙNG HẾT GIỜ ngày mai cao, có cảnh báo M1
-              (cần nhãn "dùng hết giờ" của #372; với nhãn "vượt giới hạn" cũ p không tới ngưỡng);
+      "Minh": có giới hạn, chạm giới hạn thường xuyên nhất → thẻ "Ngày mai" có khả năng dùng hết giờ cao (thử 16/11:
+              p = 0,74 với nhãn của #372; cảnh báo M1 cần p ≥ 0,8 nên không chắc có trong ngày demo);
       "An":   có giới hạn, mức dùng trung bình; HÔM QUA cài một đêm bất thường (dùng 0h–4h + chiều tối dài)
               → M2 mức ngày đánh dấu, có cảnh báo kèm giải thích để bấm "Đúng là bất thường" / "Được phép".
   - 6 bé "nền" ở một tài khoản khác: M3 K-Means chỉ chia nhóm khi ≥ 6 trẻ đủ 7 ngày, nên cần thêm trẻ để thẻ
