@@ -1,6 +1,10 @@
 class ApiConstants {
-  // Production server (Vercel)
-  static const String baseUrl = 'https://kidfun-backend.vercel.app';
+  // Production server (Vercel). Đổi lúc build cho demo/dev, không cần sửa code:
+  //   flutter build apk --dart-define=API_BASE_URL=http://192.168.1.10:3001
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://kidfun-backend.vercel.app',
+  );
 
   // Cũ (Railway, trước khi migrate sang Vercel):
   // static const String baseUrl = 'https://kidfun-backend-production.up.railway.app';
