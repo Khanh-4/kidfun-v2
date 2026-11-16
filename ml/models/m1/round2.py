@@ -15,9 +15,12 @@ from .data import livelab_daily_features, lsapp_daily_features, sim_daily_featur
 from .evaluate import metrics, report, walk_forward
 from .lstm import LSTMGlobal
 from .models import ALL_MODELS, XGBAbsolute, feature_columns
+from .consistency import PlattClipped
 from .over_limit import ALL_CLASSIFIERS, proba_metrics, reliability_table, walk_forward_proba
 
 REGRESSORS = (*ALL_MODELS, LSTMGlobal)
+PROBA_MODELS = (*ALL_CLASSIFIERS, PlattClipped)
+PRODUCTION_PROBA = PlattClipped.name  # = M1Bundle.predict_over_limit (Platt + kẹp theo số phút, từ 16/11)
 
 FEATURE_GROUPS = {  # đặc tả 05 mục 1.2
     "A. Lịch sử": (
@@ -57,10 +60,9 @@ def ablation_section(daily: pd.DataFrame, start: pd.Timestamp) -> str:
 
 
 def over_limit_section(daily: pd.DataFrame, start: pd.Timestamp) -> str:
-    preds = walk_forward_proba(daily, ALL_CLASSIFIERS, start, daily["target_date"].max())
-    names = [m.name for m in ALL_CLASSIFIERS]
+    preds = walk_forward_proba(daily, PROBA_MODELS, start, daily["target_date"].max())
+    names = [m.name for m in PROBA_MODELS]
     table = proba_metrics(preds, names)
-    best = table["Brier"].idxmin()
     base_rate = preds["over_limit_next"].astype(float).mean()
     return "\n".join(
         [
@@ -70,9 +72,10 @@ def over_limit_section(daily: pd.DataFrame, start: pd.Timestamp) -> str:
             "",
             table.round(3).to_markdown(),
             "",
-            f"Bảng tin cậy của `{best}` (xác suất dự đoán so với tỷ lệ vượt thực tế):",
+            f"Bảng tin cậy của `{PRODUCTION_PROBA}` — mô hình gói M1 đang dùng (xác suất dự đoán so với tỷ lệ vượt "
+            "thực tế). Dải (0,4; 0,6] dồn nhiều ngày vì phép kẹp đưa các ngày mâu thuẫn về 0,5:",
             "",
-            reliability_table(preds, best).round(3).to_markdown(),
+            reliability_table(preds, PRODUCTION_PROBA).round(3).to_markdown(),
             "",
         ]
     )
