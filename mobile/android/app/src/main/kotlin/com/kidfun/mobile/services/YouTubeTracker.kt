@@ -118,6 +118,65 @@ object YouTubeTracker {
         return true
     }
 
+    // "@handle" at start of string or after whitespace (so "a@gmail.com" is not matched).
+    // \p{M} keeps Vietnamese combining marks; YouTube handles allow letters, digits, . _ -
+    private val HANDLE_REGEX = Regex("(?:^|\\s)(@[\\p{L}\\p{M}\\p{N}._-]{2,})")
+    private const val MAX_TEXT_SCAN_DEPTH = 25
+
+    /** Extract the first "@handle" from a text, e.g. "@PhêPhim 26K likes …" → "@PhêPhim". */
+    fun extractHandle(text: String?): String? {
+        if (text.isNullOrBlank()) return null
+        return HANDLE_REGEX.find(text)?.groupValues?.get(1)?.trimEnd('.', '-', '_')
+            ?.takeIf { it.length > 2 }
+    }
+
+    /** Old-style name is kept as-is; a merged "@handle + stats" line is reduced to the handle. */
+    fun normalizeChannel(raw: String?): String? {
+        val text = raw?.trim()
+        if (text.isNullOrEmpty()) return null
+        return extractHandle(text) ?: text
+    }
+
+    /**
+     * Pick the channel handle from node texts in tree (pre-order) order: the first handle
+     * appearing after the title node — that is the metadata line under the title, before
+     * comments/recommendations that may also contain @mentions. Falls back to the first
+     * handle anywhere when the title node is not in the tree (title came from event.text).
+     */
+    fun pickHandle(texts: List<String>, title: String): String? {
+        val titleIndex = texts.indexOfFirst { it.trim() == title || it.contains(title) }
+        if (titleIndex >= 0) {
+            texts.drop(titleIndex + 1).firstNotNullOfOrNull { extractHandle(it) }?.let { return it }
+        }
+        return texts.firstNotNullOfOrNull { extractHandle(it) }
+    }
+
+    /** Flatten text + contentDescription of the tree in pre-order. */
+    private fun collectNodeTexts(root: AccessibilityNodeInfo): List<String> {
+        val out = mutableListOf<String>()
+        fun walk(node: AccessibilityNodeInfo?, depth: Int) {
+            if (node == null || depth > MAX_TEXT_SCAN_DEPTH) return
+            node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
+            node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
+            for (i in 0 until node.childCount) {
+                walk(try { node.getChild(i) } catch (_: Exception) { null }, depth + 1)
+            }
+        }
+        walk(root, 0)
+        return out
+    }
+
+    /**
+     * The metadata line often loads after the title, so the channel may be null when the
+     * video starts. Fill it in later without resetting startedAt/accumulated time.
+     */
+    fun backfillChannel(info: YouTubeVideoInfo) {
+        val current = currentVideo ?: return
+        if (current.title != info.title || current.channelName != null || info.channelName == null) return
+        currentVideo = current.copy(channelName = info.channelName)
+        Log.d(TAG, "🏷️ Channel backfilled: ${info.channelName} for ${current.title}")
+    }
+
     var currentVideo: YouTubeVideoInfo? = null
     private var accumulatedSeconds: Int = 0
     var isPaused: Boolean = false
@@ -157,7 +216,10 @@ object YouTubeTracker {
 
         if (title == null || title.length < 3 || IGNORED_TITLES.contains(title)) return null
 
-        val channel = findTextByIds(root, CHANNEL_VIEW_IDS)
+        // Old UI: dedicated channel-name node. New UI (2026): no channel name, only an
+        // "@handle 26K likes 1.7M views 5y ago more" line right under the title.
+        val channel = normalizeChannel(findTextByIds(root, CHANNEL_VIEW_IDS))
+            ?: pickHandle(collectNodeTexts(root), title)
         return YouTubeVideoInfo(
             title = title,
             channelName = channel,
