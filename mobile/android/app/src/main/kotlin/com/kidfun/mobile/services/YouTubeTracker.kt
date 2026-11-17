@@ -49,9 +49,15 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/play_pause_button",
     )
 
-    // Shorts has no traditional play/pause button — detect active Shorts player
-    // by checking for Shorts-specific container/title nodes that only appear in the player view
+    // Shorts has no traditional play/pause button — detect the Shorts pager instead.
+    // The first four IDs are confirmed from two independent real-device accessibility dumps
+    // (YouTube 2025-2026); regular videos, home, search and comments do not contain them.
+    // Older guessed IDs are kept as a harmless fallback.
     private val SHORTS_CONTEXT_IDS = listOf(
+        "$YOUTUBE_PACKAGE:id/reel_watch_fragment_root",
+        "$YOUTUBE_PACKAGE:id/reel_recycler",
+        "$YOUTUBE_PACKAGE:id/reel_player_page_container",
+        "$YOUTUBE_PACKAGE:id/reel_watch_player",
         "$YOUTUBE_PACKAGE:id/reel_player_page",
         "$YOUTUBE_PACKAGE:id/shorts_container",
         "$YOUTUBE_PACKAGE:id/reel_player_title",
@@ -151,6 +157,129 @@ object YouTubeTracker {
         return texts.firstNotNullOfOrNull { extractHandle(it) }
     }
 
+    // ── Shorts ──────────────────────────────────────────────────────────────
+    // Overlay at the bottom-left of a Short, top to bottom:
+    //   [avatar] @handle [Subscribe]
+    //   caption (used as the title)
+    // The pager (reel_recycler) preloads the previous/next Short, so only the page that
+    // covers the screen centre is read.
+
+    data class ShortsMeta(val handle: String, val title: String)
+
+    private const val SHORTS_PAGE_ID = "$YOUTUBE_PACKAGE:id/reel_player_page_container"
+    private val HANDLE_ONLY_REGEX = Regex("^@[\\p{L}\\p{M}\\p{N}._-]{2,}$")
+    private val SHORTS_METRIC_REGEX = Regex("^[\\d.,]+\\s*([KMBkmb]|N|Tr|T)?$")
+    private val TRAILING_ELLIPSIS_REGEX = Regex("\\s*(\\.{3}|…)$")
+    private val SHORTS_NOISE = setOf(
+        "like", "dislike", "share", "save", "remix", "comments", "subscribe", "subscribed",
+        "thích", "không thích", "chia sẻ", "lưu", "phối lại", "bình luận",
+        "đăng ký", "đã đăng ký", "go to channel", "more", "xem thêm", "shorts",
+    )
+    private val SUBSCRIBE_PREFIXES = listOf("subscribe", "unsubscribe", "đăng ký", "đã đăng ký", "hủy đăng ký")
+    // Captions sit right under the handle row; avatar/subscribe/remix labels may come first
+    private const val SHORTS_CAPTION_LOOKAHEAD = 4
+    // Overlay text lives in the left part and lower part of the page; the right column
+    // holds like/comment/share/remix counts.
+    private const val SHORTS_TEXT_MAX_LEFT_RATIO = 0.7f
+    private const val SHORTS_TEXT_MIN_TOP_RATIO = 0.4f
+    private const val SHORTS_DUMP_INTERVAL_MS = 20_000L
+    private const val SHORTS_DUMP_MAX_ENTRIES = 30
+    private var lastShortsDumpMs = 0L
+
+    private fun isShortsCaption(text: String, handle: String): Boolean {
+        if (text.length < 2 || text.contains(handle)) return false
+        val lower = text.lowercase()
+        if (lower in SHORTS_NOISE || IGNORED_TITLES.contains(text)) return false
+        if (SUBSCRIBE_PREFIXES.any { lower.startsWith(it) }) return false
+        if (SHORTS_METRIC_REGEX.matches(text)) return false
+        return text.any { it.isLetter() }
+    }
+
+    /**
+     * Pick handle + caption from the visible Shorts overlay texts (sorted top → bottom).
+     * The handle must be a node of its own ("@name"), so @mentions inside a caption or a
+     * comment are not taken as the uploader. A Short without caption gets a handle-based title.
+     */
+    fun pickShortsMeta(texts: List<String>): ShortsMeta? {
+        val handleIndex = texts.indexOfFirst { HANDLE_ONLY_REGEX.matches(it.trim()) }
+        if (handleIndex < 0) return null
+        val handle = texts[handleIndex].trim()
+        val caption = texts.drop(handleIndex + 1)
+            .take(SHORTS_CAPTION_LOOKAHEAD)
+            .map { it.trim().replace(TRAILING_ELLIPSIS_REGEX, "").trim() }
+            .firstOrNull { isShortsCaption(it, handle) }
+        return ShortsMeta(handle = handle, title = caption ?: "YouTube Shorts ($handle)")
+    }
+
+    private fun isVisibleById(root: AccessibilityNodeInfo, ids: List<String>): Boolean {
+        for (id in ids) {
+            try {
+                if (root.findAccessibilityNodeInfosByViewId(id).any { it.isVisibleToUser }) return true
+            } catch (_: Exception) {}
+        }
+        return false
+    }
+
+    fun isShortsPlayer(root: AccessibilityNodeInfo): Boolean = isVisibleById(root, SHORTS_CONTEXT_IDS)
+
+    /** The Shorts page covering the vertical centre of the screen (neighbours are preloaded). */
+    private fun findVisibleShortsPage(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val screen = android.graphics.Rect().also { root.getBoundsInScreen(it) }
+        val centerY = screen.centerY()
+        return try {
+            root.findAccessibilityNodeInfosByViewId(SHORTS_PAGE_ID).firstOrNull { page ->
+                val r = android.graphics.Rect().also { page.getBoundsInScreen(it) }
+                page.isVisibleToUser && centerY in r.top..r.bottom
+            }
+        } catch (_: Exception) { null }
+    }
+
+    /** Visible overlay texts of the page, in the lower-left area, sorted top → bottom. */
+    private fun collectShortsTexts(page: AccessibilityNodeInfo): List<String> {
+        val area = android.graphics.Rect().also { page.getBoundsInScreen(it) }
+        val maxLeft = area.left + (area.width() * SHORTS_TEXT_MAX_LEFT_RATIO).toInt()
+        val minTop = area.top + (area.height() * SHORTS_TEXT_MIN_TOP_RATIO).toInt()
+        val entries = mutableListOf<Pair<String, Int>>()
+        fun walk(node: AccessibilityNodeInfo?, depth: Int) {
+            if (node == null || depth > MAX_TEXT_SCAN_DEPTH || !node.isVisibleToUser) return
+            val r = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+            if (r.left < maxLeft && r.top >= minTop) {
+                node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { entries.add(it to r.top) }
+                node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { entries.add(it to r.top) }
+            }
+            for (i in 0 until node.childCount) {
+                walk(try { node.getChild(i) } catch (_: Exception) { null }, depth + 1)
+            }
+        }
+        walk(page, 0)
+        return entries.sortedBy { it.second }.map { it.first }
+    }
+
+    private fun extractShortsInfo(root: AccessibilityNodeInfo): YouTubeVideoInfo? {
+        val page = findVisibleShortsPage(root) ?: root
+        val texts = collectShortsTexts(page)
+        val meta = pickShortsMeta(texts) ?: run {
+            logShortsDump(texts)
+            return null
+        }
+        return YouTubeVideoInfo(
+            title = meta.title,
+            channelName = meta.handle,
+            videoId = null,
+            thumbnailUrl = null,
+            startedAt = System.currentTimeMillis(),
+        )
+    }
+
+    /** Throttled dump so a tester's logcat shows what the Shorts overlay exposes when parsing fails. */
+    private fun logShortsDump(texts: List<String>) {
+        val now = System.currentTimeMillis()
+        if (now - lastShortsDumpMs < SHORTS_DUMP_INTERVAL_MS) return
+        lastShortsDumpMs = now
+        val preview = texts.take(SHORTS_DUMP_MAX_ENTRIES).joinToString(" ¦ ") { it.take(60) }
+        Log.d(TAG, "🩻 Shorts: no @handle found, visible texts=[$preview]")
+    }
+
     /** Flatten text + contentDescription of the tree in pre-order. */
     private fun collectNodeTexts(root: AccessibilityNodeInfo): List<String> {
         val out = mutableListOf<String>()
@@ -190,6 +319,14 @@ object YouTubeTracker {
      * 3. Full tree scan — only when player controls are visible (not on home/browse screens)
      */
     fun extractVideoInfo(root: AccessibilityNodeInfo, event: AccessibilityEvent? = null): YouTubeVideoInfo? {
+        // Shorts: different layout (handle + caption overlay), handled separately so the
+        // generic tiers below cannot pick a random label. A regular player wins if both exist.
+        // Existence (not visibility): the button stays in the tree while controls are hidden.
+        val hasRegularPlayer = PLAY_PAUSE_IDS.any { id ->
+            try { root.findAccessibilityNodeInfosByViewId(id).isNotEmpty() } catch (_: Exception) { false }
+        }
+        if (!hasRegularPlayer && isShortsPlayer(root)) return extractShortsInfo(root)
+
         // Tier 1: known view IDs
         var title = findTextByIds(root, TITLE_VIEW_IDS)
 
@@ -203,11 +340,9 @@ object YouTubeTracker {
             }
         }
 
-        // Tier 3: tree scan — only runs when a video player UI is visible.
-        // hasActivePlayer() checks both the regular player (play/pause button) and
-        // the Shorts player (Shorts-specific container nodes) to avoid scanning
-        // YouTube home/browse screens where recommendation titles would cause false positives.
-        if (title == null && hasActivePlayer(root)) {
+        // Tier 3: tree scan — only runs when the regular player UI is visible, to avoid
+        // scanning home/browse screens where recommendation titles cause false positives.
+        if (title == null && hasRegularPlayer) {
             title = scanTreeForTitle(root)
             if (title != null) {
                 Log.d(TAG, "🌲 Title from tree scan: $title")
@@ -227,22 +362,6 @@ object YouTubeTracker {
             thumbnailUrl = null,
             startedAt = System.currentTimeMillis(),
         )
-    }
-
-    private fun hasActivePlayer(root: AccessibilityNodeInfo): Boolean {
-        // Regular player: check play/pause button
-        for (id in PLAY_PAUSE_IDS) {
-            try {
-                if (root.findAccessibilityNodeInfosByViewId(id).isNotEmpty()) return true
-            } catch (_: Exception) {}
-        }
-        // Shorts player: no traditional play/pause button — check Shorts-specific nodes
-        for (id in SHORTS_CONTEXT_IDS) {
-            try {
-                if (root.findAccessibilityNodeInfosByViewId(id).isNotEmpty()) return true
-            } catch (_: Exception) {}
-        }
-        return false
     }
 
     /**
