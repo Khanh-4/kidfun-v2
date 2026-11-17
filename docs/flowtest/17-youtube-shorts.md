@@ -49,6 +49,13 @@ Thời gian: ~15 phút. Chỉ cần **APK máy trẻ** mới (backend không đ�
 
 - [ ] Vẫn đạt như Luồng 15 Bước 1–2: `▶️ Started … | @<handle kênh>`, không lấy @ trong bình luận.
 
+## Bước 4 — Playables và ký tự lạ (bản sửa 17/11 tối)
+
+7. Trên YouTube mở mục **Playables** (trò chơi), lướt ~30 giây. Xem thêm 1 Short có hashtag (`#…`).
+
+- [ ] App phụ huynh **không** có dòng nào tên "Playables" / "Trò chơi" trong YouTube nhật ký.
+- [ ] Tiêu đề Short có hashtag hiện bình thường, không có khoảng trắng thừa hay ô vuông lạ sau `#tag`.
+
 ## Ghi chép
 
 - Mã commit: `git rev-parse --short HEAD` →
