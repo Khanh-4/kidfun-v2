@@ -79,6 +79,31 @@ class YouTubeShortsMetaTest {
     }
 
     @Test
+    fun `strips zero-width characters YouTube inserts after hashtags`() {
+        val texts = listOf("@novaraone1", "Subscribe", "Why tighten the wheels?#automotive​ #wheelnut​")
+        assertEquals("Why tighten the wheels?#automotive #wheelnut", YouTubeTracker.pickShortsMeta(texts)!!.title)
+    }
+
+    @Test
+    fun `finds handle node that carries a zero-width character`() {
+        val texts = listOf("​@Giangcuman", "Cho núp ké miếng")
+        assertEquals("@Giangcuman", YouTubeTracker.pickShortsMeta(texts)!!.handle)
+    }
+
+    @Test
+    fun `cleanText removes invisible characters and collapses spaces`() {
+        assertEquals("a b c", YouTubeTracker.cleanText("a​  b﻿⁠ c‍"))
+        assertEquals("", YouTubeTracker.cleanText("​ "))
+    }
+
+    @Test
+    fun `Playables section label is not a video title`() {
+        assertEquals(true, YouTubeTracker.isIgnoredTitle("Playables"))
+        assertEquals(true, YouTubeTracker.isIgnoredTitle("Trò chơi"))
+        assertEquals(false, YouTubeTracker.isIgnoredTitle("Khi CẢNH SÁT Làm Game ĐUA XE"))
+    }
+
+    @Test
     fun `returns null when there is no handle`() {
         assertNull(YouTubeTracker.pickShortsMeta(listOf("Shorts", "Share", "3.2M")))
         assertNull(YouTubeTracker.pickShortsMeta(emptyList()))

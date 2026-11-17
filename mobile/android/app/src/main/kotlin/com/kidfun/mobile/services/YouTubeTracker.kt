@@ -87,6 +87,8 @@ object YouTubeTracker {
         "Subtitles", "Phụ đề", "Quality", "Chất lượng",
         "Full screen", "Toàn màn hình", "Miniplayer",
         "Add to playlist", "Thêm vào danh sách phát",
+        // YouTube Playables (games) section — logged as a "video" in prod 17/11
+        "Playables", "Trò chơi",
     )
 
     // Matches duration strings like "16 minutes, 28 seconds", "1 hour, 5 minutes", "1 phút 30 giây"
@@ -108,6 +110,16 @@ object YouTubeTracker {
         "\\b[\\d,\\.]+[KMBkmb]?\\s*(subscribers?|người đăng ký|follower)\\b",
         RegexOption.IGNORE_CASE
     )
+
+    // Zero-width space/joiners, word joiner, BOM — YouTube puts U+200B after hashtags
+    private val INVISIBLE_CHARS_REGEX = Regex("[\\u200B-\\u200D\\u2060\\uFEFF]")
+    private val MULTI_SPACE_REGEX = Regex("\\s+")
+
+    /** Remove invisible characters and collapse whitespace, so titles stored on the server are clean. */
+    fun cleanText(text: String): String =
+        text.replace(INVISIBLE_CHARS_REGEX, "").replace(MULTI_SPACE_REGEX, " ").trim()
+
+    fun isIgnoredTitle(text: String): Boolean = IGNORED_TITLES.contains(text)
 
     private fun looksLikeTitle(text: String): Boolean {
         if (text.length !in 8..200) return false
@@ -201,12 +213,13 @@ object YouTubeTracker {
      * comment are not taken as the uploader. A Short without caption gets a handle-based title.
      */
     fun pickShortsMeta(texts: List<String>): ShortsMeta? {
-        val handleIndex = texts.indexOfFirst { HANDLE_ONLY_REGEX.matches(it.trim()) }
+        val clean = texts.map { cleanText(it) }
+        val handleIndex = clean.indexOfFirst { HANDLE_ONLY_REGEX.matches(it) }
         if (handleIndex < 0) return null
-        val handle = texts[handleIndex].trim()
-        val caption = texts.drop(handleIndex + 1)
+        val handle = clean[handleIndex]
+        val caption = clean.drop(handleIndex + 1)
             .take(SHORTS_CAPTION_LOOKAHEAD)
-            .map { it.trim().replace(TRAILING_ELLIPSIS_REGEX, "").trim() }
+            .map { it.replace(TRAILING_ELLIPSIS_REGEX, "").trim() }
             .firstOrNull { isShortsCaption(it, handle) }
         return ShortsMeta(handle = handle, title = caption ?: "YouTube Shorts ($handle)")
     }
@@ -349,7 +362,8 @@ object YouTubeTracker {
             }
         }
 
-        if (title == null || title.length < 3 || IGNORED_TITLES.contains(title)) return null
+        title = title?.let { cleanText(it) }
+        if (title == null || title.length < 3 || isIgnoredTitle(title)) return null
 
         // Old UI: dedicated channel-name node. New UI (2026): no channel name, only an
         // "@handle 26K likes 1.7M views 5y ago more" line right under the title.
