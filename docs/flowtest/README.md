@@ -25,7 +25,7 @@ trên điện thoại thật.
 | 14 | [14-do-tre-canh-bao-va-pin.md](14-do-tre-canh-bao-va-pin.md) | **Đo** cho đồ án (T8.1, T8.2): độ trễ cảnh báo tầng 1 khi dùng máy 0h–2h sáng và chơi game đột biến buổi chiều, precision/recall; đo pin bản mốc `5b0a0b0` so với bản mới (thêm file netstats / jobscheduler / alarm) | 3 đêm + 3 chiều mỗi máy (≥ 2 máy) + 2 × 24 giờ đo pin | Người test + Khanh nạp mức thường ngày giả |
 | 15 | [15-youtube-ten-kenh-handle.md](15-youtube-ten-kenh-handle.md) | YouTube: ghi tên kênh dạng @handle dưới tiêu đề video (giao diện YouTube mới, báo cáo 16/11); không lấy nhầm @ trong bình luận | ~15 phút | Người test |
 | 16 | [16-hoi-quy-dot-16-11.md](16-hoi-quy-dot-16-11.md) | Hồi quy đợt 16/11: gỡ Socket.IO không làm hỏng đăng nhập/ghép nối/chạy nền/xoá thiết bị (PR #366); thẻ AI Insights ghi "Khả năng dùng hết giờ", cảnh báo M1 từ 80% (PR #372); log tác vụ ban đêm gói mới | ~30 phút + sáng hôm sau | Người test + Khanh gửi dự đoán thử |
-| 17 | [17-youtube-shorts.md](17-youtube-shorts.md) | YouTube Shorts: ghi tiêu đề + `@người đăng` (báo cáo 17/11, Luồng 15 Bước 3); lướt nhiều Short không lấy nhầm @ của Short bên cạnh; video thường không hỏng | ~15 phút | Người test |
+| 17 | [17-youtube-shorts.md](17-youtube-shorts.md) | YouTube Shorts: ghi tiêu đề + `@người đăng` (báo cáo 17/11, Luồng 15 Bước 3); lướt nhiều Short không lấy nhầm @ của Short bên cạnh; video thường không hỏng; Bước 5 (19/11): @người đăng video thường + lọc ký tự điều khiển | ~15 phút | Người test |
 
 Luồng 2 và 4 cần nhiều thời gian, nên bắt đầu sớm. Luồng 4 dùng bản **release** và **không** chạy song song với
 luồng 1–3 trên cùng máy (cài bản khác lên giữa chừng sẽ làm sai số đo pin).
