@@ -111,15 +111,27 @@ object YouTubeTracker {
         RegexOption.IGNORE_CASE
     )
 
-    // Zero-width space/joiners, word joiner, BOM — YouTube puts U+200B after hashtags
-    private val INVISIBLE_CHARS_REGEX = Regex("[\\u200B-\\u200D\\u2060\\uFEFF]")
-    private val MULTI_SPACE_REGEX = Regex("\\s+")
+    // Control chars (\n, \t, …) become spaces; format chars (\p{Cf}: U+200B–U+200F zero-width
+    // and LRM/RLM, U+202A–U+202E embeddings, U+2066–U+2069 isolates, U+FEFF BOM) and the
+    // object replacement char U+FFFC are dropped. YouTube wraps hashtags and @handles in these.
+    private val CONTROL_CHARS_REGEX = Regex("\\p{Cc}")
+    private val INVISIBLE_CHARS_REGEX = Regex("[\\p{Cf}\\uFFFC]")
+    private val MULTI_SPACE_REGEX = Regex("[\\s\\u00A0\\u2007\\u202F]+")
+    private val LETTER_OR_DIGIT_REGEX = Regex("[\\p{L}\\p{N}]")
+    private const val MIN_TITLE_LENGTH = 3
 
     /** Remove invisible characters and collapse whitespace, so titles stored on the server are clean. */
     fun cleanText(text: String): String =
-        text.replace(INVISIBLE_CHARS_REGEX, "").replace(MULTI_SPACE_REGEX, " ").trim()
+        text.replace(CONTROL_CHARS_REGEX, " ")
+            .replace(INVISIBLE_CHARS_REGEX, "")
+            .replace(MULTI_SPACE_REGEX, " ")
+            .trim()
 
     fun isIgnoredTitle(text: String): Boolean = IGNORED_TITLES.contains(text)
+
+    /** A cleaned title is worth logging only if it has a real letter/digit and is not a UI label. */
+    fun isValidTitle(text: String): Boolean =
+        text.length >= MIN_TITLE_LENGTH && !isIgnoredTitle(text) && LETTER_OR_DIGIT_REGEX.containsMatchIn(text)
 
     private fun looksLikeTitle(text: String): Boolean {
         if (text.length !in 8..200) return false
@@ -136,15 +148,18 @@ object YouTubeTracker {
         return true
     }
 
-    // "@handle" at start of string or after whitespace (so "a@gmail.com" is not matched).
+    // "@handle" not glued to a preceding letter/digit (so "a@gmail.com" is not matched), but
+    // allowed after punctuation like "•@x" or "(@x". Text is cleaned first so bidi marks
+    // around the handle (U+2068 @x U+2069) do not hide it.
     // \p{M} keeps Vietnamese combining marks; YouTube handles allow letters, digits, . _ -
-    private val HANDLE_REGEX = Regex("(?:^|\\s)(@[\\p{L}\\p{M}\\p{N}._-]{2,})")
-    private const val MAX_TEXT_SCAN_DEPTH = 25
+    private val HANDLE_REGEX = Regex("(?<![\\p{L}\\p{M}\\p{N}._-])(@[\\p{L}\\p{M}\\p{N}._-]{2,})")
+    // Litho-rendered watch page nests the metadata line deeply; 25 was too shallow in practice
+    private const val MAX_TEXT_SCAN_DEPTH = 40
 
     /** Extract the first "@handle" from a text, e.g. "@PhêPhim 26K likes …" → "@PhêPhim". */
     fun extractHandle(text: String?): String? {
         if (text.isNullOrBlank()) return null
-        return HANDLE_REGEX.find(text)?.groupValues?.get(1)?.trimEnd('.', '-', '_')
+        return HANDLE_REGEX.find(cleanText(text))?.groupValues?.get(1)?.trimEnd('.', '-', '_')
             ?.takeIf { it.length > 2 }
     }
 
@@ -162,11 +177,14 @@ object YouTubeTracker {
      * handle anywhere when the title node is not in the tree (title came from event.text).
      */
     fun pickHandle(texts: List<String>, title: String): String? {
-        val titleIndex = texts.indexOfFirst { it.trim() == title || it.contains(title) }
+        val clean = texts.map { cleanText(it) }
+        val titleIndex = clean.indexOfFirst { it.contains(title) }
         if (titleIndex >= 0) {
-            texts.drop(titleIndex + 1).firstNotNullOfOrNull { extractHandle(it) }?.let { return it }
+            // One node may hold "title @handle 2.5K likes …" (combined contentDescription)
+            extractHandle(clean[titleIndex].substringAfter(title))?.let { return it }
+            clean.drop(titleIndex + 1).firstNotNullOfOrNull { extractHandle(it) }?.let { return it }
         }
-        return texts.firstNotNullOfOrNull { extractHandle(it) }
+        return clean.firstNotNullOfOrNull { extractHandle(it) }
     }
 
     // ── Shorts ──────────────────────────────────────────────────────────────
@@ -293,6 +311,26 @@ object YouTubeTracker {
         Log.d(TAG, "🩻 Shorts: no @handle found, visible texts=[$preview]")
     }
 
+    /**
+     * Throttled dump of the texts right after the title, so a tester's logcat shows how the
+     * metadata line is exposed when no @handle is found (19/11: regular videos had none).
+     */
+    private fun logMissingHandle(texts: List<String>, title: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastHandleDumpMs < SHORTS_DUMP_INTERVAL_MS) return
+        lastHandleDumpMs = now
+        val titleIndex = texts.indexOfFirst { cleanText(it).contains(title) }.coerceAtLeast(0)
+        val preview = texts.drop(titleIndex).take(SHORTS_DUMP_MAX_ENTRIES)
+            .joinToString(" ¦ ") { escapeInvisible(it.take(80)) }
+        Log.d(TAG, "🩻 Video: no @handle for \"$title\" (titleIdx=$titleIndex/${texts.size}), texts=[$preview]")
+    }
+
+    /** Show hidden format chars as \\uXXXX in debug logs. */
+    private fun escapeInvisible(text: String): String =
+        text.replace(INVISIBLE_CHARS_REGEX) { "\\u%04X".format(it.value[0].code) }
+
+    private var lastHandleDumpMs = 0L
+
     /** Flatten text + contentDescription of the tree in pre-order. */
     private fun collectNodeTexts(root: AccessibilityNodeInfo): List<String> {
         val out = mutableListOf<String>()
@@ -346,7 +384,7 @@ object YouTubeTracker {
         // Tier 2: event text — reliable for TYPE_WINDOW_STATE_CHANGED
         if (title == null && event != null) {
             title = event.text
-                ?.mapNotNull { it?.toString()?.trim() }
+                ?.mapNotNull { it?.toString()?.let { t -> cleanText(t) } }
                 ?.firstOrNull { looksLikeTitle(it) }
             if (title != null) {
                 Log.d(TAG, "📝 Title from event.text: $title")
@@ -363,12 +401,15 @@ object YouTubeTracker {
         }
 
         title = title?.let { cleanText(it) }
-        if (title == null || title.length < 3 || isIgnoredTitle(title)) return null
+        if (title == null || !isValidTitle(title)) return null
 
         // Old UI: dedicated channel-name node. New UI (2026): no channel name, only an
         // "@handle 26K likes 1.7M views 5y ago more" line right under the title.
-        val channel = normalizeChannel(findTextByIds(root, CHANNEL_VIEW_IDS))
-            ?: pickHandle(collectNodeTexts(root), title)
+        val channel = normalizeChannel(findTextByIds(root, CHANNEL_VIEW_IDS)?.let { cleanText(it) })
+            ?: run {
+                val texts = collectNodeTexts(root)
+                pickHandle(texts, title) ?: null.also { logMissingHandle(texts, title) }
+            }
         return YouTubeVideoInfo(
             title = title,
             channelName = channel,

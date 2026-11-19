@@ -56,6 +56,17 @@ Thời gian: ~15 phút. Chỉ cần **APK máy trẻ** mới (backend không đ�
 - [ ] App phụ huynh **không** có dòng nào tên "Playables" / "Trò chơi" trong YouTube nhật ký.
 - [ ] Tiêu đề Short có hashtag hiện bình thường, không có khoảng trắng thừa hay ô vuông lạ sau `#tag`.
 
+## Bước 5 — @người đăng video thường + ký tự điều khiển (bản sửa 19/11)
+
+8. Mở video thường có dòng `@<tên> … likes … views … ago` ngay dưới tiêu đề (vd. kênh `@thesamurice`),
+   xem ≥ 30 giây (có thể chờ dòng `@<tên>` hiện trễ vài giây).
+9. Xem 1 Short có nhiều hashtag, rồi quay lại video thường ở bước 8.
+
+- [ ] Logcat có `▶️ Started … | @thesamurice` **hoặc** `🏷️ Channel backfilled: @thesamurice …`.
+- [ ] App phụ huynh: YouTube nhật ký + tổng quan hiện `@thesamurice`, **không** trống / "Unknown".
+- [ ] Không có dòng nhật ký nào chỉ toàn ký hiệu/ô vuông, và một video không bị tách thành 2 dòng.
+- [ ] Nếu vẫn trống: gửi logcat, cần dòng `🩻 Video: no @handle …` (ký tự ẩn hiện dạng `⁨`).
+
 ## Ghi chép
 
 - Mã commit: `git rev-parse --short HEAD` →
