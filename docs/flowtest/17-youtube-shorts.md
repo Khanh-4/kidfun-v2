@@ -62,7 +62,10 @@ Thời gian: ~15 phút. Chỉ cần **APK máy trẻ** mới (backend không đ�
    xem ≥ 30 giây (có thể chờ dòng `@<tên>` hiện trễ vài giây).
 9. Xem 1 Short có nhiều hashtag, rồi quay lại video thường ở bước 8.
 
-- [ ] Logcat có `▶️ Started … | @thesamurice` **hoặc** `🏷️ Channel backfilled: @thesamurice …`.
+- [ ] Logcat có `▶️ Started … | @thesamurice` **hoặc** `🏷️ Channel backfilled (tree): @thesamurice …`
+      (bản 19/11 tối: thử lại sau ~2,5 s / 6 s / 15 s và mỗi lần màn hình đổi).
+- [ ] Xem 1 video ở chế độ **toàn màn hình** rồi thoát ra màn dọc ≥ 5 giây → kênh vẫn được điền.
+- [ ] Mở trang **Tải xuống / Downloads** → không có dòng "Downloads" trong YouTube nhật ký.
 - [ ] App phụ huynh: YouTube nhật ký + tổng quan hiện `@thesamurice`, **không** trống / "Unknown".
 - [ ] Không có dòng nhật ký nào chỉ toàn ký hiệu/ô vuông, và một video không bị tách thành 2 dòng.
 - [ ] Nếu vẫn trống: gửi logcat, cần dòng `🩻 Video: no @handle …` (ký tự ẩn hiện dạng `⁨`).

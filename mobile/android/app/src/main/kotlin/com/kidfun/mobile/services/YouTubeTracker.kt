@@ -89,7 +89,12 @@ object YouTubeTracker {
         "Add to playlist", "Thêm vào danh sách phát",
         // YouTube Playables (games) section — logged as a "video" in prod 17/11
         "Playables", "Trò chơi",
+        // Downloads page — logged as a "video" in prod 19/11 (#165)
+        "Downloads", "Nội dung tải xuống",
     )
+
+    // "<channel> is live!" badge/notification card — logged as a "video" in prod 19/11 (#166)
+    private val LIVE_BADGE_REGEX = Regex("^.+\\s(is live!?|đang phát trực tiếp)$", RegexOption.IGNORE_CASE)
 
     // Matches duration strings like "16 minutes, 28 seconds", "1 hour, 5 minutes", "1 phút 30 giây"
     private val DURATION_REGEX = Regex(
@@ -131,7 +136,8 @@ object YouTubeTracker {
 
     /** A cleaned title is worth logging only if it has a real letter/digit and is not a UI label. */
     fun isValidTitle(text: String): Boolean =
-        text.length >= MIN_TITLE_LENGTH && !isIgnoredTitle(text) && LETTER_OR_DIGIT_REGEX.containsMatchIn(text)
+        text.length >= MIN_TITLE_LENGTH && !isIgnoredTitle(text) &&
+            LETTER_OR_DIGIT_REGEX.containsMatchIn(text) && !LIVE_BADGE_REGEX.matches(text)
 
     private fun looksLikeTitle(text: String): Boolean {
         if (text.length !in 8..200) return false
@@ -185,6 +191,22 @@ object YouTubeTracker {
             clean.drop(titleIndex + 1).firstNotNullOfOrNull { extractHandle(it) }?.let { return it }
         }
         return clean.firstNotNullOfOrNull { extractHandle(it) }
+    }
+
+    // The "@handle · likes · views" line sits right under the title; avatar/Join/bell come after
+    private const val HANDLE_LOOKAHEAD = 8
+
+    /**
+     * Strict variant for backfilling a video already being tracked: the handle must be in
+     * the title node itself or a few nodes below it. No fallback to any @ on screen, because
+     * in fullscreen/comments the title is gone and @mentions belong to other people.
+     */
+    fun pickHandleBelowTitle(texts: List<String>, title: String): String? {
+        val clean = texts.map { cleanText(it) }
+        val titleIndex = clean.indexOfFirst { it.contains(title) }
+        if (titleIndex < 0) return null
+        extractHandle(clean[titleIndex].substringAfter(title))?.let { return it }
+        return clean.drop(titleIndex + 1).take(HANDLE_LOOKAHEAD).firstNotNullOfOrNull { extractHandle(it) }
     }
 
     // ── Shorts ──────────────────────────────────────────────────────────────
@@ -251,7 +273,26 @@ object YouTubeTracker {
         return false
     }
 
-    fun isShortsPlayer(root: AccessibilityNodeInfo): Boolean = isVisibleById(root, SHORTS_CONTEXT_IDS)
+    /**
+     * Shorts only when a Shorts container is visible AND covers the screen centre. YouTube can
+     * keep a Shorts container in the tree behind the long-video watch page; taking the Shorts
+     * branch there returned null and blocked the channel backfill of long videos (19/11).
+     */
+    fun isShortsPlayer(root: AccessibilityNodeInfo): Boolean {
+        val screen = android.graphics.Rect().also { root.getBoundsInScreen(it) }
+        val cx = screen.centerX()
+        val cy = screen.centerY()
+        for (id in SHORTS_CONTEXT_IDS) {
+            try {
+                val hit = root.findAccessibilityNodeInfosByViewId(id).any { node ->
+                    val r = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+                    node.isVisibleToUser && r.contains(cx, cy)
+                }
+                if (hit) return true
+            } catch (_: Exception) {}
+        }
+        return false
+    }
 
     /** The Shorts page covering the vertical centre of the screen (neighbours are preloaded). */
     private fun findVisibleShortsPage(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -355,6 +396,23 @@ object YouTubeTracker {
         if (current.title != info.title || current.channelName != null || info.channelName == null) return
         currentVideo = current.copy(channelName = info.channelName)
         Log.d(TAG, "🏷️ Channel backfilled: ${info.channelName} for ${current.title}")
+    }
+
+    /**
+     * Backfill straight from the tree, using the tracked title — independent of title
+     * re-detection (which can fail when player controls hide). Shorts carry their handle
+     * from the start, so this only matters for long videos.
+     */
+    fun backfillChannelFromTree(root: AccessibilityNodeInfo) {
+        val current = currentVideo ?: return
+        if (current.channelName != null) return
+        val texts = collectNodeTexts(root)
+        val handle = pickHandleBelowTitle(texts, current.title) ?: run {
+            logMissingHandle(texts, current.title)
+            return
+        }
+        currentVideo = current.copy(channelName = handle)
+        Log.d(TAG, "🏷️ Channel backfilled (tree): $handle for ${current.title}")
     }
 
     var currentVideo: YouTubeVideoInfo? = null

@@ -72,6 +72,8 @@ class AppBlockerService : AccessibilityService() {
     // Debounce TYPE_WINDOW_CONTENT_CHANGED events for YouTube to reduce CPU/log spam
     private var lastYtContentChangedMs: Long = 0L
     private val YT_CONTENT_CHANGED_DEBOUNCE_MS = 2000L
+    // Retry the channel lookup after a video starts (the @handle line loads late)
+    private val YT_CHANNEL_BACKFILL_DELAYS_MS = listOf(2_500L, 6_000L, 15_000L)
 
     /**
      * Periodic runnable: check app đang foreground mỗi 30s để bắt warning/block
@@ -251,6 +253,22 @@ class AppBlockerService : AccessibilityService() {
 
         YouTubeTracker.currentVideo = info
         android.util.Log.d("YouTubeTracker", "▶️ Started: ${info.title} | ${info.channelName}")
+        scheduleChannelBackfill()
+    }
+
+    /**
+     * The "@handle" line often loads a few seconds after the title, and CONTENT_CHANGED
+     * may stop firing once the video plays with controls hidden — retry on a timer too.
+     */
+    private fun scheduleChannelBackfill() {
+        if (YouTubeTracker.currentVideo?.channelName != null) return
+        for (delayMs in YT_CHANNEL_BACKFILL_DELAYS_MS) {
+            handler.postDelayed({
+                if (lastForegroundPackage != YouTubeTracker.YOUTUBE_PACKAGE) return@postDelayed
+                val root = getYouTubeRoot() ?: return@postDelayed
+                YouTubeTracker.backfillChannelFromTree(root)
+            }, delayMs)
+        }
     }
 
     /**
@@ -299,6 +317,7 @@ class AppBlockerService : AccessibilityService() {
             }
             YouTubeTracker.currentVideo = info
             android.util.Log.d("YouTubeTracker", "▶️ Started (content): ${info.title} | ${info.channelName}")
+            scheduleChannelBackfill()
             return
         }
 
@@ -312,10 +331,13 @@ class AppBlockerService : AccessibilityService() {
             }
             YouTubeTracker.currentVideo = info
             android.util.Log.d("YouTubeTracker", "▶️ Started (navigation): ${info.title} | ${info.channelName}")
+            scheduleChannelBackfill()
             return
         }
 
         if (info != null) YouTubeTracker.backfillChannel(info)
+        // Title re-detection can fail (controls hidden), so also backfill straight from the tree
+        YouTubeTracker.backfillChannelFromTree(root)
 
         // Same video — detect pause/resume via play/pause button state
         // Tri-state: true=paused, false=playing, null=controls hidden (keep current state)
