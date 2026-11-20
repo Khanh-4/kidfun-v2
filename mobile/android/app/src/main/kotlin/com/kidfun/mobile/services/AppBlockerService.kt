@@ -238,6 +238,7 @@ class AppBlockerService : AccessibilityService() {
 
         // Same video (or an unreliable tree-scan title) — only fill in a missing channel
         if (!YouTubeTracker.isNewVideo(YouTubeTracker.currentVideo, info)) {
+            YouTubeTracker.adoptRealTitle(info)
             YouTubeTracker.backfillChannel(info)
             return
         }
@@ -335,7 +336,10 @@ class AppBlockerService : AccessibilityService() {
             return
         }
 
-        if (info != null) YouTubeTracker.backfillChannel(info)
+        if (info != null) {
+            YouTubeTracker.adoptRealTitle(info)
+            YouTubeTracker.backfillChannel(info)
+        }
         // Title re-detection can fail (controls hidden), so also backfill straight from the tree
         YouTubeTracker.backfillChannelFromTree(root)
 

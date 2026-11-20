@@ -86,9 +86,22 @@ trống; thêm một dòng tiêu đề "Suggested video".
 - [ ] Khi tự phát tiếp sang video mới (hoặc bấm video gợi ý) → có dòng mới đúng tiêu đề video đó.
 - [ ] Nếu không đạt: gửi `adb logcat -d -s YouTubeTracker`, và chạy `uiautomator dump` lúc đang toàn màn hình.
 
+**Bước 6b — Video bắt đầu ngay ở toàn màn hình (bản sửa 20/11 chiều).**
+
+12. Đang toàn màn hình có CC, để video tự phát tiếp sang video mới (hoặc xoay ngang máy rồi mới mở video).
+    Xem ≥ 1 phút **không chạm**, sau đó chạm màn hình cho thanh điều khiển hiện ra, rồi thoát toàn màn hình.
+
+- [ ] Logcat **không** có `🌲 Title from tree scan: <câu phụ đề>` (node phụ đề đã bị loại khỏi quét cây).
+- [ ] Nếu phiên lỡ bắt đầu bằng tên tạm, khi tiêu đề thật hiện ra phải có `✏️ Title adopted: … → <tiêu đề thật>`,
+      **không** có `⏹️ Stopping` + `▶️ Started` mới.
+- [ ] App phụ huynh: video đó **1 dòng**, đúng tiêu đề, không có dòng nào là câu phụ đề.
+- [ ] Bắt buộc gửi kèm lúc đang toàn màn hình + CC + thanh điều khiển đang hiện:
+      `adb shell uiautomator dump /sdcard/yt_full.xml && adb pull /sdcard/yt_full.xml`
+      (để Khanh xác nhận mã giao diện của phụ đề và tiêu đề toàn màn hình).
+
 ## Ghi chép
 
-- Mã commit: `git rev-parse --short HEAD` →
+- Mã commit (**bắt buộc**): `git rev-parse --short HEAD` →
 - Máy / Android:
 - Phiên bản YouTube (Cài đặt › Ứng dụng › YouTube):
 - Nếu có bước không đạt: gửi `adb logcat -d -s YouTubeTracker > yt_shorts_log.txt` (cần cả dòng `🩻 Shorts…`
