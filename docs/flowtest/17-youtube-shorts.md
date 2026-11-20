@@ -70,6 +70,22 @@ Thời gian: ~15 phút. Chỉ cần **APK máy trẻ** mới (backend không đ�
 - [ ] Không có dòng nhật ký nào chỉ toàn ký hiệu/ô vuông, và một video không bị tách thành 2 dòng.
 - [ ] Nếu vẫn trống: gửi logcat, cần dòng `🩻 Video: no @handle …` (ký tự ẩn hiện dạng `⁨`).
 
+## Bước 6 — Video dài toàn màn hình có phụ đề + "Suggested video" (bản sửa 20/11)
+
+Lỗi prod 20/11: một video dài bị tách thành 2 dòng, dòng sau mang tiêu đề là **câu phụ đề** và kênh
+trống; thêm một dòng tiêu đề "Suggested video".
+
+10. Mở video thường dài ≥ 5 phút, **bật phụ đề (CC)**, chuyển **toàn màn hình**, chạm màn hình vài lần
+    cho thanh điều khiển hiện ra, xem ≥ 3 phút.
+11. Để video chạy đến hết (hoặc tua gần cuối) cho màn **video gợi ý / tự phát tiếp** hiện ra ≥ 20 giây.
+
+- [ ] Logcat có thể có `🌲 Title from tree scan: <câu phụ đề>` nhưng **không** có `⏹️ Stopping` /
+      `▶️ Started (navigation)` mới cho tới khi thật sự sang video khác.
+- [ ] App phụ huynh: video ở bước 10 chỉ có **1 dòng**, đúng tiêu đề + `@kênh`, thời lượng ≈ thời gian xem.
+- [ ] **Không** có dòng nào tên "Suggested video" / "Video đề xuất".
+- [ ] Khi tự phát tiếp sang video mới (hoặc bấm video gợi ý) → có dòng mới đúng tiêu đề video đó.
+- [ ] Nếu không đạt: gửi `adb logcat -d -s YouTubeTracker`, và chạy `uiautomator dump` lúc đang toàn màn hình.
+
 ## Ghi chép
 
 - Mã commit: `git rev-parse --short HEAD` →
