@@ -31,6 +31,8 @@ object YouTubeTracker {
         "$YOUTUBE_PACKAGE:id/video_metadata_title",
         "$YOUTUBE_PACKAGE:id/player_view_title",
         "$YOUTUBE_PACKAGE:id/title_anim_text",
+        // Fullscreen overlay title (top-left, shown with the controls). Unverified ID: harmless if absent.
+        "$YOUTUBE_PACKAGE:id/player_video_title_view",
     )
 
     private val CHANNEL_VIEW_IDS = listOf(
@@ -128,6 +130,8 @@ object YouTubeTracker {
     private val MULTI_SPACE_REGEX = Regex("[\\s\\u00A0\\u2007\\u202F]+")
     private val LETTER_OR_DIGIT_REGEX = Regex("[\\p{L}\\p{N}]")
     private const val MIN_TITLE_LENGTH = 3
+    private const val MAX_TITLE_SCAN_DEPTH = 20
+    private val CAPTION_ID_MARKERS = listOf("subtitle", "caption")
 
     /** Remove invisible characters and collapse whitespace, so titles stored on the server are clean. */
     fun cleanText(text: String): String =
@@ -145,7 +149,28 @@ object YouTubeTracker {
      */
     fun isNewVideo(current: YouTubeVideoInfo?, next: YouTubeVideoInfo): Boolean {
         if (current == null) return true
+        if (shouldAdoptTitle(current, next)) return false
         return next.title != current.title && !next.fromTreeScan
+    }
+
+    /**
+     * A session started from a tree-scan title (video opened straight in fullscreen) gets renamed
+     * — not split — once a known view shows the real title (controls tapped, fullscreen exited).
+     */
+    fun shouldAdoptTitle(current: YouTubeVideoInfo?, next: YouTubeVideoInfo): Boolean =
+        current != null && current.fromTreeScan && !next.fromTreeScan && next.title != current.title
+
+    /** Rename the tracked session to [next]'s real title, keeping its watch time. */
+    fun adoptRealTitle(next: YouTubeVideoInfo): Boolean {
+        val current = currentVideo ?: return false
+        if (!shouldAdoptTitle(current, next)) return false
+        currentVideo = current.copy(
+            title = next.title,
+            channelName = next.channelName ?: current.channelName,
+            fromTreeScan = false,
+        )
+        Log.d(TAG, "✏️ Title adopted: ${current.title} → ${next.title}")
+        return true
     }
 
     /** A cleaned title is worth logging only if it has a real letter/digit and is not a UI label. */
@@ -536,21 +561,36 @@ object YouTubeTracker {
      * Collects all candidates then picks the highest-scoring one to avoid false positives
      * from the first matching node (which could be a comment, description, etc.).
      */
-    private fun scanTreeForTitle(root: AccessibilityNodeInfo?): String? {
-        val candidates = mutableListOf<String>()
-        collectTitleCandidates(root, candidates)
-        return candidates.maxByOrNull { scoreTitleCandidate(it) }
+    private fun scanTreeForTitle(root: AccessibilityNodeInfo?): String? =
+        toTreeNode(root)?.let { pickTitleFromTree(it) }
+
+    /** Plain copy of the accessibility tree (text + view ID), so the scan is testable with fake trees. */
+    data class TreeNode(val text: String?, val viewId: String?, val children: List<TreeNode> = emptyList())
+
+    private fun toTreeNode(node: AccessibilityNodeInfo?, depth: Int = 0): TreeNode? {
+        if (node == null || depth > MAX_TITLE_SCAN_DEPTH) return null
+        val children = (0 until node.childCount).mapNotNull { i ->
+            toTreeNode(try { node.getChild(i) } catch (_: Exception) { null }, depth + 1)
+        }
+        return TreeNode(node.text?.toString(), node.viewIdResourceName, children)
     }
 
-    private fun collectTitleCandidates(node: AccessibilityNodeInfo?, candidates: MutableList<String>, depth: Int = 0) {
-        if (node == null || depth > 20) return
-        val text = node.text?.toString()?.trim()
-        if (!text.isNullOrBlank() && looksLikeTitle(text)) {
-            candidates.add(text)
+    /** Subtitle (CC) containers: their text is dialogue, never the title (report 20/11). */
+    fun isCaptionViewId(viewId: String?): Boolean {
+        val name = viewId?.substringAfter(":id/")?.lowercase() ?: return false
+        return CAPTION_ID_MARKERS.any { name.contains(it) }
+    }
+
+    fun pickTitleFromTree(root: TreeNode): String? {
+        val candidates = mutableListOf<String>()
+        fun walk(node: TreeNode) {
+            if (isCaptionViewId(node.viewId)) return
+            val text = node.text?.trim()
+            if (!text.isNullOrBlank() && looksLikeTitle(text)) candidates.add(text)
+            node.children.forEach { walk(it) }
         }
-        for (i in 0 until node.childCount) {
-            collectTitleCandidates(try { node.getChild(i) } catch (_: Exception) { null }, candidates, depth + 1)
-        }
+        walk(root)
+        return candidates.maxByOrNull { scoreTitleCandidate(it) }
     }
 
     private fun scoreTitleCandidate(text: String): Int {
