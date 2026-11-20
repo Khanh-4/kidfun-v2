@@ -95,6 +95,8 @@ trống; thêm một dòng tiêu đề "Suggested video".
 - [ ] Nếu phiên lỡ bắt đầu bằng tên tạm, khi tiêu đề thật hiện ra phải có `✏️ Title adopted: … → <tiêu đề thật>`,
       **không** có `⏹️ Stopping` + `▶️ Started` mới.
 - [ ] App phụ huynh: video đó **1 dòng**, đúng tiêu đề, không có dòng nào là câu phụ đề.
+- [ ] (bản sửa #386) Phụ huynh chặn 1 video; trên máy trẻ mở video đó khi máy **đang xoay ngang** / tự phát tiếp ở
+      toàn màn hình, chạm cho thanh điều khiển hiện → video **bị chặn** (thông báo + về màn Home).
 - [ ] Bắt buộc gửi kèm lúc đang toàn màn hình + CC + thanh điều khiển đang hiện:
       `adb shell uiautomator dump /sdcard/yt_full.xml && adb pull /sdcard/yt_full.xml`
       (để Khanh xác nhận mã giao diện của phụ đề và tiêu đề toàn màn hình).
