@@ -236,8 +236,8 @@ class AppBlockerService : AccessibilityService() {
             return
         }
 
-        // Same video — only fill in a channel that was not loaded yet
-        if (YouTubeTracker.currentVideo?.title == info.title) {
+        // Same video (or an unreliable tree-scan title) — only fill in a missing channel
+        if (!YouTubeTracker.isNewVideo(YouTubeTracker.currentVideo, info)) {
             YouTubeTracker.backfillChannel(info)
             return
         }
@@ -322,7 +322,7 @@ class AppBlockerService : AccessibilityService() {
         }
 
         // Video tracked — check if user navigated to a different video (related video tap)
-        if (info != null && info.title != YouTubeTracker.currentVideo?.title) {
+        if (info != null && YouTubeTracker.isNewVideo(YouTubeTracker.currentVideo, info)) {
             YouTubeTracker.stopCurrentVideo()
             if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
                 BlockNotificationHelper.showVideoBlocked(this, info.title)

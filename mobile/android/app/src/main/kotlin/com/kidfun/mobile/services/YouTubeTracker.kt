@@ -10,6 +10,8 @@ data class YouTubeVideoInfo(
     val videoId: String?,
     val thumbnailUrl: String?,
     val startedAt: Long,
+    // Title guessed by the tier-3 tree scan (no known view ID): may be a subtitle line
+    val fromTreeScan: Boolean = false,
 )
 
 object YouTubeTracker {
@@ -91,6 +93,8 @@ object YouTubeTracker {
         "Playables", "Trò chơi",
         // Downloads page — logged as a "video" in prod 19/11 (#165)
         "Downloads", "Nội dung tải xuống",
+        // Suggested-video card/end screen label — logged as a "video" in prod 20/11 (#180)
+        "Suggested video", "Suggested videos", "Video đề xuất", "Video được đề xuất",
     )
 
     // "<channel> is live!" badge/notification card — logged as a "video" in prod 19/11 (#166)
@@ -133,6 +137,16 @@ object YouTubeTracker {
             .trim()
 
     fun isIgnoredTitle(text: String): Boolean = IGNORED_TITLES.contains(text)
+
+    /**
+     * Whether [next] should end [current] and start a new session. A tree-scan title may only
+     * start tracking, never replace a tracked video: in fullscreen the title node is gone and
+     * the scan picks a subtitle line, which split one video into two logs (prod 20/11 #178/#179).
+     */
+    fun isNewVideo(current: YouTubeVideoInfo?, next: YouTubeVideoInfo): Boolean {
+        if (current == null) return true
+        return next.title != current.title && !next.fromTreeScan
+    }
 
     /** A cleaned title is worth logging only if it has a real letter/digit and is not a UI label. */
     fun isValidTitle(text: String): Boolean =
@@ -451,9 +465,11 @@ object YouTubeTracker {
 
         // Tier 3: tree scan — only runs when the regular player UI is visible, to avoid
         // scanning home/browse screens where recommendation titles cause false positives.
+        var fromTreeScan = false
         if (title == null && hasRegularPlayer) {
             title = scanTreeForTitle(root)
             if (title != null) {
+                fromTreeScan = true
                 Log.d(TAG, "🌲 Title from tree scan: $title")
             }
         }
@@ -474,6 +490,7 @@ object YouTubeTracker {
             videoId = null,
             thumbnailUrl = null,
             startedAt = System.currentTimeMillis(),
+            fromTreeScan = fromTreeScan,
         )
     }
 
