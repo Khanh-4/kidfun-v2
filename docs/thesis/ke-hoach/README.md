@@ -35,7 +35,7 @@ video thành 2 dòng theo câu phụ đề khi xem toàn màn hình, bỏ nhãn 
 dọn (có sao lưu ngoài repo). `thesis-nightly` chạy đều mỗi đêm với gói `xgb_rel+xgb_hit_platt@2026-11-16`, không lỗi.
 
 Việc tiếp theo (theo thứ tự, cập nhật 20/11):
-1. **Build APK trẻ** từ `develop` (≥ `74e3856`, có #383 + #385), gửi người test **flowtest 17 Bước 6 + 6b** (video dài +
+1. **Build APK trẻ** từ `develop` (sau khi merge #386; có #383 + #385 + #386), gửi người test **flowtest 17 Bước 6 + 6b** (video dài +
    phụ đề + toàn màn hình, màn gợi ý, video bắt đầu ở toàn màn hình); bắt buộc ghi mã commit và gửi `uiautomator dump`
    lúc toàn màn hình + CC (chốt view ID phụ đề / `player_video_title_view`). Flowtest 14 đang đo pin thì đo
    xong mới cài APK mới.
