@@ -238,7 +238,7 @@ class AppBlockerService : AccessibilityService() {
 
         // Same video (or an unreliable tree-scan title) — only fill in a missing channel
         if (!YouTubeTracker.isNewVideo(YouTubeTracker.currentVideo, info)) {
-            YouTubeTracker.adoptRealTitle(info)
+            if (adoptTitleOrBlock(info)) return
             YouTubeTracker.backfillChannel(info)
             return
         }
@@ -255,6 +255,19 @@ class AppBlockerService : AccessibilityService() {
         YouTubeTracker.currentVideo = info
         android.util.Log.d("YouTubeTracker", "▶️ Started: ${info.title} | ${info.channelName}")
         scheduleChannelBackfill()
+    }
+
+    /**
+     * Rename a tree-scan session to its real title; the real title may be on the blocklist, which
+     * the caption-like name could not match. Returns true if the video was blocked.
+     */
+    private fun adoptTitleOrBlock(info: YouTubeVideoInfo): Boolean {
+        if (!YouTubeTracker.adoptRealTitle(info)) return false
+        if (!YouTubeTracker.isVideoBlocked(info.title, info.channelName)) return false
+        YouTubeTracker.stopCurrentVideo()
+        BlockNotificationHelper.showVideoBlocked(this, info.title)
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        return true
     }
 
     /**
@@ -337,7 +350,7 @@ class AppBlockerService : AccessibilityService() {
         }
 
         if (info != null) {
-            YouTubeTracker.adoptRealTitle(info)
+            if (adoptTitleOrBlock(info)) return
             YouTubeTracker.backfillChannel(info)
         }
         // Title re-detection can fail (controls hidden), so also backfill straight from the tree
