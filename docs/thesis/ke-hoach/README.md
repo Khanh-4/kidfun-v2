@@ -31,12 +31,13 @@ M1 đổi nhãn "vượt giới hạn" → **"dùng hết giờ"** (ROC-AUC 0,72
 Thay đổi 17–20/11 (chỉ app trẻ, phần ghi nhật ký YouTube — nguồn dữ liệu cho M3/M4 và màn phụ huynh):
 Shorts ghi đủ tiêu đề + `@người đăng` (#379); bỏ trang Playables, ký tự vô hình (#380); `@handle` video thường bị ký
 tự bidi che (#381); backfill kênh video dài từ cây, chặn nhận nhầm Shorts, bỏ trang Downloads (#382); không tách một
-video thành 2 dòng theo câu phụ đề khi xem toàn màn hình, bỏ nhãn "Suggested video" (#383). Các dòng rác trên prod đã
+video thành 2 dòng theo câu phụ đề khi xem toàn màn hình, bỏ nhãn "Suggested video" (#383); bỏ node phụ đề khi quét tiêu đề toàn màn hình, đổi tên phiên thay vì tách (#385). Các dòng rác trên prod đã
 dọn (có sao lưu ngoài repo). `thesis-nightly` chạy đều mỗi đêm với gói `xgb_rel+xgb_hit_platt@2026-11-16`, không lỗi.
 
 Việc tiếp theo (theo thứ tự, cập nhật 20/11):
-1. **Build APK trẻ** từ `develop` (≥ `7833dbf`, có #383), gửi người test **flowtest 17 Bước 6** (video dài + phụ đề +
-   toàn màn hình, màn gợi ý); nhắc điền mục "Ghi chép" (commit, máy, bản YouTube). Flowtest 14 đang đo pin thì đo
+1. **Build APK trẻ** từ `develop` (≥ `74e3856`, có #383 + #385), gửi người test **flowtest 17 Bước 6 + 6b** (video dài +
+   phụ đề + toàn màn hình, màn gợi ý, video bắt đầu ở toàn màn hình); bắt buộc ghi mã commit và gửi `uiautomator dump`
+   lúc toàn màn hình + CC (chốt view ID phụ đề / `player_video_title_view`). Flowtest 14 đang đo pin thì đo
    xong mới cài APK mới.
 2. Gửi phiếu khảo sát T8.5 cho 5–10 phụ huynh; nhập câu trả lời rồi `python -m models.survey --score`.
 3. ~23/11 (dữ liệu thật đủ 7 ngày): **hỏi Khanh** rồi chạy `python -m models.real_eval --url … --save-pages` (T8.3).
