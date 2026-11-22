@@ -4,6 +4,7 @@ import 'package:mobile/core/permissions/child_permission.dart';
 PermissionSnapshot _snap({
   bool usageStats = true,
   bool accessibility = true,
+  bool mediaAccess = true,
   bool locationServiceOn = true,
   GrantState notification = GrantState.granted,
   GrantState location = GrantState.granted,
@@ -12,6 +13,7 @@ PermissionSnapshot _snap({
     PermissionSnapshot(
       usageStats: usageStats,
       accessibility: accessibility,
+      mediaAccess: mediaAccess,
       locationServiceOn: locationServiceOn,
       notification: notification,
       location: location,
@@ -31,6 +33,7 @@ void main() {
       final missing = computeMissing(_snap(
         usageStats: false,
         accessibility: false,
+        mediaAccess: false,
         locationServiceOn: false,
         notification: GrantState.denied,
         location: GrantState.denied,
@@ -39,6 +42,7 @@ void main() {
       expect(_kinds(missing), [
         ChildPermission.usageStats,
         ChildPermission.accessibility,
+        ChildPermission.mediaAccess,
         ChildPermission.notification,
         ChildPermission.locationService,
         ChildPermission.location,
@@ -48,6 +52,11 @@ void main() {
     test('chỉ thiếu Accessibility (kịch bản người test gặp) thì chỉ báo Accessibility', () {
       expect(_kinds(computeMissing(_snap(accessibility: false))),
           [ChildPermission.accessibility]);
+    });
+
+    test('thiếu "Truy cập thông báo" (đọc tên video YouTube) thì báo đúng quyền đó', () {
+      expect(_kinds(computeMissing(_snap(mediaAccess: false))),
+          [ChildPermission.mediaAccess]);
     });
 
     test('vị trí bị từ chối vĩnh viễn vẫn được báo, kèm cờ permanentlyDenied', () {

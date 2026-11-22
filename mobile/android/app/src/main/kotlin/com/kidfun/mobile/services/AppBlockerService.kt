@@ -74,6 +74,13 @@ class AppBlockerService : AccessibilityService() {
     private val YT_CONTENT_CHANGED_DEBOUNCE_MS = 2000L
     // Retry the channel lookup after a video starts (the @handle line loads late)
     private val YT_CHANNEL_BACKFILL_DELAYS_MS = listOf(2_500L, 6_000L, 15_000L)
+    // Let YouTube's tree settle on return to the foreground (Shorts check) before replaying MediaSession
+    private val YT_MEDIA_REFRESH_DELAY_MS = 1_000L
+
+    private val mediaListener = object : YouTubeMediaWatcher.Listener {
+        override fun onYouTubeMetadata(title: String?, artist: String?) = handleYouTubeMedia(title, artist)
+        override fun onYouTubePlaying(isPlaying: Boolean) = handleYouTubePlaying(isPlaying)
+    }
 
     /**
      * Periodic runnable: check app đang foreground mỗi 30s để bắt warning/block
@@ -109,6 +116,12 @@ class AppBlockerService : AccessibilityService() {
         }
         // Bắt đầu periodic check ngay sau khi service kết nối
         handler.postDelayed(periodicAppLimitCheck, APP_LIMIT_CHECK_INTERVAL_MS)
+        startMediaWatcher()
+    }
+
+    /** Called again by KidFunNotificationListener when notification access is granted later. */
+    fun startMediaWatcher() {
+        YouTubeMediaWatcher.start(this, mediaListener)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -133,6 +146,9 @@ class AppBlockerService : AccessibilityService() {
                 }
                 lastForegroundPackage = packageName
                 lastForegroundStartTime = System.currentTimeMillis()
+                if (packageName == YouTubeTracker.YOUTUBE_PACKAGE) {
+                    handler.postDelayed({ YouTubeMediaWatcher.refresh() }, YT_MEDIA_REFRESH_DELAY_MS)
+                }
             }
 
             if (isFullLockMode) {
@@ -275,7 +291,7 @@ class AppBlockerService : AccessibilityService() {
      * may stop firing once the video plays with controls hidden — retry on a timer too.
      */
     private fun scheduleChannelBackfill() {
-        if (YouTubeTracker.currentVideo?.channelName != null) return
+        if (!YouTubeTracker.needsHandle(YouTubeTracker.currentVideo?.channelName)) return
         for (delayMs in YT_CHANNEL_BACKFILL_DELAYS_MS) {
             handler.postDelayed({
                 if (lastForegroundPackage != YouTubeTracker.YOUTUBE_PACKAGE) return@postDelayed
@@ -364,6 +380,52 @@ class AppBlockerService : AccessibilityService() {
         } else if (!pauseState && YouTubeTracker.isPaused) {
             YouTubeTracker.resumeCurrentVideo()
         }
+    }
+
+    /**
+     * MediaSession title (report 22/11): exact even in fullscreen with hidden controls, and the
+     * only signal of autoplay/next-video switches there. Shorts stay on the accessibility path.
+     */
+    private fun handleYouTubeMedia(title: String?, artist: String?) {
+        if (lastForegroundPackage != YouTubeTracker.YOUTUBE_PACKAGE) return
+        val info = YouTubeTracker.fromMediaMetadata(title, artist, System.currentTimeMillis()) ?: return
+        val root = getYouTubeRoot()
+        if (root != null && YouTubeTracker.isOnShortsScreen(root)) return
+
+        when (YouTubeTracker.mediaAction(YouTubeTracker.currentVideo, info)) {
+            YouTubeTracker.MediaAction.ADOPT -> {
+                YouTubeTracker.adoptMediaInfo(info)
+                if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
+                    YouTubeTracker.stopCurrentVideo()
+                    blockYouTubeVideo(info.title)
+                }
+            }
+            YouTubeTracker.MediaAction.START, YouTubeTracker.MediaAction.SWITCH -> {
+                YouTubeTracker.stopCurrentVideo()
+                if (YouTubeTracker.isVideoBlocked(info.title, info.channelName)) {
+                    blockYouTubeVideo(info.title)
+                    return
+                }
+                YouTubeTracker.currentVideo = info
+                if (YouTubeMediaWatcher.isPlaying() == false) YouTubeTracker.pauseCurrentVideo()
+                android.util.Log.d("YouTubeTracker", "▶️ Started (media): ${info.title} | ${info.channelName}")
+                scheduleChannelBackfill()
+            }
+        }
+    }
+
+    /** Exact pause/resume from MediaSession; the play/pause button is unreadable with hidden controls. */
+    private fun handleYouTubePlaying(isPlaying: Boolean) {
+        if (lastForegroundPackage != YouTubeTracker.YOUTUBE_PACKAGE) return
+        val current = YouTubeTracker.currentVideo ?: return
+        // Shorts are not this session: the long-video player pauses when the Shorts feed opens.
+        if (current.isShort) return
+        if (isPlaying) YouTubeTracker.resumeCurrentVideo() else YouTubeTracker.pauseCurrentVideo()
+    }
+
+    private fun blockYouTubeVideo(title: String) {
+        BlockNotificationHelper.showVideoBlocked(this, title)
+        performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
     /**
@@ -549,6 +611,7 @@ class AppBlockerService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(periodicAppLimitCheck)
+        YouTubeMediaWatcher.stop()
         isEnabled = false
         instance = null
     }

@@ -15,6 +15,7 @@ import com.kidfun.mobile.services.KidFunService
 import com.kidfun.mobile.services.AppLimitChecker
 import com.kidfun.mobile.services.AppLimitInfo
 import com.kidfun.mobile.services.SchoolModeChecker
+import com.kidfun.mobile.services.YouTubeMediaWatcher
 import com.kidfun.mobile.services.YouTubeTracker
 import com.kidfun.mobile.receivers.KidFunDeviceAdminReceiver
 
@@ -155,6 +156,17 @@ class MainActivity : FlutterActivity() {
 
                     "requestAccessibilityPermission" -> {
                         val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
+                        result.success(null)
+                    }
+
+                    "isMediaAccessEnabled" -> {
+                        result.success(YouTubeMediaWatcher.isPermissionGranted(this))
+                    }
+
+                    "requestMediaAccessPermission" -> {
+                        val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
                         result.success(null)

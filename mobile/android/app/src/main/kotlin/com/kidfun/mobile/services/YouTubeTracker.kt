@@ -1,5 +1,6 @@
 package com.kidfun.mobile.services
 
+import android.media.session.PlaybackState
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -12,6 +13,9 @@ data class YouTubeVideoInfo(
     val startedAt: Long,
     // Title guessed by the tier-3 tree scan (no known view ID): may be a subtitle line
     val fromTreeScan: Boolean = false,
+    // Title/channel read from YouTube's MediaSession: exact even in fullscreen, channel is the display name
+    val fromMediaSession: Boolean = false,
+    val isShort: Boolean = false,
 )
 
 object YouTubeTracker {
@@ -149,6 +153,9 @@ object YouTubeTracker {
      */
     fun isNewVideo(current: YouTubeVideoInfo?, next: YouTubeVideoInfo): Boolean {
         if (current == null) return true
+        // MediaSession reports every switch of the regular player itself; only a Short (not
+        // covered by it) may replace that session from the accessibility side.
+        if (current.fromMediaSession && !next.isShort) return false
         if (shouldAdoptTitle(current, next)) return false
         return next.title != current.title && !next.fromTreeScan
     }
@@ -159,6 +166,66 @@ object YouTubeTracker {
      */
     fun shouldAdoptTitle(current: YouTubeVideoInfo?, next: YouTubeVideoInfo): Boolean =
         current != null && current.fromTreeScan && !next.fromTreeScan && next.title != current.title
+
+    enum class MediaAction { START, SWITCH, ADOPT }
+
+    /** A video from MediaSession metadata (report 22/11: fullscreen from second 0 has no title node). */
+    fun fromMediaMetadata(title: String?, artist: String?, now: Long): YouTubeVideoInfo? {
+        val cleanTitle = title?.let { cleanText(it) } ?: return null
+        if (!isValidTitle(cleanTitle)) return null
+        return YouTubeVideoInfo(
+            title = cleanTitle,
+            channelName = artist?.let { cleanText(it) }?.takeIf { it.isNotEmpty() },
+            videoId = null,
+            thumbnailUrl = null,
+            startedAt = now,
+            fromMediaSession = true,
+        )
+    }
+
+    /**
+     * What a MediaSession title means for the tracked session. Same title or a tree-scan guess
+     * (often a subtitle line) → rename in place; any other title → the player moved on (autoplay,
+     * next button), which the accessibility tree cannot see while controls are hidden.
+     */
+    fun mediaAction(current: YouTubeVideoInfo?, next: YouTubeVideoInfo): MediaAction = when {
+        current == null -> MediaAction.START
+        current.title == next.title || current.fromTreeScan -> MediaAction.ADOPT
+        else -> MediaAction.SWITCH
+    }
+
+    /** Rename the tracked session to the MediaSession title, keeping its watch time. */
+    fun adoptMediaInfo(next: YouTubeVideoInfo) {
+        val current = currentVideo ?: return
+        currentVideo = current.copy(
+            title = next.title,
+            channelName = if (shouldReplaceChannel(current.channelName, next.channelName)) next.channelName else current.channelName,
+            fromTreeScan = false,
+            fromMediaSession = true,
+        )
+        if (current.title != next.title) Log.d(TAG, "✏️ Title adopted (media): ${current.title} → ${next.title}")
+    }
+
+    fun isHandle(channel: String?): Boolean = channel?.startsWith("@") == true
+
+    /** The @handle is still wanted when only MediaSession's display name is known. */
+    fun needsHandle(channel: String?): Boolean = !isHandle(channel)
+
+    /** Fill an empty channel; upgrade a display name to an @handle; never downgrade. */
+    fun shouldReplaceChannel(current: String?, next: String?): Boolean {
+        if (next == null) return false
+        if (current == null) return true
+        return !isHandle(current) && isHandle(next)
+    }
+
+    fun isPlayingState(state: Int): Boolean = when (state) {
+        PlaybackState.STATE_PLAYING,
+        PlaybackState.STATE_BUFFERING,
+        PlaybackState.STATE_CONNECTING,
+        PlaybackState.STATE_FAST_FORWARDING,
+        PlaybackState.STATE_REWINDING -> true
+        else -> false
+    }
 
     /** Rename the tracked session to [next]'s real title, keeping its watch time. */
     fun adoptRealTitle(next: YouTubeVideoInfo): Boolean {
@@ -379,6 +446,7 @@ object YouTubeTracker {
             videoId = null,
             thumbnailUrl = null,
             startedAt = System.currentTimeMillis(),
+            isShort = true,
         )
     }
 
@@ -432,7 +500,7 @@ object YouTubeTracker {
      */
     fun backfillChannel(info: YouTubeVideoInfo) {
         val current = currentVideo ?: return
-        if (current.title != info.title || current.channelName != null || info.channelName == null) return
+        if (current.title != info.title || !shouldReplaceChannel(current.channelName, info.channelName)) return
         currentVideo = current.copy(channelName = info.channelName)
         Log.d(TAG, "🏷️ Channel backfilled: ${info.channelName} for ${current.title}")
     }
@@ -444,7 +512,7 @@ object YouTubeTracker {
      */
     fun backfillChannelFromTree(root: AccessibilityNodeInfo) {
         val current = currentVideo ?: return
-        if (current.channelName != null) return
+        if (!needsHandle(current.channelName) || current.isShort) return
         val texts = collectNodeTexts(root)
         val handle = pickHandleBelowTitle(texts, current.title) ?: run {
             logMissingHandle(texts, current.title)
@@ -460,6 +528,13 @@ object YouTubeTracker {
     val pendingLogs: MutableList<Map<String, Any?>> = mutableListOf()
     var blockedVideos: List<Map<String, String?>> = emptyList()
 
+    private fun hasRegularPlayer(root: AccessibilityNodeInfo): Boolean = PLAY_PAUSE_IDS.any { id ->
+        try { root.findAccessibilityNodeInfosByViewId(id).isNotEmpty() } catch (_: Exception) { false }
+    }
+
+    /** Shorts are tracked from the overlay only; MediaSession updates are ignored there. */
+    fun isOnShortsScreen(root: AccessibilityNodeInfo): Boolean = !hasRegularPlayer(root) && isShortsPlayer(root)
+
     /**
      * Extract video info using 3-tier strategy:
      * 1. Known view IDs (fastest, version-dependent)
@@ -470,9 +545,7 @@ object YouTubeTracker {
         // Shorts: different layout (handle + caption overlay), handled separately so the
         // generic tiers below cannot pick a random label. A regular player wins if both exist.
         // Existence (not visibility): the button stays in the tree while controls are hidden.
-        val hasRegularPlayer = PLAY_PAUSE_IDS.any { id ->
-            try { root.findAccessibilityNodeInfosByViewId(id).isNotEmpty() } catch (_: Exception) { false }
-        }
+        val hasRegularPlayer = hasRegularPlayer(root)
         if (!hasRegularPlayer && isShortsPlayer(root)) return extractShortsInfo(root)
 
         // Tier 1: known view IDs

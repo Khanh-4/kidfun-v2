@@ -25,11 +25,13 @@ class SystemChildPermissionGateway implements ChildPermissionGateway {
       Geolocator.isLocationServiceEnabled(),
       Permission.notification.status,
       Geolocator.checkPermission(),
+      NativeService.isMediaAccessEnabled(),
     ]);
     final location = results[4] as LocationPermission;
     return PermissionSnapshot(
       usageStats: results[0] as bool,
       accessibility: results[1] as bool,
+      mediaAccess: results[5] as bool,
       locationServiceOn: results[2] as bool,
       notification: _fromStatus(results[3] as PermissionStatus),
       location: _fromLocation(location),
@@ -47,6 +49,9 @@ class SystemChildPermissionGateway implements ChildPermissionGateway {
         return true;
       case ChildPermission.accessibility:
         await NativeService.requestAccessibilityPermission();
+        return true;
+      case ChildPermission.mediaAccess:
+        await NativeService.requestMediaAccessPermission();
         return true;
       case ChildPermission.locationService:
         await Geolocator.openLocationSettings();

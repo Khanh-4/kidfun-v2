@@ -101,6 +101,35 @@ trống; thêm một dòng tiêu đề "Suggested video".
       `adb shell uiautomator dump /sdcard/yt_full.xml && adb pull /sdcard/yt_full.xml`
       (để Khanh xác nhận mã giao diện của phụ đề và tiêu đề toàn màn hình).
 
+## Bước 7 — Toàn màn hình từ giây 0, tự phát bài kế (bản sửa 22/11, MediaSession)
+
+Báo cáo 22/11: mở thẳng / tự phát tiếp ở toàn màn hình **không chạm** → không ghi tên video và @người đăng
+(thanh điều khiển ẩn nên cây giao diện không có tiêu đề). Bản sửa đọc tên video từ **MediaSession** của YouTube
+(cái hiện ở trình phát nhạc trên thanh thông báo), không phụ thuộc giao diện. Cần quyền mới **Truy cập thông báo**.
+
+13. Cài APK mới. Mở app trẻ → pop-up "còn thiếu quyền" có dòng **Truy cập thông báo** → **Mở Cài đặt** → bật KidFun
+    → quay lại app.
+    - [ ] Pop-up không còn dòng này. Logcat có `🎵 MediaSession watcher started`.
+14. Mở 1 video thường, xoay ngang / bấm toàn màn hình **ngay**, rồi **không chạm** màn hình. Để video chạy hết và
+    tự phát sang **ít nhất 2 bài kế** (chọn video ngắn 2–4 phút cho đỡ chờ). Sau đó thoát toàn màn hình, về Home.
+    - [ ] Logcat: mỗi bài có `🎵 Media metadata: <tiêu đề> | <tên kênh> | <giây>s` và `▶️ Started (media): …`;
+          khi sang bài mới có `⏹️ Stopping: <bài trước>` (không có `Started` nào mang câu phụ đề).
+    - [ ] App phụ huynh: **mỗi bài 1 dòng**, đúng tiêu đề, thời lượng gần đúng thời gian xem từng bài
+          (không dồn hết vào bài đầu).
+    - [ ] Kênh: bài nào đã thoát về màn dọc thì là `@tên`; bài chỉ xem ở toàn màn hình có thể là **tên hiển thị**
+          của kênh (vd. `KÊNH MẪU`, không có @) — đây là đúng thiết kế.
+15. Khi đang toàn màn hình, bấm tạm dừng 1 phút rồi phát tiếp.
+    - [ ] Logcat có `⏸️ Paused` / `▶️ Resumed`; thời lượng bài đó **không** tính 1 phút tạm dừng.
+16. Có quảng cáo chen giữa (nếu gặp): ghi lại dòng `🎵 Media metadata` lúc quảng cáo chạy.
+    - [ ] Gửi kèm dòng đó (Khanh cần biết YouTube công bố gì khi chạy quảng cáo; chưa lọc).
+17. Hồi quy Shorts: lướt 3 Shorts như Bước 1–3.
+    - [ ] Vẫn đủ @handle + tiêu đề, mỗi Short 1 dòng (MediaSession không được chen vào Shorts).
+18. Tắt "Truy cập thông báo" của KidFun, lặp lại bước 14 với 1 video.
+    - [ ] App không lỗi; quay về cách cũ (chỉ ghi được khi chạm màn hình hoặc thoát toàn màn hình).
+
+Gửi kèm: `adb logcat -d -s YouTubeTracker > yt_media_log.txt` và `adb shell dumpsys media_session` chạy lúc đang
+phát toàn màn hình.
+
 ## Ghi chép
 
 - Mã commit (**bắt buộc**): `git rev-parse --short HEAD` →
