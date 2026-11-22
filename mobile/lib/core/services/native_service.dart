@@ -88,6 +88,16 @@ class NativeService {
     await _channel.invokeMethod('requestAccessibilityPermission');
   }
 
+  /// "Truy cập thông báo" đã bật chưa — cần để đọc MediaSession của YouTube
+  static Future<bool> isMediaAccessEnabled() async {
+    return await _channel.invokeMethod('isMediaAccessEnabled') as bool;
+  }
+
+  /// Mở Settings › Truy cập thông báo
+  static Future<void> requestMediaAccessPermission() async {
+    await _channel.invokeMethod('requestMediaAccessPermission');
+  }
+
   /// Bật chế độ khoá liên tục: sau khi hết giờ, thiết bị sẽ tự khoá lại
   /// mỗi khi trẻ mở khoá, cho đến khi phụ huynh cấp thêm thời gian
   static Future<void> enterLockedState() async {

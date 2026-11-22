@@ -129,6 +129,7 @@ class _MissingTile extends StatelessWidget {
       missing.permanentlyDenied ||
       missing.permission == ChildPermission.usageStats ||
       missing.permission == ChildPermission.accessibility ||
+      missing.permission == ChildPermission.mediaAccess ||
       missing.permission == ChildPermission.locationService;
 
   @override

@@ -36,6 +36,7 @@ PermissionSnapshot _grant(PermissionSnapshot s, ChildPermission p) =>
     PermissionSnapshot(
       usageStats: p == ChildPermission.usageStats ? true : s.usageStats,
       accessibility: p == ChildPermission.accessibility ? true : s.accessibility,
+      mediaAccess: p == ChildPermission.mediaAccess ? true : s.mediaAccess,
       locationServiceOn:
           p == ChildPermission.locationService ? true : s.locationServiceOn,
       notification:
@@ -49,6 +50,7 @@ PermissionSnapshot _grant(PermissionSnapshot s, ChildPermission p) =>
 const _allGranted = PermissionSnapshot(
   usageStats: true,
   accessibility: true,
+  mediaAccess: true,
   locationServiceOn: true,
   notification: GrantState.granted,
   location: GrantState.granted,
@@ -63,6 +65,7 @@ PermissionSnapshot _with({
     PermissionSnapshot(
       usageStats: true,
       accessibility: accessibility,
+      mediaAccess: true,
       locationServiceOn: true,
       notification: notification,
       location: location,

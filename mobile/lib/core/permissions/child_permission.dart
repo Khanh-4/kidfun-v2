@@ -13,6 +13,12 @@ enum ChildPermission {
     reason: 'Để chặn các ứng dụng khi phụ huynh yêu cầu.',
     icon: Icons.accessibility,
   ),
+  mediaAccess(
+    title: 'Truy cập thông báo',
+    reason: 'Để ghi đúng tên video YouTube con xem, kể cả khi xem toàn màn hình. '
+        'KidFun không đọc nội dung thông báo.',
+    icon: Icons.ondemand_video,
+  ),
   notification(
     title: 'Thông báo',
     reason: 'Để nhận cảnh báo hết giờ và chặn app.',
@@ -56,6 +62,7 @@ class PermissionSnapshot {
   const PermissionSnapshot({
     required this.usageStats,
     required this.accessibility,
+    required this.mediaAccess,
     required this.locationServiceOn,
     required this.notification,
     required this.location,
@@ -64,6 +71,7 @@ class PermissionSnapshot {
 
   final bool usageStats;
   final bool accessibility;
+  final bool mediaAccess;
   final bool locationServiceOn;
   final GrantState notification;
   final GrantState location;
@@ -84,6 +92,7 @@ List<MissingPermission> computeMissing(PermissionSnapshot s) {
   return [
     if (!s.usageStats) const MissingPermission(ChildPermission.usageStats),
     if (!s.accessibility) const MissingPermission(ChildPermission.accessibility),
+    if (!s.mediaAccess) const MissingPermission(ChildPermission.mediaAccess),
     if (s.notification != GrantState.granted)
       MissingPermission(
         ChildPermission.notification,
