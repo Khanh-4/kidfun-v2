@@ -116,6 +116,32 @@ WEEKS = {
             "flowtest 14 (từ 16/11); đánh giá trên dữ liệu thật khi đủ ≥ 2 tuần.",
         ],
     ),
+    6: (
+        "16/11/2026\n–\n22/11/2026",
+        [
+            "Cải tiến M1: đổi nhãn cảnh báo từ \"vượt giới hạn\" sang \"dùng hết giờ\" (ROC-AUC "
+            "0,726 → 0,854), hiệu chỉnh xác suất Platt + kẹp, bỏ đặc trưng số ngày lịch sử; xử lý "
+            "đúng ngày dùng 0 phút.",
+            "Thêm bộ dữ liệu công khai LiveLab vào đánh giá; mô phỏng sinh sự kiện vùng an toàn "
+            "(nhóm đặc trưng vị trí không cải thiện M1); làm sạch nhãn ngày dùng quá mức cho M2 "
+            "(recall DBSCAN 0,27 → 0,49).",
+            "Chuẩn bị đánh giá cuối: công cụ đánh giá M1/M2 trên dữ liệu thật (chỉ đọc); phiếu "
+            "khảo sát phụ huynh về câu giải thích cảnh báo và công cụ chấm điểm; tài khoản demo "
+            "cho buổi bảo vệ.",
+            "Nhật ký YouTube trên máy trẻ (nguồn dữ liệu cho M3/M4 và màn phụ huynh): ghi tiêu đề "
+            "+ kênh của Shorts, bỏ các trang không phải video và ký tự vô hình, bắt tên kênh bị "
+            "ký tự định hướng che, không tách một video thành nhiều dòng theo phụ đề khi xem toàn "
+            "màn hình, kiểm tra danh sách chặn khi cập nhật tiêu đề; dọn dữ liệu rác trên "
+            "production (có sao lưu).",
+            "Gỡ Socket.IO khỏi app mobile (đã chuyển sang REST + Supabase Realtime); sửa các test "
+            "phụ thuộc giờ chạy.",
+            "Người test chạy flowtest 15, 16 và flowtest 17 bước 1–5 đạt; tác vụ ban đêm chạy đều "
+            "mỗi đêm với mô hình M1 mới, không lỗi.",
+            "Tồn đọng: build APK trẻ mới, test flowtest 17 bước 6/6b; đo độ trễ và pin theo "
+            "flowtest 14 đang chạy, chưa có số liệu; gửi phiếu khảo sát phụ huynh; đánh giá trên "
+            "dữ liệu thật từ 23/11.",
+        ],
+    ),
 }
 
 CONTENT_PT = 11
