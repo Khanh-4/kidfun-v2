@@ -46,6 +46,10 @@ Nhánh: `fix/child-permission-audit` — thời gian ~30 phút. Máy ảo dùng 
    - [ ] Pop-up có dòng "Bật định vị (GPS)", nút mở màn cài đặt Vị trí.
 7. (Android 13+) Tắt quyền Thông báo của KidFun trong Cài đặt.
    - [ ] Pop-up có dòng "Thông báo".
+8. (bản 22/11) Cài đặt → Thông báo → **Truy cập thông báo** (tên có thể khác theo máy: "Quyền truy cập thông
+   báo", "Notification access") → **tắt** KidFun, quay lại app.
+   - [ ] Pop-up có dòng "Truy cập thông báo", nút **Mở Cài đặt** mở đúng danh sách Truy cập thông báo.
+   - [ ] Bật lại → quay lại app → dòng đó biến mất.
 
 ## Ghi chép
 
