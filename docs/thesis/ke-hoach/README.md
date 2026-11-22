@@ -17,7 +17,7 @@ Kết quả thực nghiệm chi tiết **không chép lại ở đây**: chúng 
 
 | Task | Nội dung | Trạng thái |
 |---|---|---|
-| [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần (tuần 5 xong, #364; tuần 6 chưa) |
+| [T0](tasks/T0-quan-ly.md) | Quản lý: phiếu theo dõi tuần, họp GVHD | Đang chạy hằng tuần (tuần 6 xong, PR `docs/phieu-theo-doi-tuan6`) |
 | [T1–T6](tasks/T1-T6-da-xong.md) | Thu thập theo giờ, EDA, đặc trưng, mô phỏng, M1, M2 hai tầng, phản hồi, M3/M4 | Code xong; flowtest 10, 11, 13, 15, 16 PASS trên máy thật; flowtest 17 B1–B5 PASS (20/11) |
 | [T7](tasks/T7-tich-hop.md) | Tích hợp đầu cuối | **Xong**. Bàn giao: [10-tich-hop.md](../10-tich-hop.md) |
 | [T8](tasks/T8-kiem-thu-danh-gia.md) | Kiểm thử máy thật, đo pin, đánh giá cuối | T8.4 xong (kèm LiveLab, kết luận ghi chiều); **công cụ T8.3 sẵn** (`models.real_eval`); **phiếu T8.5.1 sẵn** (`ml/reports/t85_survey.md`); T8.1–T8.2 chờ flowtest 14 |
@@ -43,7 +43,7 @@ Việc tiếp theo (theo thứ tự, cập nhật 20/11):
 3. ~23/11 (dữ liệu thật đủ 7 ngày): **hỏi Khanh** rồi chạy `python -m models.real_eval --url … --save-pages` (T8.3).
 4. Khi flowtest 14 có file đầu tiên: viết script phân tích độ trễ / pin (T8.1.3–T8.1.4, T8.2.2).
 5. Sau khi flowtest 14 đo xong: refactor `childController.js` → `sessionService` (roadmap V2 giai đoạn B).
-6. Cuối tuần 6 (22/11): phiếu theo dõi tuần 6 (T0).
+6. ~~Cuối tuần 6 (22/11): phiếu theo dõi tuần 6 (T0).~~ Xong 22/11.
 7. Tuần 8–9: **T9.1** viết báo cáo; T9.3.3–T9.3.4 quay video dự phòng, chạy thử demo.
 
 Flowtest 16 mục 1.3 và 1.7 (ghép lại / xoá thiết bị) cố ý chưa test để không cắt chuỗi dữ liệu liên tục của máy trẻ;
