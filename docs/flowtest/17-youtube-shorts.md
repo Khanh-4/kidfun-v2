@@ -110,6 +110,10 @@ Báo cáo 22/11: mở thẳng / tự phát tiếp ở toàn màn hình **không 
 13. Cài APK mới. Mở app trẻ → pop-up "còn thiếu quyền" có dòng **Truy cập thông báo** → **Mở Cài đặt** → bật KidFun
     → quay lại app.
     - [ ] Pop-up không còn dòng này. Logcat có `🎵 MediaSession watcher started`.
+    - [ ] (bản sửa 26/11) Mỗi lần mở YouTube, logcat có 1 dòng `🎵 Watcher: <trước> → <sau> (action=…)`.
+          Mong đợi `→ ATTACHED` khi đang phát video. Nếu thấy `NO_SESSION` kèm
+          `🎵 MediaSession: no YouTube session among [...]`, `NO_PERMISSION` hoặc `rescan not allowed`
+          → chép nguyên dòng đó gửi Khanh.
 14. Mở 1 video thường, xoay ngang / bấm toàn màn hình **ngay**, rồi **không chạm** màn hình. Để video chạy hết và
     tự phát sang **ít nhất 2 bài kế** (chọn video ngắn 2–4 phút cho đỡ chờ). Sau đó thoát toàn màn hình, về Home.
     - [ ] Logcat: mỗi bài có `🎵 Media metadata: <tiêu đề> | <tên kênh> | <giây>s` và `▶️ Started (media): …`;
@@ -128,7 +132,8 @@ Báo cáo 22/11: mở thẳng / tự phát tiếp ở toàn màn hình **không 
     - [ ] App không lỗi; quay về cách cũ (chỉ ghi được khi chạm màn hình hoặc thoát toàn màn hình).
 
 Gửi kèm: `adb logcat -d -s YouTubeTracker > yt_media_log.txt` và `adb shell dumpsys media_session` chạy lúc đang
-phát toàn màn hình.
+phát toàn màn hình. Chạy `adb logcat -c` **trước khi** bắt đầu Bước 7 để log không bị trôi (báo cáo 26/11 chỉ còn
+log từ giữa buổi), và ghi rõ đạt/không đạt **từng mục 13–18**.
 
 ## Ghi chép
 

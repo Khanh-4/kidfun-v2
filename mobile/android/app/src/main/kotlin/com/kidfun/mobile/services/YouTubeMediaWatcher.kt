@@ -25,17 +25,77 @@ object YouTubeMediaWatcher {
         fun onYouTubePlaying(isPlaying: Boolean)
     }
 
-    private val handler = Handler(Looper.getMainLooper())
+    enum class Health { NO_PERMISSION, NOT_STARTED, NO_SESSION, ATTACHED }
+    enum class Recovery { NONE, START, RESCAN, STOP }
+
+    // Lazy: JVM unit tests touch the pure helpers below without an Android main looper.
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
     private var manager: MediaSessionManager? = null
     private var controller: MediaController? = null
     private var listener: Listener? = null
 
     private val sessionsListener = MediaSessionManager.OnActiveSessionsChangedListener { attach(it) }
 
-    private val callback = object : MediaController.Callback() {
-        override fun onMetadataChanged(metadata: MediaMetadata?) = dispatchMetadata(metadata)
-        override fun onPlaybackStateChanged(state: PlaybackState?) = dispatchState(state)
-        override fun onSessionDestroyed() = attach(null)
+    private val callback by lazy {
+        object : MediaController.Callback() {
+            override fun onMetadataChanged(metadata: MediaMetadata?) = dispatchMetadata(metadata)
+            override fun onPlaybackStateChanged(state: PlaybackState?) = dispatchState(state)
+            override fun onSessionDestroyed() = attach(null)
+        }
+    }
+    private var lastLoggedHealth: Health? = null
+
+    fun health(permission: Boolean, started: Boolean, attached: Boolean): Health = when {
+        !permission -> Health.NO_PERMISSION
+        !started -> Health.NOT_STARTED
+        !attached -> Health.NO_SESSION
+        else -> Health.ATTACHED
+    }
+
+    /** Report 26/11: permission on, YouTube session PLAYING, yet never attached — so self-heal. */
+    fun recovery(health: Health, started: Boolean): Recovery = when (health) {
+        Health.NO_PERMISSION -> if (started) Recovery.STOP else Recovery.NONE
+        Health.NOT_STARTED -> Recovery.START
+        Health.NO_SESSION -> Recovery.RESCAN
+        Health.ATTACHED -> Recovery.NONE
+    }
+
+    /**
+     * Called when YouTube comes to the foreground and periodically while it stays there. Restarts a
+     * dead watcher, re-reads active sessions when no YouTube controller is attached, then replays
+     * the current state. Logs the state when it changes or [logAlways] (one line per YouTube visit).
+     */
+    fun ensureRunning(context: Context, listener: Listener, logAlways: Boolean = false) {
+        val permission = isPermissionGranted(context)
+        val before = health(permission, manager != null, controller != null)
+        val action = recovery(before, manager != null)
+        when (action) {
+            Recovery.START -> start(context, listener)
+            Recovery.RESCAN -> { this.listener = listener; rescan(context) }
+            Recovery.STOP -> stop()
+            Recovery.NONE -> if (permission) this.listener = listener
+        }
+        val after = health(permission, manager != null, controller != null)
+        if (logAlways || action != Recovery.NONE || after != lastLoggedHealth) {
+            Log.d(TAG, "🎵 Watcher: $before → $after (action=$action)")
+            lastLoggedHealth = after
+        }
+        // Replay on a visit or after recovery; the periodic no-op check must not re-send every 30s.
+        if (logAlways || action != Recovery.NONE) refresh()
+    }
+
+    private fun rescan(context: Context) {
+        val mgr = manager ?: return
+        try {
+            val sessions = mgr.getActiveSessions(listenerComponent(context))
+            attach(sessions)
+            if (controller == null) {
+                Log.d(TAG, "🎵 MediaSession: no YouTube session among ${sessions.map { it.packageName }}")
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "🎵 MediaSession: rescan not allowed (${e.message})")
+            stop()
+        }
     }
 
     fun isPermissionGranted(context: Context): Boolean {
