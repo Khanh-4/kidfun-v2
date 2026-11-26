@@ -96,6 +96,10 @@ class AppBlockerService : AccessibilityService() {
                 android.util.Log.d("YouTubeTracker", "⚠️ periodicCheck: YouTube not foreground but video still tracked — stopping")
                 YouTubeTracker.stopCurrentVideo()
             }
+            // Self-heal the MediaSession watcher while YouTube stays open (logs only on change)
+            if (lastForegroundPackage == YouTubeTracker.YOUTUBE_PACKAGE) {
+                YouTubeMediaWatcher.ensureRunning(this@AppBlockerService, mediaListener)
+            }
             handler.postDelayed(this, APP_LIMIT_CHECK_INTERVAL_MS)
         }
     }
@@ -147,7 +151,9 @@ class AppBlockerService : AccessibilityService() {
                 lastForegroundPackage = packageName
                 lastForegroundStartTime = System.currentTimeMillis()
                 if (packageName == YouTubeTracker.YOUTUBE_PACKAGE) {
-                    handler.postDelayed({ YouTubeMediaWatcher.refresh() }, YT_MEDIA_REFRESH_DELAY_MS)
+                    handler.postDelayed({
+                        YouTubeMediaWatcher.ensureRunning(this, mediaListener, logAlways = true)
+                    }, YT_MEDIA_REFRESH_DELAY_MS)
                 }
             }
 
