@@ -16,6 +16,9 @@ data class YouTubeVideoInfo(
     // Title/channel read from YouTube's MediaSession: exact even in fullscreen, channel is the display name
     val fromMediaSession: Boolean = false,
     val isShort: Boolean = false,
+    // Lúc bắt đầu xem (watchedAt gửi lên server). startedAt là mốc của ĐOẠN đang phát,
+    // bị đặt lại mỗi lần resume — prod 28/11: watchedAt lệch đúng bằng thời lượng video.
+    val firstStartedAt: Long = startedAt,
 )
 
 object YouTubeTracker {
@@ -729,7 +732,7 @@ object YouTubeTracker {
                 "channelName" to current.channelName,
                 "videoId" to current.videoId,
                 "thumbnailUrl" to current.thumbnailUrl,
-                "watchedAt" to current.startedAt,
+                "watchedAt" to current.firstStartedAt,
                 "durationSeconds" to totalDuration,
             )
         )
