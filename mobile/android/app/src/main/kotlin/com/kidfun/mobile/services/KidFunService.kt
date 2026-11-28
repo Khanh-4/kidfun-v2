@@ -115,6 +115,11 @@ class KidFunService : Service() {
             }
             ACTION_EXIT_LOCKED_STATE -> {
                 isInLockedState = false
+                // Lịch khoá cũ (đã quá hạn) mà còn lưu thì lần service khởi động
+                // lại kế tiếp restoreState() sẽ khoá máy lần nữa — xoá luôn.
+                // Flutter hẹn lại theo mốc mới nếu app đang chạy nền.
+                lockAtMillis = 0
+                handler.removeCallbacks(checkLockRunnable)
                 persistState()
                 disableFullLockMode()
                 handler.removeCallbacks(reLockRunnable)

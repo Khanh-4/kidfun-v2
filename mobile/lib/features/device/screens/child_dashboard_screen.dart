@@ -20,6 +20,7 @@ import '../../../core/services/location_service.dart';
 import '../../../core/services/youtube_service.dart';
 import '../../location/data/location_repository.dart';
 import '../data/child_repository.dart';
+import '../data/native_lock_policy.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/permissions/child_permission_guard.dart';
 import 'package:record/record.dart';
@@ -118,11 +119,7 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
       print('📦 App paused/inactive: cancelling timer to prevent catch-up glitch');
       _countdownTimer?.cancel();
       // Sprint 5 fix: khi chạy ngầm, native service chịu trách nhiệm khoá màn hình
-      if (_isLimitEnabled && _endTime != null && _endTime!.isAfter(DateTime.now())) {
-        NativeService.scheduleLockAt(_endTime!).catchError(
-          (e) => print('❌ [LOCK] scheduleLockAt error: $e'),
-        );
-      }
+      _scheduleNativeLockIfBackground();
     } else if (state == AppLifecycleState.resumed) {
       print('📦 App resumed: recalculating drift natively');
       // Bắt trường hợp phụ huynh xoá thiết bị lúc app trẻ đang chạy nền (không
@@ -155,11 +152,52 @@ class _ChildDashboardScreenState extends ConsumerState<ChildDashboardScreen>
         });
         if (_remainingSeconds > 0) {
           _startCountdown();
+          _releaseStaleNativeLock();
         } else if (!_isTimeUpDialogShowing) {
           _onTimeUp();
         }
       }
     }
+  }
+
+  /// Native có thể đã tự khoá mà Flutter không biết (hẹn khoá lúc xuống nền
+  /// chạy tới hạn, hoặc cờ còn lại sau khi máy tắt). Mỗi khi server xác nhận
+  /// còn giờ thì gỡ cờ native — xem native_lock_policy.dart (sự cố 28/11).
+  Future<void> _releaseStaleNativeLock() async {
+    try {
+      final nativeLocked = await NativeService.isInLockedState();
+      if (!mounted) return;
+      final release = shouldReleaseNativeLock(
+        nativeLocked: nativeLocked,
+        timeUpShowing: _isTimeUpDialogShowing,
+        limitEnabled: _isLimitEnabled,
+        remainingSeconds: _remainingSeconds,
+      );
+      if (!release) return;
+      print('🔓 [LOCK] Native đang khoá ngầm nhưng server còn ${_remainingSeconds}s — gỡ khoá');
+      await NativeService.exitLockedState();
+      // EXIT xoá luôn lịch khoá native → app đang chạy nền thì hẹn lại theo mốc mới.
+      _scheduleNativeLockIfBackground();
+    } catch (e) {
+      print('❌ [LOCK] Gỡ cờ khoá native thất bại: $e');
+    }
+  }
+
+  /// Hẹn native khoá đúng lúc hết giờ khi app không ở foreground. Màn hình tắt
+  /// thì không hẹn: server đã tạm dừng đếm, hẹn theo đồng hồ sẽ khoá oan.
+  void _scheduleNativeLockIfBackground() {
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) return;
+    final endTime = _endTime;
+    final schedule = shouldScheduleNativeLock(
+      limitEnabled: _isLimitEnabled,
+      screenOff: _isScreenPaused,
+      endTime: endTime,
+      now: DateTime.now(),
+    );
+    if (!schedule || endTime == null) return;
+    NativeService.scheduleLockAt(endTime).catchError(
+      (e) => print('❌ [LOCK] scheduleLockAt error: $e'),
+    );
   }
 
   Future<void> _initializeDashboard() async {
@@ -514,6 +552,11 @@ _startHeartbeat();
     _isScreenPaused = true;
     _countdownTimer?.cancel();
     _heartbeatTimer?.cancel();
+    // Lúc app xuống nền (vài giây trước khi poll phát hiện tắt màn hình) đã hẹn
+    // khoá theo mốc cũ. Màn hình tắt thì giờ không trôi → huỷ, bật lại sẽ hẹn mới.
+    NativeService.cancelScheduledLock().catchError(
+      (e) => print('❌ [LOCK] cancelScheduledLock error: $e'),
+    );
 
     // Notify backend to close open usage logs (stops counting)
     if (_deviceCode != null) {
@@ -558,7 +601,10 @@ _startHeartbeat();
         if (_remainingSeconds > 0) {
           _startCountdown();
           // Restart heartbeat
-_startHeartbeat();
+          _startHeartbeat();
+          // Bật màn hình sáng hôm sau: native có thể đã khoá từ nửa đêm.
+          _releaseStaleNativeLock();
+          _scheduleNativeLockIfBackground();
         } else if (!_isTimeUpDialogShowing) {
           _onTimeUp();
         }
@@ -963,6 +1009,9 @@ _startHeartbeat();
         // If server says blocked, trigger time up
         if (result.isBlocked && !_isTimeUpDialogShowing) {
           _onTimeUp();
+        } else if (!result.isBlocked) {
+          // Lưới an toàn mỗi 60s: native khoá ngầm mà server còn giờ → gỡ.
+          _releaseStaleNativeLock();
         }
       } catch (e) {
         print('❌ Heartbeat error: $e');
