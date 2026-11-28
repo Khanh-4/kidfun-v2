@@ -61,3 +61,22 @@ chỉ ở server). Logcat lọc `📊|💓|HEARTBEAT|Drift`.
 Ghi lại giờ làm 5.3 để Khánh kéo log Vercel (`getTodayLimit` phải khớp heartbeat). Trường hợp "giảm dần" cũng
 được sửa cùng PR nhưng app mobile chưa có nút bật giảm dần → chỉ kiểm bằng unit test `backend/tests/unit/dailyLimit.test.js`.
 
+
+## Bước 6 — Tắt màn hình lúc app chạy nền không được khoá oan (sự cố 28/11)
+
+Lỗi cũ: app trẻ xuống nền thì hẹn native khoá theo **đồng hồ thật**, dù tắt màn hình thì server đã ngừng đếm giờ.
+Tắt màn hình qua đêm → native tự khoá lúc nửa đêm; sáng mở máy chỉ thấy đồng hồ đếm ngược mới nhưng máy bị khoá mãi,
+phải cài lại app. Cần APK máy trẻ build từ nhánh `fix/child-native-lock-day-rollover` (hoặc `develop` sau khi merge).
+Logcat: `adb logcat -s flutter`.
+
+| # | Thao tác | Mong đợi |
+|---|----------|----------|
+| 6.1 | Phụ huynh chỉnh hạn mức hôm nay để trẻ còn **~5 phút** | Đồng hồ máy trẻ hiện ~5 phút |
+| 6.2 | Ở app trẻ bấm **Home** (KidFun chạy nền), rồi **tắt màn hình ngay** | Logcat có `📱 [SCREEN OFF]` |
+| 6.3 | Chờ **8 phút** (quá mốc hết giờ cũ) rồi bật màn hình, mở khoá | **Không** bị khoá, mở được app khác; logcat có `📱 [SCREEN ON]` |
+| 6.4 | Mở lại app trẻ | Còn lại ≈ số ở 6.1 (thời gian tắt màn hình không bị trừ) |
+| 6.5 | Dùng tiếp cho tới hết giờ thật | Máy khoá bình thường, hiện màn hình hết giờ (khoá thật vẫn chạy) |
+| 6.6 | (Tuỳ chọn, qua đêm) tối tắt màn hình lúc còn giờ, sáng hôm sau **sau 06:00** mở máy | Không bị khoá; đồng hồ hiện đủ hạn mức ngày mới |
+
+Nếu máy đang bị kẹt khoá từ bản cũ: cài APK mới đè lên (KHÔNG gỡ), mở app trẻ → trong ≤ 60s logcat có
+`🔓 [LOCK] Native đang khoá ngầm nhưng server còn …s — gỡ khoá` và máy hết bị khoá.
