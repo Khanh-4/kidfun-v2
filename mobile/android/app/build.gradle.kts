@@ -30,6 +30,12 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    // android.util.Log trả giá trị mặc định trong unit test JVM thay vì ném lỗi,
+    // để test được logic của YouTubeTracker có ghi log.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.kidfun.mobile"

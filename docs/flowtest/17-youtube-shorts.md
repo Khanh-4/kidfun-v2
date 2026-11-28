@@ -135,6 +135,17 @@ Gửi kèm: `adb logcat -d -s YouTubeTracker > yt_media_log.txt` và `adb shell 
 phát toàn màn hình. Chạy `adb logcat -c` **trước khi** bắt đầu Bước 7 để log không bị trôi (báo cáo 26/11 chỉ còn
 log từ giữa buổi), và ghi rõ đạt/không đạt **từng mục 13–18**.
 
+## Bước 8 — Giờ bắt đầu xem đúng khi tự phát bài kế (bản sửa 28/11)
+
+Lỗi cũ (prod 28/11): mỗi lần YouTube tự phát bài kế, giờ xem lưu lên là lúc **kết thúc** bài trước chứ không phải
+lúc bắt đầu → 2 bài liên tiếp mang cùng một giờ. Cần APK máy trẻ build từ `fix/youtube-watchedat-resume`
+(hoặc `develop` sau khi merge).
+
+| # | Thao tác | Mong đợi |
+|---|----------|----------|
+| 8.1 | `adb logcat -c`, mở 1 video dài, ghi giờ bắt đầu, xem ~3 phút rồi để YouTube **tự phát bài kế** ~2 phút, thoát | Logcat có 2 dòng `▶️ Started` |
+| 8.2 | Phụ huynh mở Lịch sử YouTube của bé | Giờ của video 1 ≈ giờ bắt đầu ở 8.1; giờ video 2 ≈ giờ video 1 + 3 phút (không trùng nhau) |
+
 ## Ghi chép
 
 - Mã commit (**bắt buộc**): `git rev-parse --short HEAD` →
